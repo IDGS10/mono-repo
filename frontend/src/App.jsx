@@ -1,12 +1,15 @@
-// App.jsx
+// App.jsx - Con ThemeProvider
 import { AppRouter } from './router/AppRouter';
+import { ThemeProvider } from './shared/context/ThemeContext';
 import './App.css';
 
 function App() {
   return (
-    <div className="App">
-      <AppRouter />
-    </div>
+    <ThemeProvider>
+      <div className="App">
+        <AppRouter />
+      </div>
+    </ThemeProvider>
   );
 }
 
