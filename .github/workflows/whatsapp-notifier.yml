@@ -1,11 +1,10 @@
-name: WhatsApp Group Notifier (All Branches)
+name: WhatsApp Notifier (All Branches) - Trial Friendly
 on:
   push:
   pull_request:
     types: [opened, closed, reopened]
   issues:
     types: [opened, closed]
-  
 
 jobs:
   notify-group:
@@ -18,32 +17,31 @@ jobs:
           GROUP_ID: ${{ secrets.MY_PHONE }}  # Formato: whatsapp:1234567890@g.us
           FROM_PHONE: ${{ secrets.TWILIO_PHONE }}     # Número Twilio (ej: whatsapp:+14155238886)
         run: |
-          # Formatea el mensaje según el tipo de evento
+          # Formatea mensajes más cortos para cuentas Trial
           case "${{ github.event_name }}" in
             "push")
-              MESSAGE="📌 *Nuevo commit en ${{ github.repository }}*
-                      👤 *Autor*: ${{ github.actor }}
-                      🌿 *Rama*: ${GITHUB_REF##*/}
-                      📝 *Mensaje*: ${{ github.event.head_commit.message }}
-                      🔗 *Ver cambios*: ${{ github.event.head_commit.url }}"
+              SHORT_HASH=$(echo "${{ github.sha }}" | cut -c1-7)
+              MESSAGE="📌 Commit en ${{ github.repository }} (${GITHUB_REF##*/})
+                      ${{ github.event.head_commit.message | head -n 1 | cut -c1-60 }}...
+                      🔗 ${{ github.server_url }}/${{ github.repository }}/commit/$SHORT_HASH"
               ;;
             "pull_request")
-              MESSAGE="🔀 *PR ${{ github.event.action }}*: ${{ github.event.pull_request.title }}
-                      👤 *Por*: ${{ github.actor }}
-                      🌿 *Rama*: ${{ github.event.pull_request.head.ref }}
-                      📌 *Estado*: ${{ github.event.pull_request.state }}
-                      🔗 *Ver PR*: ${{ github.event.pull_request.html_url }}"
+              MESSAGE="🔀 PR ${{ github.event.action }}: ${{ github.event.pull_request.title | head -n 1 | cut -c1-40 }}...
+                      🌿 ${{ github.event.pull_request.head.ref }}
+                      🔗 ${{ github.event.pull_request.html_url }}"
               ;;
             "issues")
-              MESSAGE="⚠️ *Issue ${{ github.event.action }}*: ${{ github.event.issue.title }}
-                      👤 *Por*: ${{ github.actor }}
-                      🔗 *Ver issue*: ${{ github.event.issue.html_url }}"
+              MESSAGE="⚠️ Issue ${{ github.event.action }}: ${{ github.event.issue.title | head -n 1 | cut -c1-40 }}...
+                      🔗 ${{ github.event.issue.html_url }}"
               ;;
           esac
 
+          # Acortar aún más el mensaje si es necesario (máx 160 caracteres recomendado)
+          SHORT_MESSAGE=$(echo "$MESSAGE" | tr -d '\n' | cut -c1-160)
+          
           # Envía el mensaje vía Twilio
           curl -X POST "https://api.twilio.com/2010-04-01/Accounts/$TWILIO_SID/Messages.json" \
             --user "$TWILIO_SID:$TWILIO_TOKEN" \
-            -d "Body=$MESSAGE" \
+            -d "Body=$SHORT_MESSAGE" \
             -d "From=$FROM_PHONE" \
             -d "To=$GROUP_ID"
