@@ -21,17 +21,21 @@ jobs:
           case "${{ github.event_name }}" in
             "push")
               SHORT_HASH=$(echo "${{ github.sha }}" | cut -c1-7)
+              COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | head -n 1 | cut -c1-60)
               MESSAGE="📌 Commit en ${{ github.repository }} (${GITHUB_REF##*/})
-                      ${{ github.event.head_commit.message | head -n 1 | cut -c1-60 }}...
+                      $COMMIT_MSG...
                       🔗 ${{ github.server_url }}/${{ github.repository }}/commit/$SHORT_HASH"
               ;;
-            "pull_request")
-              MESSAGE="🔀 PR ${{ github.event.action }}: ${{ github.event.pull_request.title | head -n 1 | cut -c1-40 }}...
+              PR_TITLE=$(echo "${{ github.event.pull_request.title }}" | head -n 1 | cut -c1-40)
+              MESSAGE="🔀 PR ${{ github.event.action }}: $PR_TITLE...
                       🌿 ${{ github.event.pull_request.head.ref }}
                       🔗 ${{ github.event.pull_request.html_url }}"
-              ;;
-            "issues")
-              MESSAGE="⚠️ Issue ${{ github.event.action }}: ${{ github.event.issue.title | head -n 1 | cut -c1-40 }}...
+                      🔗 ${{ github.event.pull_request.html_url }}"
+              ISSUE_TITLE=$(echo "${{ github.event.issue.title }}" | head -n 1 | cut -c1-40)
+              MESSAGE="⚠️ Issue ${{ github.event.action }}: $ISSUE_TITLE...
+                      🔗 ${{ github.event.issue.html_url }}"
+              ISSUE_TITLE=$(echo "${{ github.event.issue.title }}" | head -n 1 | cut -c1-40)
+              MESSAGE="⚠️ Issue ${{ github.event.action }}: $ISSUE_TITLE...
                       🔗 ${{ github.event.issue.html_url }}"
               ;;
           esac
