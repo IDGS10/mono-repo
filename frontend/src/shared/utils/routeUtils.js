@@ -13,7 +13,7 @@ export const moduleConfigs = [
     name: 'device-manager',
     displayName: 'Device Manager',
     icon: '📱',
-    path: '/devices',
+    path: '/device-manager',
     importRoutes: () => import('../../modules/device-manager/routes'),
     importMenuConfig: () => import('../../modules/device-manager/routes/menuConfig.js')
   },

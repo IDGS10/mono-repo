@@ -1,108 +1,149 @@
-// modules/analytics/pages/DashboardPage.jsx
-import { useAnalytics } from '../hooks/useAnalytics.js';
-import StatsCard from '../components/StatsCard.jsx';
-import ChartContainer from '../components/ChartContainer.jsx';
-import RecentActivity from '../components/RecentActivity.jsx';
+import { useEffect, useState } from 'react';
 import LoadingSpinner from '../components/LoadingSpinner.jsx';
 import ErrorMessage from '../components/ErrorMessage.jsx';
+import DeviceModal from '../components/DeviceModal.jsx';
 
 const Dashboard = () => {
-  const { 
-    stats, 
-    chartData, 
-    recentActivity, 
-    loading, 
-    error, 
-    refreshData 
-  } = useAnalytics();
+  const [devices, setDevices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [formData, setFormData] = useState({ id: '', name: '', matricula: '' });
+  const [editingId, setEditingId] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
-  if (loading) {
-    return <LoadingSpinner message="Cargando datos de analytics..." />;
-  }
+  useEffect(() => {
+    fetchDevices();
+  }, []);
 
-  if (error) {
-    return <ErrorMessage error={error} onRetry={refreshData} />;
-  }
+  const fetchDevices = async () => {
+    try {
+      setLoading(true);
+      const dummyData = [
+        { id: 'esp01', name: 'Sensor Carlos', matricula: 'A00112233' },
+        { id: 'esp02', name: 'Sensor Danny', matricula: 'A00445566' },
+      ];
+      setDevices(dummyData);
+      setLoading(false);
+    } catch (err) {
+      setError('Error al cargar dispositivos');
+      setLoading(false);
+    }
+  };
+
+  const handleAdd = () => {
+    setEditingId(null);
+    setFormData({ id: '', name: '', matricula: '' });
+    setModalOpen(true);
+  };
+
+  const handleEdit = (device) => {
+    setEditingId(device.id);
+    setFormData(device);
+    setModalOpen(true);
+  };
+
+  const handleSubmit = () => {
+    if (editingId) {
+      setDevices(prev =>
+        prev.map(device =>
+          device.id === editingId ? { ...device, ...formData } : device
+        )
+      );
+      setEditingId(null);
+    } else {
+      setDevices(prev => [...prev, formData]);
+    }
+  };
+
+  const handleDelete = (id) => {
+    if (confirm('¿Estás seguro de eliminar este dispositivo?')) {
+      setDevices(prev => prev.filter(device => device.id !== id));
+    }
+  };
+
+  if (loading) return <LoadingSpinner message="Cargando dispositivos..." />;
+  if (error) return <ErrorMessage error={error} onRetry={fetchDevices} />;
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-      {/* Dashboard Header */}
+      {/* Header estilo analytics */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 bg-white rounded-lg shadow-sm p-6">
         <div className="mb-4 lg:mb-0">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Analytics Dashboard
+            Device Manager ESP32
           </h1>
           <p className="text-gray-600 text-lg">
-            Monitorea el rendimiento y métricas clave de tu aplicación
+            Administra los dispositivos asignados a alumnos
           </p>
         </div>
         <div className="flex gap-3">
           <button 
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200 font-medium"
-            onClick={refreshData}
+            onClick={fetchDevices}
+            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition"
           >
             🔄 Actualizar
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 font-medium">
-            📊 Exportar Reporte
+          <button 
+            onClick={handleAdd}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+          >
+            ➕ Agregar Dispositivo
           </button>
         </div>
       </div>
 
-      {/* Stats Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatsCard
-          title="Usuarios Activos"
-          value={stats?.activeUsers || 0}
-          change={stats?.activeUsersChange || 0}
-          icon="👥"
-          color="blue"
-        />
-        <StatsCard
-          title="Sesiones"
-          value={stats?.sessions || 0}
-          change={stats?.sessionsChange || 0}
-          icon="🔄"
-          color="green"
-        />
-        <StatsCard
-          title="Tiempo Promedio"
-          value={`${stats?.avgSessionTime || 0}m`}
-          change={stats?.avgSessionTimeChange || 0}
-          icon="⏱️"
-          color="purple"
-        />
-        <StatsCard
-          title="Tasa de Rebote"
-          value={`${stats?.bounceRate || 0}%`}
-          change={stats?.bounceRateChange || 0}
-          icon="📈"
-          color="orange"
-        />
+      {/* Tabla */}
+      <div className="bg-white rounded-lg shadow-sm overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-100 text-gray-600 uppercase text-sm font-semibold">
+            <tr>
+              <th className="px-6 py-4 text-left">ID</th>
+              <th className="px-6 py-4 text-left">Nombre</th>
+              <th className="px-6 py-4 text-left">Matrícula</th>
+              <th className="px-6 py-4 text-left">Acciones</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200 text-gray-800">
+            {devices.map(device => (
+              <tr key={device.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4">{device.id}</td>
+                <td className="px-6 py-4">{device.name}</td>
+                <td className="px-6 py-4">{device.matricula}</td>
+                <td className="px-6 py-4 space-x-2">
+                  <button
+                    onClick={() => handleEdit(device)}
+                    className="px-3 py-1 text-sm bg-yellow-400 hover:bg-yellow-500 text-white rounded-lg"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    onClick={() => handleDelete(device.id)}
+                    className="px-3 py-1 text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg"
+                  >
+                    Eliminar
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {devices.length === 0 && (
+              <tr>
+                <td colSpan="4" className="px-6 py-6 text-center text-gray-500">
+                  No hay dispositivos registrados
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
-        <div className="xl:col-span-2">
-          <ChartContainer
-            title="Usuarios en el Tiempo"
-            data={chartData?.userTraffic || []}
-            type="line"
-          />
-        </div>
-        <div className="xl:col-span-1">
-          <ChartContainer
-            title="Dispositivos"
-            data={chartData?.deviceTypes || []}
-            type="doughnut"
-          />
-        </div>
-      </div>
-
-      {/* Recent Activity Section */}
-      <div className="bg-white rounded-lg shadow-sm">
-        <RecentActivity activities={recentActivity || []} />
-      </div>
+      <DeviceModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSubmit={handleSubmit}
+        formData={formData}
+        setFormData={setFormData}
+        editingId={editingId}
+      />
     </div>
   );
 };
