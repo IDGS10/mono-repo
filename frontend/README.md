@@ -25,22 +25,17 @@ src/
 │   ├── components/            # Reusable UI components
 │   ├── hooks/                 # Shared custom hooks
 │   ├── services/              # Common APIs and services
-│   ├── context/               # Global contexts (Theme, etc.)
-│   ├── utils/                 # General utilities including routing
+│   ├── store/                 # Global state
+│   ├── utils/                 # General utilities
 │   └── types/                 # Common type definitions
 ├── modules/                  # Independent modules per team
 │   ├── analytics/             # Analytics Team
-│   │   ├── pages/             # Module pages/components
-│   │   └── routes/            # Module routing configuration
-│   │       ├── index.js       # Routes export
-│   │       └── routeConfig.js # Route definitions
-│   ├── devices/               # Device Manager Team
+│   ├── device-manager/        # Device Manager Team
 │   ├── organizations/         # Organizations Team
 │   ├── projects/              # Projects Team
 │   ├── security/              # Security Team
-│   └── swarms/                # Swarm Manager Team
+│   └── swarm-manager/         # Swarm Manager Team
 ├── router/                   # Main routing configuration
-│   └── AppRouter.jsx         # Root router with authentication
 ├── App.jsx                   # Root component
 └── main.jsx                  # Entry point
 ```
@@ -50,237 +45,6 @@ src/
 - **Separation of Concerns**: Each team has complete domain over their module
 - **Shared Code**: Maximum reusability without duplications
 - **Parallel Development**: Multiple teams working simultaneously without conflicts
-- **Centralized Routing**: Unified routing system with per-module configuration
-
----
-
-## Routing System Architecture
-
-### Overview
-The project implements a **modular routing system** that automatically loads routes from each module while maintaining independence between teams. The system uses **dynamic imports**, **lazy loading**, and **automatic route discovery** to create a scalable architecture.
-
-### Core Philosophy
-- **📦 Module Independence**: Each team manages their own routes
-- **🔄 Dynamic Loading**: Routes loaded on-demand for performance
-- **🔐 Authentication Layer**: Unified protection across all routes
-- **📂 Auto-Configuration**: Minimal setup for new routes
-- **🛠️ Developer Experience**: Easy debugging and development
-
-### Key Components
-
-#### 1. AppRouter (`src/router/AppRouter.jsx`)
-- **Main router** with authentication protection
-- **Lazy loading** of all module routes with React Suspense
-- **Automatic route discovery** from module configurations
-- **Layout management** (authenticated vs public routes)
-- **Route separation** between app and system routes
-- **Protected route wrapper** with simple localStorage authentication
-
-```javascript
-// Simple authentication check
-const ProtectedRoute = ({ children }) => {
-  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-  return isLoggedIn ? children : <Navigate to="/auth/login" replace />;
-};
-
-// Dynamic route loading and rendering
-const initializeRoutes = async () => {
-  const allRoutes = await loadAllRoutes();
-  setRoutes(allRoutes);
-};
-```
-
-#### 2. Route Utils (`src/shared/utils/routeUtils.js`)
-- **Module configuration** registry with app and system modules
-- **Dynamic route loading** from modules with error handling
-- **Menu generation** from route definitions
-- **Helper functions** for route management and path matching
-
-```javascript
-// Module registry
-export const appModuleConfigs = [
-  {
-    name: 'analytics',
-    displayName: 'Analytics',
-    icon: '📊',
-    path: '/analytics',
-    importModule: () => import('../../modules/analytics/routes'),
-  },
-  // ... other modules
-];
-
-// Dynamic route loading with fallback
-const getModuleRoutes = (routeModule, moduleName) => {
-  if (routeModule.default) return routeModule.default;
-  if (routeModule[`${moduleName}Routes`]) return routeModule[`${moduleName}Routes`];
-  if (routeModule.routes) return routeModule.routes;
-  return null;
-};
-```
-
-#### 3. Route Loading Process
-- **Parallel loading** of app and system routes
-- **Error handling** with graceful degradation
-- **Metadata injection** (moduleType, moduleName, permissions)
-- **Menu configuration** extraction and processing
-
-#### 3. Module Route Configuration
-
-Each module follows this standardized structure:
-
-```javascript
-// modules/[module]/routes/routeConfig.js
-export const MODULE_CONFIG = {
-  basePath: '/analytics',
-  name: 'analytics',
-  displayName: 'Analytics',
-  icon: '📊'
-};
-
-export const ROUTE_DEFINITIONS = [
-  {
-    path: '/',
-    component: Dashboard,
-    name: 'Dashboard',
-    showInMenu: true,
-    menuOrder: 1,
-    isDefault: true,
-    requiresAuth: true,
-    permissions: ['analytics.read']
-  }
-];
-```
-
-```javascript
-// modules/[module]/routes/index.js
-import { MODULE_CONFIG, ROUTE_DEFINITIONS } from './routeConfig.js';
-
-// Process and export routes for React Router
-export const analyticsRoutes = routeDefinitions.map(route => ({
-  path: route.path,
-  element: <route.component />,
-  requiresAuth: route.requiresAuth !== false,
-  permissions: route.permissions,
-  name: route.name
-}));
-
-// Export menu configuration
-export const menuConfig = {
-  subItems: routeDefinitions
-    .filter(route => route.showInMenu)
-    .sort((a, b) => (a.menuOrder || 99) - (b.menuOrder || 99))
-    .map(route => ({
-      path: route.path,
-      name: route.name,
-      isDefault: route.isDefault || false
-    }))
-};
-```
-
-### Route Types
-
-#### Application Routes (`app`)
-- **Protected routes** requiring authentication
-- **Wrapped in DefaultLayout** with sidebar and header
-- **Module-specific functionality**
-
-#### System Routes (`system`)
-- **Public or authentication routes** (login, register)
-- **No layout wrapper** (standalone pages)
-- **Security and auth functionality**
-
-### Adding New Routes
-
-#### For Existing Modules
-1. **Open** `modules/[your-module]/routes/routeConfig.js`
-2. **Add** new route to `ROUTE_DEFINITIONS`:
-   ```javascript
-   {
-     path: '/new-feature',
-     component: NewFeatureComponent,
-     name: 'New Feature',
-     showInMenu: true,
-     menuOrder: 3,
-     requiresAuth: true,
-     permissions: ['module.feature']
-   }
-   ```
-3. **Import** your component at the top of the file
-4. **Routes automatically appear** in menu and routing
-
-#### For New Modules
-1. **Create** module structure:
-   ```
-   modules/new-module/
-   ├── pages/
-   │   └── Dashboard.jsx
-   ├── routes/
-   │   ├── index.js
-   │   └── routeConfig.js
-   ```
-2. **Add** module to `shared/utils/routeUtils.js`:
-   ```javascript
-   export const appModuleConfigs = [
-     // ... existing modules
-     {
-       name: 'newmodule',
-       displayName: 'New Module',
-       icon: '🆕',
-       path: '/new-module',
-       importModule: () => import('../../modules/new-module/routes'),
-     }
-   ];
-   ```
-3. **Create** `routeConfig.js` following the established pattern
-4. **Module automatically integrates** into the routing system
-
-### Route Configuration Options
-
-| Option | Type | Description | Required |
-|--------|------|-------------|----------|
-| `path` | `string` | Route path relative to module | ✅ |
-| `component` | `Component` | React component to render | ✅ |
-| `name` | `string` | Display name for menu | ✅ |
-| `showInMenu` | `boolean` | Show in navigation menu | ❌ |
-| `menuOrder` | `number` | Menu item order (default: 99) | ❌ |
-| `isDefault` | `boolean` | Default route for module | ❌ |
-| `requiresAuth` | `boolean` | Requires authentication (default: true) | ❌ |
-| `permissions` | `string[]` | Required permissions | ❌ |
-
-### Routing Features
-
-- **🔄 Lazy Loading**: All routes loaded on-demand with React Suspense
-- **🔐 Authentication**: Protected route system with localStorage check
-- **📱 Responsive**: Mobile-friendly navigation with collapsible sidebar
-- **🎯 Permission-based**: Route access control with role validation
-- **📂 Auto-discovery**: Automatic menu generation from route configurations
-- **⚡ Performance**: Optimized loading and rendering with code splitting
-- **🛡️ Error Handling**: Graceful fallbacks for failed module loads
-- **🔄 Hot Reload**: Development-friendly with instant route updates
-- **📊 Debug Mode**: Console logging for route debugging in development
-
-### Route Flow Architecture
-
-```
-User Navigation Request
-         ↓
-    AppRouter.jsx
-         ↓
-   Authentication Check
-    (ProtectedRoute)
-         ↓
-   Route Type Detection
-   (app vs system)
-         ↓
-    Layout Selection
-   (DefaultLayout vs None)
-         ↓
-   Module Route Loading
-   (Dynamic Import)
-         ↓
-    Component Rendering
-   (with Suspense)
-```
 
 ---
 
@@ -485,30 +249,26 @@ main                    # Main branch (production)
 - **Hooks**: camelCase with "use" prefix (`useDeviceData.js`)
 - **Services**: camelCase (`deviceService.js`)
 - **Constants**: UPPER_SNAKE_CASE (`API_ENDPOINTS`)
-- **Routes**: Follow module's `routeConfig.js` pattern
 
 ### Workflow
 1. **Create branch** from `develop`
 2. **Develop** in your assigned module
 3. **Follow** established modular structure
 4. **Use shared/** for common code
-5. **Add routes** to your module's `routeConfig.js`
-6. **Create PR** towards `develop`
-7. **Code review** by the team
-8. **Merge** after approval
+5. **Create PR** towards `develop`
+6. **Code review** by the team
+7. **Merge** after approval
 
 ### Collaboration Rules
 **Allowed:**
 - Modify your module's code
 - Use components from `shared/`
-- Add routes to your module's configuration
 - Propose changes to `shared/` via PR
 
 **Not allowed:**
 - Directly modify other modules' code
 - Duplicate code that should be in `shared/`
 - Import internal files from other modules
-- Modify core routing system without team approval
 
 ---
 
@@ -520,11 +280,11 @@ Each frontend team consumes independent APIs:
 ```
 Frontend Modules     ←→     Backend Services
 ├── analytics        ←→     analytics-service
-├── devices          ←→     device-service
+├── device-manager   ←→     device-service
 ├── organizations    ←→     org-service
 ├── projects         ←→     project-service
 ├── security         ←→     auth-service
-└── swarms           ←→     swarm-service
+└── swarm-manager    ←→     swarm-service
 ```
 
 ### Service Communication
@@ -536,7 +296,6 @@ Frontend Modules     ←→     Backend Services
 
 ### For New Developers
 1. Read this README completely
-2. Understand the routing system architecture
 3. Set up your development environment
 4. Join your team's Slack channel
 5. Request access to relevant backend repositories

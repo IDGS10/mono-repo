@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+// modules/analytics/components/LoadingSpinner.jsx
+>>>>>>> prod
 const LoadingSpinner = ({ message = 'Cargando...', size = 'medium' }) => {
   const sizeClasses = {
     small: 'w-4 h-4',

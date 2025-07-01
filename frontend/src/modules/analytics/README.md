@@ -4,7 +4,9 @@ This document explains the organization and purpose of each folder in our modula
 
 ## General Architecture
 
-The project is structured in **independent modules** that can be developed by different teams, with centralized shared code to maintain consistency and a **module-based routing system**.
+
+The project is structured in **independent modules** that can be developed by different teams, with centralized shared code to maintain consistency.
+
 
 ```
 src/
@@ -18,6 +20,7 @@ src/
 
 ---
 
+<<<<<<< HEAD
 ## Module Structure
 
 Each module follows a standardized structure that includes its own routing configuration:
@@ -103,6 +106,7 @@ export const ROUTE_DEFINITIONS = [
 
 ---
 
+
 ## Folder Descriptions
 
 ### `/components`
@@ -116,30 +120,38 @@ export const ROUTE_DEFINITIONS = [
 **Typical structure:**
 ```
 components/
+
 ├── ChartContainer.jsx
 ├── ErrorMessage.jsx
 ├── LoadingSpinner.jsx
 ├── RecentActivity.jsx
 └── StatsCard.jsx
+
+├── Button/
+│   ├── Button.jsx
+│   ├── Button.module.css
+│   └── index.js
+└── Modal/
+    ├── Modal.jsx
+    ├── Modal.module.css
+    └── index.js
+
 ```
 
 **Example:**
 ```javascript
-// StatsCard.jsx
-const StatsCard = ({ title, value, trend, icon }) => {
+
+// Button/Button.jsx
+const Button = ({ children, variant = 'primary', onClick, ...props }) => {
   return (
-    <div className="stats-card">
-      <div className="stats-card__icon">{icon}</div>
-      <div className="stats-card__content">
-        <h3>{title}</h3>
-        <p className="stats-card__value">{value}</p>
-        {trend && <span className={`trend trend--${trend.type}`}>{trend.value}</span>}
-      </div>
-    </div>
+    <button className={`btn btn-${variant}`} onClick={onClick} {...props}>
+      {children}
+    </button>
   );
 };
 
-export default StatsCard;
+export default Button;
+
 ```
 
 ---
@@ -154,6 +166,7 @@ export default StatsCard;
 
 **Examples:**
 ```javascript
+<<<<<<< HEAD
 // useAnalytics.js
 export const useAnalytics = () => {
   const [data, setData] = useState(null);
@@ -177,6 +190,28 @@ export const useAnalytics = () => {
   }, [fetchAnalytics]);
   
   return { data, loading, error, refetch: fetchAnalytics };
+
+// useApi.js - Generic hook for APIs
+export const useApi = (url) => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  
+  // Hook logic...
+  
+  return { data, loading, refetch };
+};
+
+// useAuth.js - Hook for authentication
+export const useAuth = () => {
+  const user = useSelector(state => state.auth.user);
+  const dispatch = useDispatch();
+  
+  const login = (credentials) => {
+    // Login logic...
+  };
+  
+  return { user, login, logout };
+
 };
 ```
 
@@ -192,6 +227,7 @@ export const useAnalytics = () => {
 
 **Example:**
 ```javascript
+<<<<<<< HEAD
 // Dashboard.jsx
 import { useAnalytics } from '../hooks/useAnalytics';
 import StatsCard from '../components/StatsCard';
@@ -225,6 +261,20 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
+// DashboardPage.jsx
+const DashboardPage = () => {
+  const { data } = useAnalytics();
+  
+  return (
+    <div className="dashboard-page">
+      <Header title="Dashboard" />
+      <StatsCards data={data} />
+      <ChartsSection data={data} />
+    </div>
+  );
+};
+
 ```
 
 ---
@@ -233,6 +283,7 @@ export default Dashboard;
 **Purpose:** Business logic, APIs and external services
 
 **What to include:**
+<<<<<<< HEAD
 - API configuration and calls
 - Data transformation utilities
 - Third-party service integrations
@@ -271,6 +322,114 @@ export const analyticsService = {
     })) || [],
     charts: rawData.charts || []
   })
+=======
+- API configuration (axios, fetch)
+- Functions for HTTP calls
+- Third-party services
+- Data transformation utilities
+
+**Example:**
+```javascript
+// api.js - Base configuration
+export const api = axios.create({
+  baseURL: process.env.REACT_APP_API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// userService.js - Specific service
+export const userService = {
+  getUsers: () => api.get('/users'),
+  getUserById: (id) => api.get(`/users/${id}`),
+  createUser: (userData) => api.post('/users', userData),
+  updateUser: (id, userData) => api.put(`/users/${id}`, userData),
+  deleteUser: (id) => api.delete(`/users/${id}`),
+};
+```
+
+---
+
+### `/store`
+**Purpose:** Global application state management
+
+**What to include:**
+- Store configuration (Redux, Zustand, Context)
+- Specific slices/reducers
+- Actions and selectors
+- Custom middleware
+
+**With Redux Toolkit:**
+```javascript
+// store.js
+export const store = configureStore({
+  reducer: {
+    auth: authSlice.reducer,
+    users: usersSlice.reducer,
+  },
+});
+
+// userSlice.js
+export const usersSlice = createSlice({
+  name: 'users',
+  initialState: {
+    list: [],
+    loading: false,
+  },
+  reducers: {
+    setUsers: (state, action) => {
+      state.list = action.payload;
+    },
+    setLoading: (state, action) => {
+      state.loading = action.payload;
+    },
+  },
+});
+```
+
+---
+
+### `/utils`
+**Purpose:** Utility functions and general helpers
+
+**What to include:**
+- Formatting functions
+- Validators
+- Constants
+- Mathematical or text helpers
+
+**Example:**
+```javascript
+// formatters.js
+export const formatCurrency = (amount) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(amount);
+};
+
+export const formatDate = (date) => {
+  return new Date(date).toLocaleDateString('en-US');
+};
+
+// validators.js
+export const isValidEmail = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+// constants.js
+export const API_ENDPOINTS = {
+  USERS: '/users',
+  PRODUCTS: '/products',
+  ORDERS: '/orders',
+};
+
+export const USER_ROLES = {
+  ADMIN: 'admin',
+  USER: 'user',
+  MODERATOR: 'moderator',
+
 };
 ```
 
@@ -279,6 +438,7 @@ export const analyticsService = {
 ## Best Practices
 
 ### 1. **Naming Conventions**
+<<<<<<< HEAD
 - Components: PascalCase (`StatsCard.jsx`)
 - Hooks: camelCase with "use" prefix (`useAnalytics.js`)
 - Pages: PascalCase (`Dashboard.jsx`)
@@ -354,3 +514,40 @@ If you have an existing module without the routes folder:
 ---
 
 Have questions about the routing system or any specific folder? Consult with the team!
+=======
+- Components: PascalCase (`UserCard.jsx`)
+- Hooks: camelCase with "use" prefix (`useUserData.js`)
+- Pages: PascalCase (`Home.jsx`)
+- Services: camelCase (`userService.js`)
+- Utils: camelCase (`formatUtils.js`)
+
+### 2. **Module Organization**
+Each module should be self-contained:
+```
+modules/analytics/
+├── components/    # Module-specific components
+├── hooks/         # Module-specific hooks
+├── pages/         # Module pages
+├── services/      # Module-specific APIs
+├── store/         # Module-specific state
+└── utils/         # Module-specific utilities
+```
+
+### 3. **Separation of Responsibilities**
+- **Components:** Only UI and presentation
+- **Hooks:** Reusable logic and state
+- **Services:** API communication
+- **Utils:** Pure functions without React dependencies
+
+---
+
+## Getting Started
+
+1. **Locate your module** in the `modules/` folder
+2. **Create the folder structure** according to your needs
+3. **Use shared/** for common code between modules
+4. **Follow established** naming conventions
+
+---
+
+Have questions about any specific folder? Consult with the team!
