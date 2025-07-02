@@ -1,0 +1,85 @@
+name: Telegram Notifier Pro
+on:
+  push:
+    branches: [ main, develop ]  # Solo estas ramas importantes
+  pull_request:
+    types: [opened, closed, reopened, ready_for_review]
+  issues:
+    types: [opened, closed, reopened, labeled]
+  workflow_run:
+    workflows: ["CI", "Tests"]  # Solo workflows importantes
+    types: [completed]
+
+jobs:
+  notify-telegram:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Smart Notification
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          # Configuración mejorada
+          REPO_NAME="${{ github.repository }}"
+          REPO_URL="${{ github.server_url }}/$REPO_NAME"
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          
+          # Mensajes más inteligentes
+          case "${{ github.event_name }}" in
+            "push")
+              COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | sed 's/\n/ /g' | cut -c1-80)
+              MESSAGE="🚀 *Nuevo push en [$REPO_NAME]($REPO_URL)*
+                      \n▫️ *Rama*: \`${GITHUB_REF##*/}\`
+                      \n▫️ *Autor*: [${{ github.actor }}]($REPO_URL/${{ github.actor }})
+                      \n▫️ *Commit*: \`$SHORT_SHA\` - \`$COMMIT_MSG\`
+                      \n▫️ *Archivos cambiados*: $(echo "${{ toJson(github.event.head_commit.modified) }}" | jq length)
+                      \n🔍 [Ver cambios](${{ github.event.head_commit.url }})"
+              ;;
+
+            "pull_request")
+              PR_ACTION=${{ github.event.action }}
+              case "$PR_ACTION" in
+                "opened") EMOJI="🆕";;
+                "closed") 
+                  if ${{ github.event.pull_request.merged }}; then EMOJI="✅"; else EMOJI="❌"; fi;;
+                *) EMOJI="🔀";;
+              esac
+              
+              MESSAGE="$EMOJI *PR $PR_ACTION: [${{ github.event.pull_request.title }}](${{ github.event.pull_request.html_url }})*
+                      \n▫️ *Por*: [${{ github.actor }}]($REPO_URL/${{ github.actor }})
+                      \n▫️ *Rama*: \`${{ github.event.pull_request.head.ref }} → ${{ github.event.pull_request.base.ref }}\`
+                      \n▫️ *Estado*: ${{ github.event.pull_request.state }}
+                      \n▫️ *Cambios*: +${{ github.event.pull_request.additions }} -${{ github.event.pull_request.deletions }}"
+              ;;
+
+            "issues")
+              ISSUE_LABELS=$(echo "${{ github.event.issue.labels.*.name }}" | jq -r 'join(", ")')
+              MESSAGE="⚠️ *Issue ${{ github.event.action }}: [${{ github.event.issue.title }}](${{ github.event.issue.html_url }})*
+                      \n▫️ *Por*: [${{ github.event.issue.user.login }}]($REPO_URL/${{ github.event.issue.user.login }})
+                      \n▫️ *Etiquetas*: ${ISSUE_LABELS:-ninguna}
+                      \n▫️ *Estado*: ${{ github.event.issue.state }}"
+              ;;
+
+            "workflow_run")
+              WORKFLOW_NAME="${{ github.event.workflow_run.name }}"
+              DURATION_MIN=$(( ${{ github.event.workflow_run.run_duration }} / 60 ))
+              case "${{ github.event.workflow_run.conclusion }}" in
+                "success") EMOJI="✔️";;
+                "failure") EMOJI="❌";;
+                "cancelled") EMOJI="🛑";;
+                *) EMOJI="ℹ️";;
+              esac
+              
+              MESSAGE="$EMOJI *Workflow [$WORKFLOW_NAME](${{ github.event.workflow_run.html_url }}) ${{ github.event.workflow_run.conclusion }}*
+                      \n▫️ *Duración*: $DURATION_MIN minutos
+                      \n▫️ *Commit*: \`$(echo "${{ github.event.workflow_run.head_sha }}" | cut -c1-7)\`
+                      \n▫️ *Trigger*: ${{ github.event.workflow_run.event }}"
+              ;;
+          esac
+
+          # Envía el mensaje mejor formateado
+          curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_TOKEN/sendMessage" \
+            -d chat_id="$CHAT_ID" \
+            -d text="$MESSAGE" \
+            -d parse_mode="Markdown" \
+            -d disable_web_page_preview="true"
