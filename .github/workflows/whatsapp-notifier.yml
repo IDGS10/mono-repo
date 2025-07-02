@@ -1,50 +1,44 @@
-name: WhatsApp Notifier (All Branches) - Trial Friendly
+name: Telegram Notifier
 on:
   push:
   pull_request:
     types: [opened, closed, reopened]
   issues:
-    types: [opened, closed]
+    types: [opened, closed, reopened]
 
 jobs:
-  notify-group:
+  notify-telegram:
     runs-on: ubuntu-latest
     steps:
-      - name: Send WhatsApp notification
+      - name: Send Telegram Notification
         env:
-          TWILIO_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
-          TWILIO_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
-          GROUP_ID: ${{ secrets.MY_PHONE }}  # Formato: whatsapp:1234567890@g.us
-          FROM_PHONE: ${{ secrets.TWILIO_PHONE }}     # Número Twilio (ej: whatsapp:+14155238886)
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          # Formatea mensajes más cortos para cuentas Trial
+          # Formatea el mensaje según el evento
           case "${{ github.event_name }}" in
             "push")
-              SHORT_HASH=$(echo "${{ github.sha }}" | cut -c1-7)
-              COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | head -n 1 | cut -c1-60)
-              MESSAGE="📌 Commit en ${{ github.repository }} (${GITHUB_REF##*/})
-                      $COMMIT_MSG...
-                      🔗 ${{ github.server_url }}/${{ github.repository }}/commit/$SHORT_HASH"
+              MESSAGE="📌 *Push en ${{ github.repository }}*
+                      🌿 *Rama*: ${GITHUB_REF##*/}
+                      👤 *Autor*: ${{ github.actor }}
+                      📝 *Commit*: \`$(echo "${{ github.event.head_commit.message }}" | cut -c1-50)\`
+                      🔗 [Ver cambios](${{ github.event.head_commit.url }})"
               ;;
             "pull_request")
-              PR_TITLE=$(echo "${{ github.event.pull_request.title }}" | head -n 1 | cut -c1-40)
-              MESSAGE="🔀 PR ${{ github.event.action }}: $PR_TITLE...
-                      🌿 ${{ github.event.pull_request.head.ref }}
-                      🔗 ${{ github.event.pull_request.html_url }}"
+              MESSAGE="🔀 *PR ${{ github.event.action }}*: ${{ github.event.pull_request.title }}
+                      👤 *Por*: ${{ github.actor }}
+                      🌿 *Rama*: ${{ github.event.pull_request.head.ref }}
+                      🔗 [Ver PR](${{ github.event.pull_request.html_url }})"
               ;;
             "issues")
-              ISSUE_TITLE=$(echo "${{ github.event.issue.title }}" | head -n 1 | cut -c1-40)
-              MESSAGE="⚠️ Issue ${{ github.event.action }}: $ISSUE_TITLE...
-                      🔗 ${{ github.event.issue.html_url }}"
+              MESSAGE="⚠️ *Issue ${{ github.event.action }}*: ${{ github.event.issue.title }}
+                      👤 *Por*: ${{ github.actor }}
+                      🔗 [Ver Issue](${{ github.event.issue.html_url }})"
               ;;
           esac
 
-          # Acortar aún más el mensaje si es necesario (máx 160 caracteres recomendado)
-          SHORT_MESSAGE=$(echo "$MESSAGE" | tr -d '\n' | cut -c1-160)
-          
-          # Envía el mensaje vía Twilio
-          curl -X POST "https://api.twilio.com/2010-04-01/Accounts/$TWILIO_SID/Messages.json" \
-            --user "$TWILIO_SID:$TWILIO_TOKEN" \
-            -d "Body=$SHORT_MESSAGE" \
-            -d "From=$FROM_PHONE" \
-            -d "To=$GROUP_ID"
+          # Envía el mensaje a Telegram
+          curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_TOKEN/sendMessage" \
+            -d chat_id="$CHAT_ID" \
+            -d text="$MESSAGE" \
+            -d parse_mode="Markdown"
