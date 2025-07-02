@@ -39,18 +39,18 @@ jobs:
           CURRENT_TIME=$(date +"%Y-%m-%d %H:%M:%S %Z")
           
           # Mensajes dinámicos con emojis contextuales
-          case "${{ github.event_name }}" in
+          case "$GITHUB_EVENT_NAME" in
             "push")
-              COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | sed 's/\n/ /g' | cut -c1-100)
-              NUM_CHANGES=$(echo "${{ toJson(github.event.head_commit.modified) }}" | jq 'length')
-              if [ $NUM_CHANGES -gt 20 ]; then CHANGE_EMOJI="📦"; 
-              elif [ $NUM_CHANGES -gt 5 ]; then CHANGE_EMOJI="📂";
+              COMMIT_MSG=$(echo "$GITHUB_EVENT_HEAD_COMMIT_MESSAGE" | sed 's/\n/ /g' | cut -c1-100)
+              NUM_CHANGES=$(echo "$GITHUB_EVENT_HEAD_COMMIT_MODIFIED" | jq 'length')
+              if [ "$NUM_CHANGES" -gt 20 ]; then CHANGE_EMOJI="📦"; 
+              elif [ "$NUM_CHANGES" -gt 5 ]; then CHANGE_EMOJI="📂";
               else CHANGE_EMOJI="📄"; fi
               
               MESSAGE="🚀 *Push en [$REPO_NAME]($REPO_URL)* [${ENVIRONMENT}]
                       \n▫️ *Rama*: \`${GITHUB_REF##*/}\`
-                      \n▫️ *Autor*: [${{ github.actor }}]($REPO_URL/${{ github.actor }})
-                      \n▫️ *Commit*: [\`$SHORT_SHA\`](${{ github.event.head_commit.url }}) - ${COMMIT_MSG}
+                      \n▫️ *Autor*: [@$GITHUB_ACTOR]($REPO_URL/$GITHUB_ACTOR)
+                      \n▫️ *Commit*: [\`$SHORT_SHA\`]($GITHUB_EVENT_HEAD_COMMIT_URL) - ${COMMIT_MSG}
                       \n${CHANGE_EMOJI} *Archivos modificados*: $NUM_CHANGES
                       \n🕒 *Hora*: $CURRENT_TIME"
               ;;
