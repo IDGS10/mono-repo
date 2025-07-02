@@ -39,7 +39,7 @@ const ForgotPassword = () => {
               Revisa tu bandeja de entrada y sigue las instrucciones para restablecer tu contraseña.
             </p>
             <Link
-              to="/auth/login"
+              to="/login"
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200"
             >
               Volver al login
@@ -110,7 +110,7 @@ const ForgotPassword = () => {
           {/* Back to login */}
           <div className="text-center">
             <Link
-              to="/auth/login"
+              to="/login"
               className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
             >
               ← Volver al login

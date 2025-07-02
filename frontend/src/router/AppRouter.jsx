@@ -10,7 +10,7 @@ const ProtectedRoute = ({ children }) => {
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
   
   if (!isLoggedIn) {
-    return <Navigate to="/auth/login" replace />;
+    return <Navigate to="/login" replace />;
   }
   
   return children;
@@ -53,7 +53,7 @@ export const AppRouter = () => {
           element={
             localStorage.getItem('isLoggedIn') === 'true' 
               ? <Navigate to="/analytics" replace />
-              : <Navigate to="/auth/login" replace />
+              : <Navigate to="/home" replace />
           } 
         />
 

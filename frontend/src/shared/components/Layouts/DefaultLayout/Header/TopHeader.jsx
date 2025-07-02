@@ -13,7 +13,7 @@ const TopHeader = ({ sidebarCollapsed }) => {
     localStorage.removeItem('userEmail');
 
     // Redirect to login
-    navigate('/auth/login');
+    navigate('/login');
   };
 
   return (

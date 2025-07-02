@@ -50,7 +50,7 @@ const ResetPassword = () => {
 
     // Redirigir al login después de 3 segundos
     setTimeout(() => {
-      navigate('/auth/login');
+      navigate('/login');
     }, 3000);
   };
 
@@ -154,7 +154,7 @@ const ResetPassword = () => {
           {/* Back to login */}
           <div className="text-center">
             <Link
-              to="/auth/login"
+              to="/login"
               className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
             >
               ← Volver al login

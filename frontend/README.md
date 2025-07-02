@@ -80,7 +80,7 @@ The project implements a **modular routing system** that automatically loads rou
 // Simple authentication check
 const ProtectedRoute = ({ children }) => {
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-  return isLoggedIn ? children : <Navigate to="/auth/login" replace />;
+  return isLoggedIn ? children : <Navigate to="/home" replace />;
 };
 
 // Dynamic route loading and rendering

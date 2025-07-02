@@ -2,14 +2,15 @@
 import { lazy } from 'react';
 
 // Lazy loading de componentes
-const Login = lazy(() => import('../pages/Login.jsx'));
-const Register = lazy(() => import('../pages/Register.jsx'));
+const Home = lazy(() => import('../pages/Home.jsx'));
+const Login = lazy(() => import('../pages/login/Login.jsx'));
+const Register = lazy(() => import('../pages/register/Register.jsx'));
 const ForgotPassword = lazy(() => import('../pages/ForgotPassword.jsx'));
 const ResetPassword = lazy(() => import('../pages/ResetPassword.jsx'));
 
 // Configuración del módulo
 export const MODULE_CONFIG = {
-  basePath: '/auth',
+  basePath: '/',
   name: 'security',
   displayName: 'Security',
   icon: '🔒'
@@ -17,6 +18,14 @@ export const MODULE_CONFIG = {
 
 // ✨ Configuración fácil de rutas (módulo de sistema)
 export const ROUTE_DEFINITIONS = [
+  {
+    path: '/home',
+    component: Home,
+    name: 'Home',
+    showInMenu: false, // Las rutas de sistema no van en el menú
+    requiresAuth: false, // Ruta pública
+    isPublic: true
+  },
   {
     path: '/login',
     component: Login,
