@@ -1,13 +1,8 @@
 name: Telegram Notifier Pro+
 on:
   push:
-    ## all branches
-    branches: 
-      - '**'
-    ## all tags
-    tags: 
-      - '**'
-    ## except for docs and README changes
+    branches: ['**']
+    tags: ['**']
     paths-ignore: 
       - 'docs/**'
       - 'README.md'
@@ -38,58 +33,60 @@ jobs:
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           CURRENT_TIME=$(date +"%Y-%m-%d %H:%M:%S %Z")
           
-          # Set GitHub context variables
-          GITHUB_EVENT_NAME="${{ github.event_name }}"
-          GITHUB_ACTOR="${{ github.actor }}"
-          GITHUB_REF="${{ github.ref }}"
-          GITHUB_EVENT_HEAD_COMMIT_MESSAGE="${{ github.event.head_commit.message }}"
-          GITHUB_EVENT_HEAD_COMMIT_URL="${{ github.event.head_commit.url }}"
-          GITHUB_EVENT_HEAD_COMMIT_MODIFIED="${{ toJson(github.event.head_commit.modified) }}"
-          
+          # Función para escapar caracteres MarkdownV2
+          escape_markdown() {
+            echo "$1" | sed -e 's/[_\*\[\]()~`>#+\-=\|{}\.!]/\\&/g'
+          }
+
           # Mensajes dinámicos con emojis contextuales
-          case "$GITHUB_EVENT_NAME" in
+          case "${{ github.event_name }}" in
             "push")
-              COMMIT_MSG=$(echo "$GITHUB_EVENT_HEAD_COMMIT_MESSAGE" | sed 's/\n/ /g' | cut -c1-100)
-              NUM_CHANGES=$(echo "$GITHUB_EVENT_HEAD_COMMIT_MODIFIED" | jq 'length')
-              if [ "$NUM_CHANGES" -gt 20 ]; then CHANGE_EMOJI="📦"; 
-              elif [ "$NUM_CHANGES" -gt 5 ]; then CHANGE_EMOJI="📂";
-              else CHANGE_EMOJI="📄"; fi
+              COMMIT_MSG=$(escape_markdown "${{ github.event.head_commit.message }}" | cut -c1-100)
               
-              MESSAGE="🚀 *Push en [$REPO_NAME]($REPO_URL)* [${ENVIRONMENT}]
-                      \n▫️ *Rama*: \`${GITHUB_REF##*/}\`
-                      \n▫️ *Autor*: [@$GITHUB_ACTOR]($REPO_URL/$GITHUB_ACTOR)
-                      \n▫️ *Commit*: [\`$SHORT_SHA\`]($GITHUB_EVENT_HEAD_COMMIT_URL) - ${COMMIT_MSG}
+              # Contar archivos modificados de forma robusta
+              NUM_ADDED=$(echo "${{ github.event.head_commit.added }}" | wc -w || echo 0)
+              NUM_MODIFIED=$(echo "${{ github.event.head_commit.modified }}" | wc -w || echo 0)
+              NUM_CHANGES=$((NUM_ADDED + NUM_MODIFIED))
+              
+              if [ $NUM_CHANGES -gt 20 ]; then CHANGE_EMOJI="📦";
+              elif [ $NUM_CHANGES -gt 5 ]; then CHANGE_EMOJI="📂";
+              else CHANGE_EMOJI="📄"; fi
+
+              MESSAGE="🚀 *Push en $(escape_markdown "$REPO_NAME")* ($REPO_URL) [${ENVIRONMENT}]
+                      \n▫️ *Rama*: \`$(escape_markdown "${GITHUB_REF##*/}")\`
+                      \n▫️ *Autor*: [@$(escape_markdown "${{ github.actor }}")]($REPO_URL/${{ github.actor }})
+                      \n▫️ *Commit*: [\`$(escape_markdown "$SHORT_SHA")\`](${{ github.event.head_commit.url }}) - $(escape_markdown "$COMMIT_MSG")
                       \n${CHANGE_EMOJI} *Archivos modificados*: $NUM_CHANGES
-                      \n🕒 *Hora*: $CURRENT_TIME"
+                      \n🕒 *Hora*: $(escape_markdown "$CURRENT_TIME")"
               ;;
 
             "pull_request")
               PR_ACTION="${{ github.event.action }}"
-              PR_MERGED="${{ github.event.pull_request.merged }}"
               case "$PR_ACTION" in
                 "opened") EMOJI="🆕";;
                 "closed") 
-                  if [ "$PR_MERGED" = "true" ]; then EMOJI="✅ MERGED"; else EMOJI="❌ CLOSED"; fi;;
+                  if ${{ github.event.pull_request.merged }}; then EMOJI="✅ MERGED"; else EMOJI="❌ CLOSED"; fi;;
                 "reopened") EMOJI="🔁";;
                 "ready_for_review") EMOJI="👀";;
                 "synchronize") EMOJI="🔄";;
                 *) EMOJI="🔀";;
               esac
               
-              REVIEWERS=$(echo "${{ github.event.pull_request.requested_reviewers.*.login }}" | jq -r 'join(", @")')
+              REVIEWERS=$(echo "${{ github.event.pull_request.requested_reviewers.*.login }}" | tr ' ' '\n' | grep -v '^$' | tr '\n' ',' | sed 's/,$//')
               [ -z "$REVIEWERS" ] && REVIEWERS="ninguno"
               
-              MESSAGE="$EMOJI *PR ${PR_ACTION^^}: [${{ github.event.pull_request.title }}](${{ github.event.pull_request.html_url }})*
-                      \n▫️ *Por*: [@${{ github.actor }}]($REPO_URL/${{ github.actor }})
-                      \n▫️ *Rama*: \`${{ github.event.pull_request.head.ref }} → ${{ github.event.pull_request.base.ref }}\`
-                      \n▫️ *Estado*: ${{ github.event.pull_request.state }} | *Revisiones*: @$REVIEWERS
+              MESSAGE="$EMOJI *PR ${PR_ACTION^^}: [$(escape_markdown "${{ github.event.pull_request.title }}")](${{ github.event.pull_request.html_url }})*
+                      \n▫️ *Por*: [@$(escape_markdown "${{ github.actor }}")]($REPO_URL/${{ github.actor }})
+                      \n▫️ *Rama*: \`$(escape_markdown "${{ github.event.pull_request.head.ref }}") → $(escape_markdown "${{ github.event.pull_request.base.ref }}")\`
+                      \n▫️ *Estado*: ${{ github.event.pull_request.state }} | *Revisiones*: @$(escape_markdown "$REVIEWERS")
                       \n📊 *Cambios*: +${{ github.event.pull_request.additions }} -${{ github.event.pull_request.deletions }} (🔄 ${{ github.event.pull_request.changed_files }} files)
-                      \n🕒 *Actualizado*: $CURRENT_TIME"
+                      \n🕒 *Actualizado*: $(escape_markdown "$CURRENT_TIME")"
               ;;
 
             "issues")
-              ISSUE_LABELS=$(echo "${{ github.event.issue.labels.*.name }}" | jq -r 'join(", ")')
-              ASSIGNEE=$(echo "${{ github.event.issue.assignee.login }}" || echo "sin asignar")
+              ISSUE_LABELS=$(echo "${{ github.event.issue.labels.*.name }}" | tr ' ' '\n' | grep -v '^$' | tr '\n' ',' | sed 's/,$//')
+              ASSIGNEE="${{ github.event.issue.assignee.login }}"
+              [ -z "$ASSIGNEE" ] && ASSIGNEE="sin asignar"
               
               case "${{ github.event.action }}" in
                 "opened") ISSUE_EMOJI="⚠️";;
@@ -99,3 +96,65 @@ jobs:
                 "assigned") ISSUE_EMOJI="👤";;
                 *) ISSUE_EMOJI="ℹ️";;
               esac
+              
+              MESSAGE="$ISSUE_EMOJI *Issue ${${{ github.event.action }}^^}: [$(escape_markdown "${{ github.event.issue.title }}")](${{ github.event.issue.html_url }})*
+                      \n▫️ *Por*: [@$(escape_markdown "${{ github.event.issue.user.login }}")]($REPO_URL/${{ github.event.issue.user.login }})
+                      \n▫️ *Asignado a*: [@$(escape_markdown "$ASSIGNEE")]($REPO_URL/$ASSIGNEE)
+                      \n🏷️ *Etiquetas*: $(escape_markdown "${ISSUE_LABELS:-ninguna}")
+                      \n▫️ *Estado*: ${{ github.event.issue.state }} | 💬 ${{ github.event.issue.comments }} comentarios
+                      \n🕒 *Actualizado*: $(escape_markdown "$CURRENT_TIME")"
+              ;;
+
+            "workflow_run")
+              WORKFLOW_NAME="${{ github.event.workflow_run.name }}"
+              DURATION_SEC=${{ github.event.workflow_run.run_duration }}
+              DURATION_STR=$(printf '%02d:%02d' $((DURATION_SEC/60)) $((DURATION_SEC%60)))
+              
+              case "${{ github.event.workflow_run.conclusion }}" in
+                "success") EMOJI="✔️"; STATUS="EXITOSO";;
+                "failure") EMOJI="❌"; STATUS="FALLIDO";;
+                "cancelled") EMOJI="🛑"; STATUS="CANCELADO";;
+                "skipped") EMOJI="⏭️"; STATUS="OMITIDO";;
+                *) EMOJI="ℹ️"; STATUS="${{ github.event.workflow_run.conclusion }}";;
+              esac
+              
+              MESSAGE="$EMOJI *Workflow [$(escape_markdown "$WORKFLOW_NAME")](${{ github.event.workflow_run.html_url }}) $STATUS*
+                      \n▫️ *Duración*: $(escape_markdown "$DURATION_STR")
+                      \n▫️ *Commit*: [\`$(echo "${{ github.event.workflow_run.head_sha }}" | cut -c1-7)\`]($REPO_URL/commit/${{ github.event.workflow_run.head_sha }})
+                      \n▫️ *Trigger*: ${{ github.event.workflow_run.event }} | *Ejecutado por*: $(escape_markdown "${{ github.event.workflow_run.actor.login }}")
+                      \n🕒 *Finalizado*: $(escape_markdown "$CURRENT_TIME")"
+              ;;
+              
+            "release")
+              RELEASE_ACTION="${{ github.event.action }}"
+              case "$RELEASE_ACTION" in
+                "published") EMOJI="🎉";;
+                "edited") EMOJI="✏️";;
+                *) EMOJI="📌";;
+              esac
+              
+              MESSAGE="$EMOJI *Nuevo release [$(escape_markdown "${{ github.event.release.tag_name }}")](${{ github.event.release.html_url }})*
+                      \n📌 *Título*: $(escape_markdown "${{ github.event.release.name }}")
+                      \n📝 *Descripción*: $(echo "${{ github.event.release.body }}" | head -n 3 | sed 's/\n/ /g' | escape_markdown)...
+                      \n🏷️ *Pre-release*: ${{ github.event.release.prerelease }} | *Draft*: ${{ github.event.release.draft }}
+                      \n🕒 *Publicado*: $(escape_markdown "$CURRENT_TIME")"
+              ;;
+          esac
+
+          # Envío mejorado con manejo de errores
+          echo "Sending notification to Telegram..."
+          RESPONSE=$(curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_TOKEN/sendMessage" \
+            -d chat_id="$CHAT_ID" \
+            -d text="$MESSAGE" \
+            -d parse_mode="MarkdownV2" \
+            -d disable_web_page_preview="true" \
+            -w "\n%{http_code}")
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Failed to send Telegram notification. HTTP Code: $HTTP_CODE"
+            echo "Response: $(echo "$RESPONSE" | head -n -1)"
+            exit 1
+          else
+            echo "Notification sent successfully!"
+          fi
