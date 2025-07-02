@@ -122,7 +122,7 @@ const CommitItem = memo(({ index, style, data }) => {
 
 CommitItem.displayName = 'CommitItem';
 
-const CommitsList = memo(({ commits, author }) => {
+const CommitsList = memo(({ commits, author, isAlwaysExpanded = false }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showAll, setShowAll] = useState(false);
   
@@ -154,6 +154,65 @@ const CommitsList = memo(({ commits, author }) => {
   
   if (!commits || commits.length === 0) return null;
   
+  // Si isAlwaysExpanded es true, mostrar directamente los commits sin botón de expansión
+  if (isAlwaysExpanded) {
+    return (
+      <div style={{
+        marginTop: '15px',
+        backgroundColor: '#f8f9fa',
+        borderRadius: '8px',
+        padding: '15px',
+        border: '1px solid #e9ecef'
+      }}>
+        <h5 style={{
+          margin: '0 0 15px 0',
+          color: '#495057',
+          fontSize: '14px',
+          fontWeight: 'bold'
+        }}>
+          Commits de {author}:
+        </h5>
+        
+        <div style={{ 
+          height: Math.min(displayCommits.length * 80, 300),
+          border: '1px solid #dee2e6',
+          borderRadius: '6px',
+          overflow: 'hidden'
+        }}>
+          <List
+            height={Math.min(displayCommits.length * 80, 300)}
+            itemCount={displayCommits.length}
+            itemSize={80}
+            itemData={listData}
+            overscanCount={2}
+          >
+            {CommitItem}
+          </List>
+        </div>
+        
+        {commits.length > 5 && (
+          <div style={{ textAlign: 'center', marginTop: '10px' }}>
+            <button
+              onClick={toggleShowAll}
+              style={{
+                backgroundColor: '#6c757d',
+                color: 'white',
+                border: 'none',
+                padding: '6px 12px',
+                borderRadius: '4px',
+                fontSize: '11px',
+                cursor: 'pointer'
+              }}
+            >
+              {showAll ? 'Mostrar menos' : `Ver todos (${commits.length})`}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+  
+  // Comportamiento original con botón de expansión
   return (
     <div style={{ marginTop: '15px' }}>
       <button

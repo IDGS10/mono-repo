@@ -34,7 +34,7 @@ const VirtualizedAuthorList = memo(({ data }) => {
     commitDetails: commitDetails || {}
   }), [sortedAuthors, authorDetails, commitDetails]);
   
-  const itemHeight = 160; // Altura estimada de cada AuthorCard
+  const itemHeight = 160; // Altura estimada de cada AuthorCard básica
   const maxHeight = Math.min(sortedAuthors.length * itemHeight, 600);
   const actualHeight = sortedAuthors.length > 5 ? maxHeight : sortedAuthors.length * itemHeight;
   
@@ -50,8 +50,8 @@ const VirtualizedAuthorList = memo(({ data }) => {
     );
   }
   
-  // Si hay pocos elementos, renderizar normalmente para mejor UX
-  if (sortedAuthors.length <= 5) {
+  // Si hay pocos elementos, renderizar normalmente para permitir expansión dinámica
+  if (sortedAuthors.length <= 10) {
     return (
       <div>
         {sortedAuthors.map(([author, commits]) => (

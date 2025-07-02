@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 
 const RepositoryStats = ({ repoStats, branchStats }) => {
   if (!repoStats) return null;
-  
+
   const { repository, contributors } = repoStats;
-  const [expandedContributor, setExpandedContributor] = useState(null);
-  
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('es-ES', {
       year: 'numeric',
@@ -13,13 +12,13 @@ const RepositoryStats = ({ repoStats, branchStats }) => {
       day: 'numeric'
     });
   };
-  
+
   const formatSize = (sizeKb) => {
     if (sizeKb < 1024) return `${sizeKb} KB`;
     if (sizeKb < 1024 * 1024) return `${(sizeKb / 1024).toFixed(1)} MB`;
     return `${(sizeKb / (1024 * 1024)).toFixed(1)} GB`;
   };
-  
+
   return (
     <div style={{
       backgroundColor: 'white',
@@ -173,7 +172,7 @@ const RepositoryStats = ({ repoStats, branchStats }) => {
             gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
             gap: '10px'
           }}>
-            {contributors.slice(0, 8).map((contributor) => (
+            {contributors.map((contributor) => (
               <div
                 key={contributor.login}
                 style={{
@@ -191,7 +190,7 @@ const RepositoryStats = ({ repoStats, branchStats }) => {
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = 'translateY(0)';
                 }}
-                onClick={() => setExpandedContributor(expandedContributor === contributor.login ? null : contributor.login)}
+                onClick={() => window.open(contributor.html_url, '_blank')}
               >
                 <img
                   src={contributor.avatar_url}
@@ -218,26 +217,6 @@ const RepositoryStats = ({ repoStats, branchStats }) => {
                 }}>
                   {contributor.contributions} contribuciones
                 </p>
-                {expandedContributor === contributor.login && (
-                  <div style={{
-                    marginTop: '10px',
-                    backgroundColor: '#e9ecef',
-                    padding: '10px',
-                    borderRadius: '6px',
-                    textAlign: 'left'
-                  }}>
-                    <h5 style={{ margin: '0 0 5px 0', color: '#495057' }}>Detalles de Commits:</h5>
-                    <ul style={{ margin: 0, padding: '0 0 0 15px', listStyleType: 'disc', color: '#6c757d' }}>
-                      {contributor.commits.map((commit, index) => (
-                        <li key={index} style={{ marginBottom: '5px' }}>
-                          <a href={commit.url} target="_blank" rel="noopener noreferrer" style={{ color: '#007bff' }}>
-                            {commit.message}
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
               </div>
             ))}
           </div>

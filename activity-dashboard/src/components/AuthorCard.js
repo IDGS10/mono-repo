@@ -3,6 +3,7 @@ import CommitsList from './CommitsList';
 
 const AuthorCard = memo(({ author, commits, authorDetails, commitDetails }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const [showCommits, setShowCommits] = useState(false);
   
   const details = useMemo(() => authorDetails[author], [authorDetails, author]);
   const authorCommits = useMemo(() => commitDetails[author] || [], [commitDetails, author]);
@@ -20,6 +21,10 @@ const AuthorCard = memo(({ author, commits, authorDetails, commitDetails }) => {
       window.open(details.html_url, '_blank');
     }
   }, [details?.html_url]);
+
+  const toggleCommits = useCallback(() => {
+    setShowCommits(!showCommits);
+  }, [showCommits]);
   
   const cardStyle = useMemo(() => ({
     padding: '20px',
@@ -116,8 +121,31 @@ const AuthorCard = memo(({ author, commits, authorDetails, commitDetails }) => {
         </div>
       </div>
       
-      {/* Lista de commits */}
-      <CommitsList commits={authorCommits} author={author} />
+      {/* Botón para mostrar commits */}
+      {authorCommits && authorCommits.length > 0 && (
+        <div style={{ marginTop: '15px' }}>
+          <button
+            onClick={toggleCommits}
+            style={{
+              backgroundColor: '#007bff',
+              color: 'white',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: '6px',
+              fontSize: '12px',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            {showCommits ? '🔼 Ocultar Commits' : '🔽 Ver Commits'} ({authorCommits.length})
+          </button>
+        </div>
+      )}
+      
+      {/* Lista de commits - solo mostrar cuando está expandido */}
+      {showCommits && authorCommits && authorCommits.length > 0 && (
+        <CommitsList commits={authorCommits} author={author} isAlwaysExpanded={true} />
+      )}
     </div>
   );
 });
