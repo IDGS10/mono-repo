@@ -10,7 +10,7 @@ const TopHeader = ({ sidebarCollapsed }) => {
   const handleLogout = () => {
     // Clear authentication data
     localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('userEmail');
+    localStorage.removeItem('monoRepoUserData');
 
     // Redirect to login
     navigate('/login');

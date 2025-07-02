@@ -48,7 +48,7 @@ api.interceptors.response.use(
     if (error.response?.data?.shouldLogout) {
       console.log("[ApiService] Servidor indica logout automático");
       //Clean local storage
-      localStorage.removeItem("userToken");
+      localStorage.removeItem("monoRepoUserData");
       //Send custom event to notify logout
       window.dispatchEvent(
         new CustomEvent("forceLogout", {
@@ -67,7 +67,7 @@ class ApiService {
   static async registerUser(userData) {
     try {
       console.log("[ApiService] Registrando nuevo usuario:", userData.email);
-      const response = await api.post("/register", userData);
+      const response = await api.post("/auth/register", userData);
       if (response.data.success) {
         console.log(
           "[ApiService] Usuario registrado exitosamente:",
@@ -76,7 +76,7 @@ class ApiService {
         return {
           success: true,
           userId: response.data.user?.id,
-          userToken: response.data.userToken,
+          token: response.data.token,
           user: response.data.user,
           message: response.data.message || "Usuario registrado exitosamente",
         };
@@ -112,13 +112,11 @@ class ApiService {
    */
   static async loginCredentials(email, password) {
     try {
-      console.log("[ApiService] Login con credenciales para:", email);
-      const response = await api.post("/login", { email, password });
+      const response = await api.post("/auth/login", { email, password });
       if (response.data.success) {
-        console.log("[ApiService] Login exitoso para:", email);
         return {
           success: true,
-          userToken: response.data.userToken,
+          token: response.data.token,
           message: "Login exitoso",
         };
       } else {

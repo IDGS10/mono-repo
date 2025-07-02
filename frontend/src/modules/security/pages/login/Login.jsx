@@ -33,16 +33,20 @@ export default function PasswordLogin() {
 
     try {
       const response = await ApiService.loginCredentials(
-        formData.email,
-        formData.password
+        loginData.email,
+        loginData.password
       );
 
-      if (response.success && response.userToken) {
+      if (response.success && response.token) {
         //Guardamos el estado de login para verificación de la sesión
         localStorage.setItem("isLoggedIn", "true");
-        //JWT del usuario
-        localStorage.setItem("monoRepoUserData", response.userToken);
-        //Redirigir al dashboard
+
+        const userData = {
+          token: response.token,
+          user: response.user || null,
+        };
+        localStorage.setItem("monoRepoUserData", JSON.stringify(userData));
+
         navigate("/analytics");
       } else {
         setError(response.error || "Error en el inicio de sesión");
