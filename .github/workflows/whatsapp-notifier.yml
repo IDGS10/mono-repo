@@ -1,0 +1,50 @@
+name: WhatsApp Group Notifier (All Branches)
+on:
+  push:
+    branches-ignore:   # Opcional: excluye ramas específicas
+      - main           # Elimina esta línea si quieres incluir todas
+  pull_request:
+    types: [opened, closed, reopened]
+  issues:
+    types: [opened, closed]
+
+jobs:
+  notify-group:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send WhatsApp notification
+        env:
+          TWILIO_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+          TWILIO_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+          GROUP_ID: ${{ secrets.MY_PHONE }}  # Formato: whatsapp:1234567890@g.us
+          FROM_PHONE: ${{ secrets.TWILIO_PHONE }}     # Número Twilio (ej: whatsapp:+14155238886)
+        run: |
+          # Formatea el mensaje según el tipo de evento
+          case "${{ github.event_name }}" in
+            "push")
+              MESSAGE="📌 *Nuevo commit en ${{ github.repository }}*
+                      👤 *Autor*: ${{ github.actor }}
+                      🌿 *Rama*: ${GITHUB_REF##*/}
+                      📝 *Mensaje*: ${{ github.event.head_commit.message }}
+                      🔗 *Ver cambios*: ${{ github.event.head_commit.url }}"
+              ;;
+            "pull_request")
+              MESSAGE="🔀 *PR ${{ github.event.action }}*: ${{ github.event.pull_request.title }}
+                      👤 *Por*: ${{ github.actor }}
+                      🌿 *Rama*: ${{ github.event.pull_request.head.ref }}
+                      📌 *Estado*: ${{ github.event.pull_request.state }}
+                      🔗 *Ver PR*: ${{ github.event.pull_request.html_url }}"
+              ;;
+            "issues")
+              MESSAGE="⚠️ *Issue ${{ github.event.action }}*: ${{ github.event.issue.title }}
+                      👤 *Por*: ${{ github.actor }}
+                      🔗 *Ver issue*: ${{ github.event.issue.html_url }}"
+              ;;
+          esac
+
+          # Envía el mensaje vía Twilio
+          curl -X POST "https://api.twilio.com/2010-04-01/Accounts/$TWILIO_SID/Messages.json" \
+            --user "$TWILIO_SID:$TWILIO_TOKEN" \
+            -d "Body=$MESSAGE" \
+            -d "From=$FROM_PHONE" \
+            -d "To=$GROUP_ID"
