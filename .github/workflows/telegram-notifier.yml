@@ -64,11 +64,12 @@ jobs:
               ;;
 
             "pull_request")
-              PR_ACTION=${{ github.event.action }}
+              PR_ACTION="${{ github.event.action }}"
+              PR_MERGED="${{ github.event.pull_request.merged }}"
               case "$PR_ACTION" in
                 "opened") EMOJI="🆕";;
                 "closed") 
-                  if ${{ github.event.pull_request.merged }}; then EMOJI="✅ MERGED"; else EMOJI="❌ CLOSED"; fi;;
+                  if [ "$PR_MERGED" = "true" ]; then EMOJI="✅ MERGED"; else EMOJI="❌ CLOSED"; fi;;
                 "reopened") EMOJI="🔁";;
                 "ready_for_review") EMOJI="👀";;
                 "synchronize") EMOJI="🔄";;
