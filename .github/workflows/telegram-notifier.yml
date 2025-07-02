@@ -48,9 +48,13 @@ jobs:
               NUM_MODIFIED=$(echo "${{ github.event.head_commit.modified }}" | wc -w || echo 0)
               NUM_CHANGES=$((NUM_ADDED + NUM_MODIFIED))
               
-              if [ $NUM_CHANGES -gt 20 ]; then CHANGE_EMOJI="📦";
-              elif [ $NUM_CHANGES -gt 5 ]; then CHANGE_EMOJI="📂";
-              else CHANGE_EMOJI="📄"; fi
+              if [ "$NUM_CHANGES" -gt 20 ]; then
+                CHANGE_EMOJI="📦"
+              elif [ "$NUM_CHANGES" -gt 5 ]; then
+                CHANGE_EMOJI="📂"
+              else
+                CHANGE_EMOJI="📄"
+              fi
 
               MESSAGE="🚀 *Push en $(escape_markdown "$REPO_NAME")* ($REPO_URL) [${ENVIRONMENT}]
                       \n▫️ *Rama*: \`$(escape_markdown "${GITHUB_REF##*/}")\`
