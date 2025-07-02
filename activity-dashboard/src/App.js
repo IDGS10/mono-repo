@@ -315,42 +315,6 @@ const App = () => {
         </p>
       </div>
 
-      {/* Input para Token */}
-      <div style={{ 
-        backgroundColor: 'white', 
-        padding: '20px', 
-        borderRadius: '12px', 
-        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)', 
-        marginBottom: '20px' 
-      }}>
-        <label style={{ 
-          display: 'block', 
-          marginBottom: '10px', 
-          fontSize: '14px', 
-          fontWeight: '600', 
-          color: '#495057' 
-        }}>
-          Token de GitHub:
-        </label>
-        <input
-          type="text"
-          value={token}
-          onChange={handleTokenChange}
-          placeholder="Ingresa tu token de GitHub para aumentar el límite de la API"
-          style={{ 
-            width: '100%', 
-            padding: '12px', 
-            border: '2px solid #e9ecef', 
-            borderRadius: '6px', 
-            fontSize: '14px', 
-            outline: 'none', 
-            transition: 'border-color 0.2s ease' 
-          }}
-          onFocus={(e) => { e.target.style.borderColor = '#007bff'; }}
-          onBlur={(e) => { e.target.style.borderColor = '#e9ecef'; }}
-        />
-      </div>
-
       {/* Selector de Repositorio */}
       <RepositorySelector 
         onRepositoryChange={handleRepositoryChange}
