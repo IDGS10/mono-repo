@@ -25,4 +25,5 @@ jobs:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           REPO_NAME: ${{ github.repository }}
         run: |
-          nohup python bot_scripts/bot_graficas.py > bot.log 2>&1 &
+          pip install -r bot_scripts/requirements.txt
+          python bot_scripts/bot_graficas.py
