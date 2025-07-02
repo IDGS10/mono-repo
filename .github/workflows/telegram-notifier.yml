@@ -38,6 +38,14 @@ jobs:
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           CURRENT_TIME=$(date +"%Y-%m-%d %H:%M:%S %Z")
           
+          # Set GitHub context variables
+          GITHUB_EVENT_NAME="${{ github.event_name }}"
+          GITHUB_ACTOR="${{ github.actor }}"
+          GITHUB_REF="${{ github.ref }}"
+          GITHUB_EVENT_HEAD_COMMIT_MESSAGE="${{ github.event.head_commit.message }}"
+          GITHUB_EVENT_HEAD_COMMIT_URL="${{ github.event.head_commit.url }}"
+          GITHUB_EVENT_HEAD_COMMIT_MODIFIED="${{ toJson(github.event.head_commit.modified) }}"
+          
           # Mensajes dinámicos con emojis contextuales
           case "$GITHUB_EVENT_NAME" in
             "push")
