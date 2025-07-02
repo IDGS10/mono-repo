@@ -73,31 +73,33 @@ jobs:
               ;;
 
             "pull_request")
-              PR_ACTION="${{ github.event.action }}"
-              case "$PR_ACTION" in
-                "opened") EMOJI="🆕"; ACTION_TEXT="ABIERTO";;
-                "closed") 
-                  if ${{ github.event.pull_request.merged }}; then
-                    EMOJI="✅ MERGED"; ACTION_TEXT="CERRADO Y FUSIONADO";
-                  else
-                    EMOJI="❌ CLOSED"; ACTION_TEXT="CERRADO";
-                  fi;;
-                "reopened") EMOJI="🔁"; ACTION_TEXT="REABIERTO";;
-                "ready_for_review") EMOJI="👀"; ACTION_TEXT="LISTO PARA REVISIÓN";;
-                "synchronize") EMOJI="🔄"; ACTION_TEXT="ACTUALIZADO";;
-                *) EMOJI="🔀"; ACTION_TEXT="ACCION DESCONOCIDA";;
-              esac
+            PR_ACTION=""
+            case "$PR_ACTION" in
+              "opened") EMOJI="🆕"; ACTION_TEXT="ABIERTO";;
+              "closed") 
+                # Simulamos que no fue merged (puedes cambiar a "true" si lo deseas)
+                IS_MERGED=false
+                if $IS_MERGED; then
+                  EMOJI="✅ MERGED"; ACTION_TEXT="CERRADO Y FUSIONADO";
+                else
+                  EMOJI="❌ CLOSED"; ACTION_TEXT="CERRADO";
+                fi;;
+              "reopened") EMOJI="🔁"; ACTION_TEXT="REABIERTO";;
+              "ready_for_review") EMOJI="👀"; ACTION_TEXT="LISTO PARA REVISIÓN";;
+              "synchronize") EMOJI="🔄"; ACTION_TEXT="ACTUALIZADO";;
+              *) EMOJI="🔀"; ACTION_TEXT="ACCION DESCONOCIDA";;
+            esac
 
-              REVIEWERS=$(echo "${{ github.event.pull_request.requested_reviewers.*.login }}" | tr ' ' '\n' | grep -v '^$' | tr '\n' ',' | sed 's/,$//')
-              [ -z "$REVIEWERS" ] && REVIEWERS="ninguno"
+            REVIEWERS=$(echo "Array" | tr ' ' '\n' | grep -v '^$' | tr '\n' ',' | sed 's/,$//')
+            [ -z "$REVIEWERS" ] && REVIEWERS="ninguno"
 
-              MESSAGE="$EMOJI *PR $ACTION_TEXT: [$(escape_markdown "${{ github.event.pull_request.title }}")](${{ github.event.pull_request.html_url }})*
-                      \n▫️ *Por*: [@$(escape_markdown "${{ github.actor }}")]($REPO_URL/${{ github.actor }})
-                      \n▫️ *Rama*: \`$(escape_markdown "${{ github.event.pull_request.head.ref }}") → $(escape_markdown "${{ github.event.pull_request.base.ref }}")\`
-                      \n▫️ *Estado*: ${{ github.event.pull_request.state }} | *Revisiones*: @$(escape_markdown "$REVIEWERS")
-                      \n📊 *Cambios*: +${{ github.event.pull_request.additions }} -${{ github.event.pull_request.deletions }} (\`\`${{ github.event.pull_request.changed_files }} archivos\`\`)
-                      \n🕒 *Actualizado*: $CURRENT_TIME"
-              ;;
+            MESSAGE="$EMOJI *PR $ACTION_TEXT: [$(escape_markdown "")]()*
+                    \n▫️ *Por*: [@$(escape_markdown "victoMR")]($REPO_URL/victoMR)
+                    \n▫️ *Rama*: \`$(escape_markdown "") → $(escape_markdown "")\`
+                    \n▫️ *Estado*:  | *Revisiones*: @$(escape_markdown "$REVIEWERS")
+                    \n📊 *Cambios*: + - (\`\` archivos\`\`)
+                    \n🕒 *Actualizado*: $CURRENT_TIME"
+            ;;
 
             "issues")
               ISSUE_ACTION="${{ github.event.action }}"
