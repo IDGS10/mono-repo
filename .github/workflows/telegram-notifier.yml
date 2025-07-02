@@ -1,0 +1,92 @@
+name: Telegram Notifier Pro+
+on:
+  push:
+    ## all branches
+    branches: 
+      - '**'
+    ## all tags
+    tags: 
+      - '**'
+    ## except for docs and README changes
+    paths-ignore: 
+      - 'docs/**'
+      - 'README.md'
+  pull_request:
+    types: [opened, closed, reopened, ready_for_review, synchronize]
+  issues:
+    types: [opened, closed, reopened, labeled, assigned]
+  workflow_run:
+    workflows: ["CI", "Tests", "Security Scan"]
+    types: [completed, requested]
+  release:
+    types: [published, edited]
+
+jobs:
+  notify-telegram:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Send Smart Notification
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          ENVIRONMENT: ${{ github.event_name == 'release' && 'PROD' || 'DEV' }}
+        run: |
+          # Configuración avanzada
+          REPO_NAME="${{ github.repository }}"
+          REPO_URL="${{ github.server_url }}/$REPO_NAME"
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          CURRENT_TIME=$(date +"%Y-%m-%d %H:%M:%S %Z")
+          
+          # Mensajes dinámicos con emojis contextuales
+          case "${{ github.event_name }}" in
+            "push")
+              COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | sed 's/\n/ /g' | cut -c1-100)
+              NUM_CHANGES=$(echo "${{ toJson(github.event.head_commit.modified) }}" | jq 'length')
+              if [ $NUM_CHANGES -gt 20 ]; then CHANGE_EMOJI="📦"; 
+              elif [ $NUM_CHANGES -gt 5 ]; then CHANGE_EMOJI="📂";
+              else CHANGE_EMOJI="📄"; fi
+              
+              MESSAGE="🚀 *Push en [$REPO_NAME]($REPO_URL)* [${ENVIRONMENT}]
+                      \n▫️ *Rama*: \`${GITHUB_REF##*/}\`
+                      \n▫️ *Autor*: [${{ github.actor }}]($REPO_URL/${{ github.actor }})
+                      \n▫️ *Commit*: [\`$SHORT_SHA\`](${{ github.event.head_commit.url }}) - ${COMMIT_MSG}
+                      \n${CHANGE_EMOJI} *Archivos modificados*: $NUM_CHANGES
+                      \n🕒 *Hora*: $CURRENT_TIME"
+              ;;
+
+            "pull_request")
+              PR_ACTION=${{ github.event.action }}
+              case "$PR_ACTION" in
+                "opened") EMOJI="🆕";;
+                "closed") 
+                  if ${{ github.event.pull_request.merged }}; then EMOJI="✅ MERGED"; else EMOJI="❌ CLOSED"; fi;;
+                "reopened") EMOJI="🔁";;
+                "ready_for_review") EMOJI="👀";;
+                "synchronize") EMOJI="🔄";;
+                *) EMOJI="🔀";;
+              esac
+              
+              REVIEWERS=$(echo "${{ github.event.pull_request.requested_reviewers.*.login }}" | jq -r 'join(", @")')
+              [ -z "$REVIEWERS" ] && REVIEWERS="ninguno"
+              
+              MESSAGE="$EMOJI *PR ${PR_ACTION^^}: [${{ github.event.pull_request.title }}](${{ github.event.pull_request.html_url }})*
+                      \n▫️ *Por*: [@${{ github.actor }}]($REPO_URL/${{ github.actor }})
+                      \n▫️ *Rama*: \`${{ github.event.pull_request.head.ref }} → ${{ github.event.pull_request.base.ref }}\`
+                      \n▫️ *Estado*: ${{ github.event.pull_request.state }} | *Revisiones*: @$REVIEWERS
+                      \n📊 *Cambios*: +${{ github.event.pull_request.additions }} -${{ github.event.pull_request.deletions }} (🔄 ${{ github.event.pull_request.changed_files }} files)
+                      \n🕒 *Actualizado*: $CURRENT_TIME"
+              ;;
+
+            "issues")
+              ISSUE_LABELS=$(echo "${{ github.event.issue.labels.*.name }}" | jq -r 'join(", ")')
+              ASSIGNEE=$(echo "${{ github.event.issue.assignee.login }}" || echo "sin asignar")
+              
+              case "${{ github.event.action }}" in
+                "opened") ISSUE_EMOJI="⚠️";;
+                "closed") ISSUE_EMOJI="✅";;
+                "reopened") ISSUE_EMOJI="🔁";;
+                "labeled") ISSUE_EMOJI="🏷️";;
+                "assigned") ISSUE_EMOJI="👤";;
+                *) ISSUE_EMOJI="ℹ️";;
+              esac
