@@ -37,7 +37,7 @@ jobs:
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           CURRENT_TIME=$(date +"%Y-%m-%d %H:%M:%S %Z")
 
-          # Función para escapar caracteres especiales de MarkdownV2
+          # Función mejorada para escapar caracteres especiales de MarkdownV2
           escape_markdown() {
             echo "$1" | sed -e 's/[_\*\[\]()~`\>#+\-=\|{}\.!]/\\&/g'
           }
@@ -49,12 +49,21 @@ jobs:
           case "${{ github.event_name }}" in
 
             "push")
-              COMMIT_MSG=$(escape_markdown "${{ github.event.head_commit.message }}" | cut -c1-100)
+              COMMIT_MSG=$(escape_markdown "${{ github.event.head_commit.message }}")
+              TRUNCATED_MSG=$(echo "$COMMIT_MSG" | cut -c1-100)
 
-              NUM_ADDED=$(echo "${{ github.event.head_commit.added }}" | wc -w 2>/dev/null || echo 0)
-              NUM_MODIFIED=$(echo "${{ github.event.head_commit.modified }}" | wc -w 2>/dev/null || echo 0)
+              # Contar archivos modificados de forma robusta
+              NUM_ADDED=0
+              NUM_MODIFIED=0
+              if [ -n "${{ github.event.head_commit.added }}" ]; then
+                NUM_ADDED=$(echo "${{ github.event.head_commit.added }}" | tr ' ' '\n' | grep -c . || true)
+              fi
+              if [ -n "${{ github.event.head_commit.modified }}" ]; then
+                NUM_MODIFIED=$(echo "${{ github.event.head_commit.modified }}" | tr ' ' '\n' | grep -c . || true)
+              fi
               NUM_CHANGES=$((NUM_ADDED + NUM_MODIFIED))
 
+              # Seleccionar emoji basado en cantidad de cambios
               if [ "$NUM_CHANGES" -gt 20 ]; then
                 CHANGE_EMOJI="📦"
               elif [ "$NUM_CHANGES" -gt 5 ]; then
@@ -63,13 +72,16 @@ jobs:
                 CHANGE_EMOJI="📄"
               fi
 
-              MESSAGE="🚀 *Push en $(escape_markdown "$REPO_NAME")* [$REPO_URL] ($REPO_URL) [$ENVIRONMENT]
-                      \n▫️ *Rama*: \`$(escape_markdown "${GITHUB_REF##*/}")\`
-                      \n▫️ *Autor*: [@$(escape_markdown "${{ github.actor }}")]($REPO_URL/${{ github.actor }})
-                      \n▫️ *Commit*: [\`$SHORT_SHA\`](${{ github.event.head_commit.url }})
-                      \n▫️ *Mensaje*: $COMMIT_MSG
-                      \n${CHANGE_EMOJI} *Archivos modificados*: $NUM_CHANGES
-                      \n🕒 *Hora*: $CURRENT_TIME"
+              BRANCH_NAME=$(escape_markdown "${GITHUB_REF##*/}")
+              ACTOR_NAME=$(escape_markdown "${{ github.actor }}")
+
+              MESSAGE="🚀 *Push en $(escape_markdown "$REPO_NAME")* \\[$REPO_URL\\] ($REPO_URL) [$ENVIRONMENT]
+                      \n▫️ *Rama*: \`$BRANCH_NAME\`
+                      \n▫️ *Autor*: [@$ACTOR_NAME]($REPO_URL/${{ github.actor }})
+                      \n▫️ *Commit*: [\`$(escape_markdown "$SHORT_SHA")\`](${{ github.event.head_commit.url }})
+                      \n▫️ *Mensaje*: $TRUNCATED_MSG
+                      \n${CHANGE_EMOJI} *Archivos modificados*: $(escape_markdown "$NUM_CHANGES")
+                      \n🕒 *Hora*: $(escape_markdown "$CURRENT_TIME")"
               ;;
 
             "pull_request")
@@ -94,13 +106,14 @@ jobs:
               BASE_BRANCH=$(escape_markdown "${{ github.event.pull_request.base.ref }}")
               PR_AUTHOR=$(escape_markdown "${{ github.event.pull_request.user.login }}")
               PR_URL="${{ github.event.pull_request.html_url }}"
+              CHANGED_FILES="${{ github.event.pull_request.changed_files }}"
 
               MESSAGE="$EMOJI *PR $ACTION_TEXT: [$PR_TITLE]($PR_URL)*
                       \n▫️ *Por*: [@$PR_AUTHOR]($REPO_URL/$PR_AUTHOR)
                       \n▫️ *Rama*: \`$HEAD_BRANCH → $BASE_BRANCH\`
                       \n▫️ *Estado*: ${{ github.event.pull_request.state }}
-                      \n📊 *Cambios*: +{{ github.event.pull_request.additions }} -{{ github.event.pull_request.deletions }} (\`${{ github.event.pull_request.changed_files }} archivos\`)
-                      \n🕒 *Actualizado*: $CURRENT_TIME"
+                      \n📊 *Cambios*: +${{ github.event.pull_request.additions }} -${{ github.event.pull_request.deletions }} (\`$CHANGED_FILES archivos\`)
+                      \n🕒 *Actualizado*: $(escape_markdown "$CURRENT_TIME")"
               ;;
 
             "issues")
@@ -130,7 +143,7 @@ jobs:
                       \n▫️ *Asignado a*: [@$ASSIGNEE]($REPO_URL/$ASSIGNEE)
                       \n🏷️ *Etiquetas*: $(escape_markdown "$ISSUE_LABELS")
                       \n▫️ *Estado*: ${{ github.event.issue.state }} | 💬 ${{ github.event.issue.comments }} comentarios
-                      \n🕒 *Actualizado*: $CURRENT_TIME"
+                      \n🕒 *Actualizado*: $(escape_markdown "$CURRENT_TIME")"
               ;;
 
             "workflow_run")
@@ -140,7 +153,9 @@ jobs:
               CREATED_TIMESTAMP=$(date -d "$CREATED_AT" +%s)
               UPDATED_TIMESTAMP=$(date -d "$UPDATED_AT" +%s)
               DURATION_SEC=$((UPDATED_TIMESTAMP - CREATED_TIMESTAMP))
-              DURATION_STR=$(printf '%02d:%02d' $((DURATION_SEC/60)) $((DURATION_SEC%60)))
+              DURATION_MIN=$((DURATION_SEC / 60))
+              DURATION_SEC_REMAINING=$((DURATION_SEC % 60))
+              DURATION_STR=$(printf '%02d:%02d' $DURATION_MIN $DURATION_SEC_REMAINING)
 
               CONCLUSION="${{ github.event.workflow_run.conclusion }}"
               case "$CONCLUSION" in
@@ -151,11 +166,15 @@ jobs:
                 *) EMOJI="ℹ️"; STATUS="$(escape_markdown "$CONCLUSION")";;
               esac
 
+              HEAD_SHA="${{ github.event.workflow_run.head_sha }}"
+              SHORT_WORKFLOW_SHA=$(echo "$HEAD_SHA" | cut -c1-7)
+              ACTOR_NAME=$(escape_markdown "${{ github.event.workflow_run.actor.login }}")
+
               MESSAGE="$EMOJI *Workflow [$WORKFLOW_NAME](${{ github.event.workflow_run.html_url }}) $STATUS*
-                      \n▫️ *Duración*: $DURATION_STR
-                      \n▫️ *Commit*: [\`$(echo "${{ github.event.workflow_run.head_sha }}" | cut -c1-7)\`]($REPO_URL/commit/${{ github.event.workflow_run.head_sha }})
-                      \n▫️ *Trigger*: ${{ github.event.workflow_run.event }} | *Ejecutado por*: $(escape_markdown "${{ github.event.workflow_run.actor.login }}")
-                      \n🕒 *Finalizado*: $CURRENT_TIME"
+                      \n▫️ *Duración*: $(escape_markdown "$DURATION_STR")
+                      \n▫️ *Commit*: [\`$(escape_markdown "$SHORT_WORKFLOW_SHA")\`]($REPO_URL/commit/$HEAD_SHA)
+                      \n▫️ *Trigger*: ${{ github.event.workflow_run.event }} | *Ejecutado por*: @$ACTOR_NAME
+                      \n🕒 *Finalizado*: $(escape_markdown "$CURRENT_TIME")"
               ;;
               
             "release")
@@ -168,18 +187,23 @@ jobs:
 
               TAG_NAME=$(escape_markdown "${{ github.event.release.tag_name }}")
               RELEASE_NAME=$(escape_markdown "${{ github.event.release.name }}")
-              RELEASE_BODY=$(echo "${{ github.event.release.body }}" | head -n 3 | sed 's/\n/ /g' | escape_markdown)
+              RELEASE_BODY=$(echo "${{ github.event.release.body }}" | head -n 3 | sed 's/\n/ /g')
+              ESCAPED_BODY=$(escape_markdown "$RELEASE_BODY")
               HTML_URL="${{ github.event.release.html_url }}"
 
               MESSAGE="$EMOJI *Nuevo release [$TAG_NAME]($HTML_URL)*
-                      \n📌 *Título*: $RELEASE_NAME
-                      \n📝 *Descripción*: $RELEASE_BODY...
+                      \n📌 *Título*: $(escape_markdown "$RELEASE_NAME")
+                      \n📝 *Descripción*: $ESCAPED_BODY...
                       \n🏷️ *Pre-release*: ${{ github.event.release.prerelease }} | *Draft*: ${{ github.event.release.draft }}
-                      \n🕒 *Publicado*: $CURRENT_TIME"
+                      \n🕒 *Publicado*: $(escape_markdown "$CURRENT_TIME")"
               ;;
           esac
 
-          # Envío con manejo de errores
+          # Depuración: mostrar mensaje generado
+          echo "Generated message:"
+          echo -e "$MESSAGE"
+
+          # Envío con manejo de errores (URL corregida)
           echo "Sending notification to Telegram..."
           RESPONSE=$(curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_TOKEN/sendMessage" \
             -d chat_id="$CHAT_ID" \
