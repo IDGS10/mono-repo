@@ -2,59 +2,74 @@ const { pool } = require("../config/database");
 
 //Connection to PostgreSQL
 async function connectDatabase() {
+  console.log("🔄 Intentando conectar a la base de datos...");
+  
   try {
-    const client = await pool.connect();
-    console.log("✅ Conectado exitosamente a PostgreSQL (Neon)");
-    console.log(`🗄️  Base de datos: ${process.env.DB_NAME}`);
-    console.log(`🌐 Host: ${process.env.DB_HOST}`);
+    // Agregar timeout de 10 segundos
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Timeout: La conexión tardó más de 10 segundos')), 10000)
+    );
+    
+    const connectPromise = pool.connect();
+    
+    const client = await Promise.race([connectPromise, timeoutPromise]);
+    
+    console.log("✅ Conectado exitosamente a PostgreSQL (VPC)");
+    console.log(`🗄️  Base de datos: ${process.env.DB_NAME || 'segDatabase'}`);
+    console.log(`🌐 Host: ${process.env.DB_HOST || 'Base de datos externa'}`);
+    
     client.release();
+    
+    console.log("🔄 Inicializando tablas de la base de datos...");
     await initializeDatabase();
+    console.log("✅ Base de datos inicializada correctamente");
+    
   } catch (err) {
-    console.error("❌ Error conectando a PostgreSQL:", err.message);
-    process.exit(1);
+    console.error("❌ Error conectando a PostgreSQL:");
+    console.error("   Mensaje:", err.message);
+    console.error("   Código:", err.code);
+    console.error("   Stack:", err.stack);
+    
+    // No salir del proceso inmediatamente para debugging
+    console.log("⚠️  Continuando sin base de datos (modo desarrollo)");
+    return false;
   }
+  
+  return true;
 }
 
 //Create tables if not exist
 async function initializeDatabase() {
-  const createTables = `
-    -- Tabla de usuarios
-    CREATE TABLE IF NOT EXISTS users (
-      id SERIAL PRIMARY KEY,
-      first_name VARCHAR(100) NOT NULL,
-      last_name VARCHAR(100) NOT NULL,
-      email VARCHAR(255) UNIQUE NOT NULL,
-      password_hash VARCHAR(255) NOT NULL,
-      phone VARCHAR(20),
-      id_number VARCHAR(50) UNIQUE,
-      is_active BOOLEAN DEFAULT true,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
+  try {
+    console.log("🔄 Creando tablas necesarias...");
+    
+    const createTables = `
+      -- Tabla de usuarios
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        first_name VARCHAR(100) NOT NULL,
+        last_name VARCHAR(100) NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        phone VARCHAR(20),
+        id_number VARCHAR(50) UNIQUE,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
 
-    -- Tabla de embeddings faciales
-    CREATE TABLE IF NOT EXISTS face_embeddings (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL,
-      embedding_data TEXT NOT NULL,
-      capture_type VARCHAR(50) NOT NULL CHECK(capture_type IN ('normal', 'sonrisa', 'asentir', 'subir_cabeza')),
-      quality_score REAL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-    );
-
-    -- Tabla de sesiones de login
-    CREATE TABLE IF NOT EXISTS login_sessions (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL,
-      token_hash VARCHAR(255) NOT NULL,
-      ip_address INET,
-      user_agent TEXT,
-      is_active BOOLEAN DEFAULT true,
-      expires_at TIMESTAMP NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-    );
+      -- Tabla de sesiones de login
+      CREATE TABLE IF NOT EXISTS login_sessions (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        token_hash VARCHAR(255) NOT NULL,
+        ip_address INET,
+        user_agent TEXT,
+        is_active BOOLEAN DEFAULT true,
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+      );
 
     -- Tabla de intentos de login
     CREATE TABLE IF NOT EXISTS login_attempts (
@@ -81,45 +96,19 @@ async function initializeDatabase() {
 
     -- Índices para mejor rendimiento
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-    CREATE INDEX IF NOT EXISTS idx_face_embeddings_user_id ON face_embeddings(user_id);
     CREATE INDEX IF NOT EXISTS idx_login_sessions_user_id ON login_sessions(user_id);
     CREATE INDEX IF NOT EXISTS idx_login_sessions_token ON login_sessions(token_hash);
     CREATE INDEX IF NOT EXISTS idx_login_attempts_email ON login_attempts(email);
     CREATE INDEX IF NOT EXISTS idx_login_attempts_created_at ON login_attempts(created_at);
   `;
 
-  try {
     await pool.query(createTables);
     console.log("✅ Tablas de PostgreSQL inicializadas correctamente");
-    await migrateDatabase();
     await seedDefaultData();
+    
   } catch (err) {
     console.error("❌ Error creando tablas:", err.message);
-  }
-}
-
-//Database migration function
-async function migrateDatabase() {
-  try {
-    console.log("🔄 Verificando migraciones de base de datos...");
-
-    //Migration for capture_type constraint
-    const migrateCaptureTypeConstraint = `
-      -- Eliminar constraint viejo si existe
-      ALTER TABLE face_embeddings DROP CONSTRAINT IF EXISTS face_embeddings_capture_type_check;
-      
-      -- Agregar nuevo constraint con tipos actualizados
-      ALTER TABLE face_embeddings ADD CONSTRAINT face_embeddings_capture_type_check 
-        CHECK(capture_type IN ('normal', 'sonrisa', 'asentir', 'subir_cabeza'));
-    `;
-
-    await pool.query(migrateCaptureTypeConstraint);
-    console.log("✅ Migración de constraint capture_type completada");
-  } catch (err) {
-    console.error(
-      "⚠️ Error en migraciones (puede ser normal en primera ejecución):",
-      err.message
-    );
+    throw err;
   }
 }
 

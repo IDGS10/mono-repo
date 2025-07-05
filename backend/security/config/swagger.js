@@ -1,429 +1,281 @@
-const express = require("express");
-const cors = require("cors");
-const helmet = require("helmet");
-const rateLimit = require("express-rate-limit");
-const compression = require("compression");
-const morgan = require("morgan");
-const path = require("path");
-require("dotenv").config({ path: path.join(__dirname, "config.env") });
+const swaggerJsdoc = require("swagger-jsdoc");
+const swaggerUi = require("swagger-ui-express");
 
-//Configs
-const { PORT } = require("./config/constats");
-const { specs, swaggerUi } = require("./config/swagger");
-
-//Routes
-const routes = require("./router/routes");
-
-//Services
-const { connectDatabase } = require("./services/database.service");
-
-const app = express();
-
-/**
- * @swagger
- * /api/docs:
- *   get:
- *     summary: Documentación interactiva de la API
- *     description: |
- *       Interfaz Swagger UI para explorar y probar todos los endpoints de la API de autenticación facial.
- *       
- *       **Características:**
- *       - Exploración interactiva de endpoints
- *       - Testing directo desde el navegador
- *       - Autenticación JWT integrada
- *       - Esquemas de datos detallados
- *       - Persistencia de autorización entre sesiones
- *       
- *       **Uso:**
- *       1. Hacer clic en "Authorize" para ingresar tu JWT token
- *       2. Explorar los endpoints organizados por categorías
- *       3. Hacer clic en "Try it out" para probar endpoints
- *       4. Ver respuestas en tiempo real con ejemplos
- *     tags: [Estado del Sistema]
- *     responses:
- *       200:
- *         description: Documentación Swagger UI cargada exitosamente
- *         content:
- *           text/html:
- *             schema:
- *               type: string
- *               description: Página HTML de Swagger UI
- */
-
-//UI Swagger configuration
-app.use(
-  "/api/docs",
-  swaggerUi.serve,
-  swaggerUi.setup(specs, {
-    customCss: ".swagger-ui .topbar { display: none }",
-    customSiteTitle: "API Facial Auth - Documentación",
-    swaggerOptions: {
-      persistAuthorization: true,
-      displayOperationId: false,
-      filter: true,
-      showExtensions: true,
-      showCommonExtensions: true,
+const options = {
+  definition: {
+    openapi: "3.0.0",
+    info: {
+      title: "Sistema de Autenticación Biométrica Facial - API",
+      version: "1.0.0",
+      description: `
+        API completa para sistema de reconocimiento facial con autenticación biométrica.
+        
+        **Características principales:**
+        - 🔐 Autenticación por reconocimiento facial
+        - 🛡️ JWT tokens para seguridad
+        - 📊 Auditoría completa de accesos
+        - 🗄️ Base de datos PostgreSQL ()
+        - 🚀 Optimizado para producción
+        
+        **Flujo de autenticación:**
+        1. Registro de usuario con credenciales
+        2. Enrollment de embeddings faciales
+        3. Login facial con liveness detection
+        4. Acceso a recursos protegidos con JWT
+      `,
+      contact: {
+        name: "Equipo de Desarrollo",
+        email: "support@faceauth.com",
+      },
+      license: {
+        name: "MIT",
+        url: "https://opensource.org/licenses/MIT",
+      },
     },
-  })
-);
-
-/**
- * @swagger
- * components:
- *   securitySchemes:
- *     rateLimitInfo:
- *       type: apiKey
- *       in: header
- *       name: X-RateLimit-Remaining
- *       description: Información de rate limiting aplicada a todos los endpoints
- *   
- *   schemas:
- *     RateLimitResponse:
- *       type: object
- *       properties:
- *         success:
- *           type: boolean
- *           example: false
- *         error:
- *           type: string
- *           example: "Demasiadas peticiones, intente más tarde"
- *         retryAfter:
- *           type: integer
- *           example: 900
- *           description: "Segundos para intentar nuevamente"
- *     
- *     NotFoundResponse:
- *       type: object
- *       properties:
- *         success:
- *           type: boolean
- *           example: false
- *         error:
- *           type: string
- *           example: "Endpoint no encontrado"
- *         availableEndpoints:
- *           type: array
- *           items:
- *             type: string
- *           example: ["/api/health", "/api/auth/login", "/api/docs"]
- *     
- *     ServerErrorResponse:
- *       type: object
- *       properties:
- *         success:
- *           type: boolean
- *           example: false
- *         error:
- *           type: string
- *           example: "Error interno del servidor"
- *         timestamp:
- *           type: string
- *           format: date-time
- *         requestId:
- *           type: string
- *           example: "req_1234567890"
- */
-
-//Security middlewares
-app.use(
-  helmet({
-    contentSecurityPolicy: false,
-  })
-);
-app.use(compression());
-app.use(morgan("combined"));
-
-/**
- * @swagger
- * /api/{endpoint}:
- *   all:
- *     summary: Rate limiting aplicado a todos los endpoints
- *     description: |
- *       **Límites de velocidad configurados:**
- *       
- *       -  **Límite:** 100 peticiones por IP
- *       -  **Ventana:** 15 minutos
- *       -  **Reset:** Automático cada 15 minutos
- *       -  **Acción:** Bloqueo temporal al exceder límite
- *       
- *       **Headers de respuesta:**
- *       - `X-RateLimit-Limit`: Límite máximo de peticiones
- *       - `X-RateLimit-Remaining`: Peticiones restantes
- *       - `X-RateLimit-Reset`: Timestamp de reset del límite
- *       
- *       **Configuración personalizable:**
- *       - Variable `RATE_LIMIT_WINDOW`: Ventana en minutos
- *       - Variable `RATE_LIMIT_MAX_REQUESTS`: Máximo de peticiones
- *     parameters:
- *       - in: path
- *         name: endpoint
- *         required: true
- *         schema:
- *           type: string
- *         description: Cualquier endpoint de la API
- *     responses:
- *       429:
- *         description: Rate limit excedido
- *         headers:
- *           X-RateLimit-Limit:
- *             schema:
- *               type: integer
- *               example: 100
- *             description: Número máximo de peticiones permitidas
- *           X-RateLimit-Remaining:
- *             schema:
- *               type: integer
- *               example: 0
- *             description: Peticiones restantes en la ventana actual
- *           X-RateLimit-Reset:
- *             schema:
- *               type: integer
- *               example: 1683648000
- *             description: Timestamp cuando se resetea el límite
- *           Retry-After:
- *             schema:
- *               type: integer
- *               example: 900
- *             description: Segundos para intentar nuevamente
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/RateLimitResponse'
- *     tags: [Estado del Sistema]
- */
-
-//Rate limiting
-const limiter = rateLimit({
-  windowMs: (Number.parseInt(process.env.RATE_LIMIT_WINDOW) || 15) * 60 * 1000,
-  max: Number.parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
-  message: {
-    success: false,
-    error: "Demasiadas peticiones, intente más tarde",
+    servers: [
+      {
+        url: "http://localhost:8000/api",
+        description: "Servidor de desarrollo",
+      },
+      {
+        url: "https://api.faceauth.com/api",
+        description: "Servidor de producción",
+      },
+    ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+          description: "Token JWT obtenido del login",
+        },
+      },
+      schemas: {
+        User: {
+          type: "object",
+          properties: {
+            id: { type: "integer", example: 1 },
+            firstName: { type: "string", example: "Juan" },
+            lastName: { type: "string", example: "Pérez" },
+            email: {
+              type: "string",
+              format: "email",
+              example: "juan@example.com",
+            },
+            phone: { type: "string", example: "3001234567" },
+            idNumber: { type: "string", example: "12345678" },
+            createdAt: { type: "string", format: "date-time" },
+            biometricEnabled: { type: "boolean", example: true },
+            activeSessions: { type: "integer", example: 1 },
+          },
+        },
+        LoginCredentials: {
+          type: "object",
+          required: ["email", "password"],
+          properties: {
+            email: {
+              type: "string",
+              format: "email",
+              example: "juan@example.com",
+            },
+            password: {
+              type: "string",
+              format: "password",
+              example: "password123",
+            },
+          },
+        },
+        RegisterUser: {
+          type: "object",
+          required: ["firstName", "lastName", "email", "password"],
+          properties: {
+            firstName: { type: "string", example: "Juan" },
+            lastName: { type: "string", example: "Pérez" },
+            email: {
+              type: "string",
+              format: "email",
+              example: "juan@example.com",
+            },
+            password: {
+              type: "string",
+              format: "password",
+              example: "password123",
+            },
+            phone: { type: "string", example: "3001234567" },
+            idNumber: { type: "string", example: "12345678" },
+          },
+        },
+        FaceEmbedding: {
+          type: "object",
+          required: ["data"],
+          properties: {
+            data: {
+              type: "array",
+              items: { type: "number" },
+              example: [0.1, 0.2, 0.3, -0.1, 0.5],
+              description:
+                "Array de números que representa el embedding facial (típicamente 128 o 512 dimensiones)",
+            },
+            type: {
+              type: "string",
+              enum: ["normal", "sonrisa", "ojos_cerrados"],
+              example: "normal",
+              description: "Tipo de captura facial",
+            },
+            quality: {
+              type: "number",
+              minimum: 0,
+              maximum: 1,
+              example: 0.95,
+              description: "Puntuación de calidad del embedding (0-1)",
+            },
+          },
+        },
+        FaceLogin: {
+          type: "object",
+          required: ["embedding"],
+          properties: {
+            embedding: {
+              type: "array",
+              items: { type: "number" },
+              example: [0.1, 0.2, 0.3, -0.1, 0.5],
+              description: "Embedding facial para comparación",
+            },
+          },
+        },
+        SuccessResponse: {
+          type: "object",
+          properties: {
+            success: { type: "boolean", example: true },
+            message: { type: "string", example: "Operación exitosa" },
+          },
+        },
+        ErrorResponse: {
+          type: "object",
+          properties: {
+            success: { type: "boolean", example: false },
+            error: { type: "string", example: "Descripción del error" },
+          },
+        },
+        LoginResponse: {
+          type: "object",
+          properties: {
+            success: { type: "boolean", example: true },
+            message: { type: "string", example: "Login exitoso" },
+            token: {
+              type: "string",
+              example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+            },
+            user: { $ref: "#/components/schemas/User" },
+          },
+        },
+        FaceLoginResponse: {
+          type: "object",
+          properties: {
+            success: { type: "boolean", example: true },
+            message: { type: "string", example: "Login facial exitoso" },
+            userToken: {
+              type: "string",
+              example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+            },
+            user: { $ref: "#/components/schemas/User" },
+            similarity: {
+              type: "string",
+              example: "0.876",
+              description: "Puntuación de similitud facial",
+            },
+          },
+        },
+        HealthResponse: {
+          type: "object",
+          properties: {
+            success: { type: "boolean", example: true },
+            status: { type: "string", example: "online" },
+            timestamp: { type: "string", format: "date-time" },
+            database: { type: "string", example: "connected" },
+            database_type: { type: "string", example: "PostgreSQL ()" },
+            stats: {
+              type: "object",
+              properties: {
+                total_users: { type: "integer", example: 5 },
+                active_sessions: { type: "integer", example: 2 },
+              },
+            },
+          },
+        },
+        DashboardStats: {
+          type: "object",
+          properties: {
+            success: { type: "boolean", example: true },
+            stats: {
+              type: "object",
+              properties: {
+                totalLogins: { type: "integer", example: 25 },
+                activeSessions: { type: "integer", example: 1 },
+                biometricEnabled: { type: "boolean", example: true },
+                averageQuality: { type: "number", example: 0.85 },
+                recentActivity: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      email: { type: "string", example: "juan@example.com" },
+                      ip_address: { type: "string", example: "192.168.1.1" },
+                      success: { type: "boolean", example: true },
+                      failure_reason: { type: "string", nullable: true },
+                      user_agent: { type: "string", example: "Mozilla/5.0..." },
+                      created_at: { type: "string", format: "date-time" },
+                    },
+                  },
+                },
+                biometricData: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      capture_type: { type: "string", example: "normal" },
+                      quality_score: { type: "number", example: 0.95 },
+                      created_at: { type: "string", format: "date-time" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    tags: [
+      {
+        name: "Estado del Sistema",
+        description:
+          "Endpoints para verificar el estado del servidor y base de datos",
+      },
+      {
+        name: "Autenticación",
+        description: "Endpoints para registro, login y logout de usuarios",
+      },
+      {
+        name: "Biometría Facial",
+        description: "Endpoints para enrollment y autenticación facial",
+      },
+      {
+        name: "Usuario",
+        description: "Endpoints para gestión de perfil de usuario",
+      },
+      {
+        name: "Dashboard",
+        description: "Endpoints para estadísticas y datos del dashboard",
+      },
+    ],
   },
-});
-app.use("/api/", limiter);
+  apis: ["./routes.js"],
+};
 
-//Middlewares
-app.use(cors());
-app.use(express.json({ limit: process.env.MAX_FILE_SIZE || "10mb" }));
-app.use(
-  express.urlencoded({
-    extended: true,
-    limit: process.env.MAX_FILE_SIZE || "10mb",
-  })
-);
+const specs = swaggerJsdoc(options);
 
-//Api's routes
-app.use("/api", routes);
-
-/**
- * @swagger
- * /{invalidPath}:
- *   all:
- *     summary: Manejo de rutas no encontradas
- *     description: |
- *       Endpoint catch-all que maneja todas las peticiones a rutas que no existen en la API.
- *       
- *       **Funcionalidad:**
- *       -  Detecta rutas no válidas automáticamente
- *       -  Registra intentos de acceso a endpoints inexistentes
- *       -  Proporciona lista de endpoints disponibles
- *       -  Previene exposición de información del servidor
- *       
- *       **Casos comunes:**
- *       - URLs mal escritas
- *       - Endpoints deprecados
- *       - Intentos de enumeración de rutas
- *       - Requests a paths que no existen
- *     parameters:
- *       - in: path
- *         name: invalidPath
- *         required: true
- *         schema:
- *           type: string
- *         description: Cualquier ruta que no coincida con endpoints existentes
- *         example: "/api/nonexistent-endpoint"
- *     responses:
- *       404:
- *         description: Endpoint no encontrado
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/NotFoundResponse'
- *             examples:
- *               basic:
- *                 summary: Respuesta básica de endpoint no encontrado
- *                 value:
- *                   success: false
- *                   error: "Endpoint no encontrado"
- *               withSuggestions:
- *                 summary: Con sugerencias de endpoints válidos
- *                 value:
- *                   success: false
- *                   error: "Endpoint no encontrado"
- *                   suggestion: "¿Quisiste decir /api/health?"
- *                   availableEndpoints: 
- *                     - "/api/health"
- *                     - "/api/auth/login"
- *                     - "/api/auth/register"
- *                     - "/api/docs"
- *     tags: [Estado del Sistema]
- */
-
-//Error handling for undefined routes
-app.use("*", (req, res) => {
-  res.status(404).json({
-    success: false,
-    error: "Endpoint no encontrado",
-  });
-});
-
-/**
- * @swagger
- * components:
- *   responses:
- *     GlobalErrorResponse:
- *       description: |
- *         Manejo global de errores no capturados en la aplicación.
- *         
- *         **Tipos de errores manejados:**
- *         -  Errores de aplicación no capturados
- *         -  Errores de conexión a base de datos
- *         -  Errores de validación de middleware
- *         -  Errores de parsing JSON
- *         -  Errores inesperados del sistema
- *         
- *         **Características de seguridad:**
- *         - No expone stack traces en producción
- *         - Logging detallado para debugging
- *         - Respuesta consistente para todos los errores
- *         - ID de tracking para correlación de logs
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/ServerErrorResponse'
- *           examples:
- *             generalError:
- *               summary: Error general del servidor
- *               value:
- *                 success: false
- *                 error: "Error interno del servidor"
- *                 timestamp: "2024-06-10T16:00:00.000Z"
- *                 requestId: "req_1234567890"
- *             databaseError:
- *               summary: Error de base de datos
- *               value:
- *                 success: false
- *                 error: "Error interno del servidor"
- *                 timestamp: "2024-06-10T16:00:00.000Z"
- *                 type: "database_connection"
- *             validationError:
- *               summary: Error de validación
- *               value:
- *                 success: false
- *                 error: "Error interno del servidor"
- *                 timestamp: "2024-06-10T16:00:00.000Z"
- *                 type: "validation_failed"
- */
-
-//Global error handler
-app.use((err, req, res, next) => {
-  console.error("Error no manejado:", err);
-  res.status(500).json({
-    success: false,
-    error: "Error interno del servidor",
-  });
-});
-
-/**
- * @swagger
- * info:
- *   description: |
- *     **Configuración del servidor:**
- *     
- *      **Inicialización automática**
- *     - Conexión a base de datos PostgreSQL (Neon)
- *     - Configuración de middlewares de seguridad
- *     - Rate limiting automático
- *     - Logging de requests
- *     
- *      **Seguridad implementada**
- *     - Helmet para headers seguros
- *     - CORS configurado
- *     - Rate limiting por IP
- *     - Validación de entrada
- *     - Manejo seguro de errores
- *     
- *      **Monitoreo y observabilidad**
- *     - Health check endpoint
- *     - Logging detallado con Morgan
- *     - Métricas de uso
- *     - Estadísticas en tiempo real
- *     
- *      **Configuración mediante variables de entorno**
- *     ```env
- *     PORT=3000
- *     DATABASE_URL=postgresql://...
- *     JWT_SECRET=tu_secreto_seguro
- *     RATE_LIMIT_WINDOW=15
- *     RATE_LIMIT_MAX_REQUESTS=100
- *     MAX_FILE_SIZE=10mb
- *     ```
- *     
- *      **URLs de desarrollo importantes**
- *     - Health check: http://localhost:3000/api/health
- *     - Documentación: http://localhost:3000/api/docs
- *     - Base API: http://localhost:3000/api
- */
-
-//Start server and connect to database
-async function startServer() {
-  try {
-    await connectDatabase();
-
-    app.listen(PORT, () => {
-      console.log(`\n🚀 Servidor iniciado exitosamente`);
-      console.log(`🌐 URL: http://localhost:${PORT}`);
-      console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
-      console.log(
-        `📚 Documentación Swagger: http://localhost:${PORT}/api/docs`
-      );
-      console.log(`🗄️  Base de datos: PostgreSQL (Neon)`);
-      console.log(`⏰ Hora: ${new Date().toLocaleString("es-ES")}`);
-      console.log(`\n📋 Endpoints disponibles:`);
-      console.log(`   GET  /api/health - Estado del servidor`);
-      console.log(`   POST /api/auth/register - Registro de usuario`);
-      console.log(`   POST /api/auth/login - Login con credenciales`);
-      console.log(`   POST /api/auth/logout - Logout`);
-      console.log(`   POST /api/face/enroll - Enrollar embeddings faciales`);
-      console.log(`   POST /api/face/login - Login facial`);
-      console.log(`   GET  /api/user/profile - Perfil de usuario`);
-      console.log(`   GET  /api/dashboard/stats - Estadísticas del dashboard`);
-      console.log(
-        `   DELETE /api/user/biometric - Eliminar datos biométricos\n`
-      );
-    });
-  } catch (error) {
-    console.error("❌ Error iniciando servidor:", error);
-    process.exit(1);
-  }
-}
-
-//Handle shutdown
-process.on("SIGINT", async () => {
-  console.log("\n🛑 Cerrando servidor...");
-  const { pool } = require("./config/database");
-  await pool.end();
-  console.log("✅ Conexiones de base de datos cerradas");
-  process.exit(0);
-});
-
-process.on("SIGTERM", async () => {
-  console.log("\n🛑 Cerrando servidor...");
-  const { pool } = require("./config/database");
-  await pool.end();
-  console.log("✅ Conexiones de base de datos cerradas");
-  process.exit(0);
-});
-
-startServer();
+module.exports = {
+  specs,
+  swaggerUi,
+};

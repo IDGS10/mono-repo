@@ -47,7 +47,7 @@ const authenticateToken =
         `SELECT ls.user_id, ls.expires_at, ls.is_active, u.email, u.first_name, u.last_name
        FROM login_sessions ls 
        JOIN users u ON u.id = ls.user_id 
-       WHERE ls.token = $1 AND ls.is_active = true`,
+       WHERE ls.token_hash = $1 AND ls.is_active = true`,
         [token]
       );
 

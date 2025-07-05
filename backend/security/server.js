@@ -25,7 +25,7 @@ app.use(
   swaggerUi.serve,
   swaggerUi.setup(specs, {
     customCss: ".swagger-ui .topbar { display: none }",
-    customSiteTitle: "API Facial Auth - Documentación",
+    customSiteTitle: "API Sistema de Registro - Documentación",
     swaggerOptions: {
       persistAuthorization: true,
       displayOperationId: false,
@@ -89,7 +89,14 @@ app.use((err, req, res, next) => {
 //Start server and connect to database
 async function startServer() {
   try {
-    await connectDatabase();
+    console.log("🚀 Iniciando servidor...");
+    
+    // Intentar conectar a la base de datos con timeout
+    const dbConnected = await connectDatabase();
+    
+    if (!dbConnected) {
+      console.log("⚠️  Servidor iniciándose sin conexión a base de datos");
+    }
 
     app.listen(PORT, () => {
       console.log(`\n🚀 Servidor iniciado exitosamente`);
@@ -98,24 +105,33 @@ async function startServer() {
       console.log(
         `📚 Documentación Swagger: http://localhost:${PORT}/api/docs`
       );
-      console.log(`🗄️  Base de datos: PostgreSQL (Neon)`);
+      console.log(`🗄️  Base de datos: ${dbConnected ? '✅ PostgreSQL (Conectado)' : '❌ Sin conexión'}`);
       console.log(`⏰ Hora: ${new Date().toLocaleString("es-ES")}`);
       console.log(`\n📋 Endpoints disponibles:`);
       console.log(`   GET  /api/health - Estado del servidor`);
       console.log(`   POST /api/auth/register - Registro de usuario`);
       console.log(`   POST /api/auth/login - Login con credenciales`);
       console.log(`   POST /api/auth/logout - Logout`);
-      console.log(`   POST /api/face/enroll - Enrollar embeddings faciales`);
-      console.log(`   POST /api/face/login - Login facial`);
       console.log(`   GET  /api/user/profile - Perfil de usuario`);
-      console.log(`   GET  /api/dashboard/stats - Estadísticas del dashboard`);
-      console.log(
-        `   DELETE /api/user/biometric - Eliminar datos biométricos\n`
-      );
+      console.log(`   GET  /api/dashboard/stats - Estadísticas del dashboard\n`);
     });
   } catch (error) {
     console.error("❌ Error iniciando servidor:", error);
-    process.exit(1);
+    console.log("🔄 Intentando iniciar servidor sin base de datos...");
+    
+    // Intentar iniciar el servidor sin BD
+    try {
+      app.listen(PORT, () => {
+        console.log(`\n🚀 Servidor iniciado en modo sin base de datos`);
+        console.log(`🌐 URL: http://localhost:${PORT}`);
+        console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
+        console.log(`📚 Documentación Swagger: http://localhost:${PORT}/api/docs`);
+        console.log(`⚠️  ADVERTENCIA: Sin conexión a base de datos`);
+      });
+    } catch (serverError) {
+      console.error("❌ Error crítico iniciando servidor:", serverError);
+      process.exit(1);
+    }
   }
 }
 
