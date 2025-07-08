@@ -47,6 +47,7 @@ export default function PasswordLogin() {
         };
         localStorage.setItem("monoRepoUserData", JSON.stringify(userData));
 
+        console.log("[Login] Usuario autenticado exitosamente:", response.user);
         navigate("/analytics");
       } else {
         setError(response.error || "Error en el inicio de sesión");
@@ -107,6 +108,7 @@ export default function PasswordLogin() {
                     className="pl-10 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors border-gray-300 hover:border-gray-400 placeholder-gray-400"
                     placeholder="usuario@ejemplo.com"
                     required
+                    disabled={isLoading}
                   />
                 </div>
               </div>
@@ -126,11 +128,13 @@ export default function PasswordLogin() {
                     className="pl-10 pr-10 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors border-gray-300 hover:border-gray-400 placeholder-gray-400"
                     placeholder="••••••••"
                     required
+                    disabled={isLoading}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    disabled={isLoading}
                   >
                     {showPassword ? (
                       <FaEyeSlash className="w-5 h-5" />
@@ -177,6 +181,15 @@ export default function PasswordLogin() {
                   Regístrate aquí
                 </Link>
               </div>
+            </div>
+
+            {/* Información de usuario de prueba */}
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-xs text-blue-700 text-center">
+                <strong>Usuario de prueba:</strong><br />
+                Email: admin@faceauth.com<br />
+                Contraseña: admin123
+              </p>
             </div>
           </div>
         </div>

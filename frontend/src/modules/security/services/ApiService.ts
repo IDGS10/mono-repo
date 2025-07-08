@@ -49,6 +49,7 @@ api.interceptors.response.use(
       console.log("[ApiService] Servidor indica logout automático");
       //Clean local storage
       localStorage.removeItem("monoRepoUserData");
+      localStorage.removeItem("isLoggedIn");
       //Send custom event to notify logout
       window.dispatchEvent(
         new CustomEvent("forceLogout", {
@@ -71,7 +72,7 @@ class ApiService {
       if (response.data.success) {
         console.log(
           "[ApiService] Usuario registrado exitosamente:",
-          response.data.userId
+          response.data.user?.id
         );
         return {
           success: true,
@@ -117,6 +118,7 @@ class ApiService {
         return {
           success: true,
           token: response.data.token,
+          user: response.data.user, // Agregamos el usuario en la respuesta
           message: "Login exitoso",
         };
       } else {
@@ -240,8 +242,9 @@ class ApiService {
   static async logout(token) {
     try {
       console.log("[ApiService] Cerrando sesión");
+      // CORRECCIÓN: Cambiar de "/logout" a "/auth/logout"
       const response = await api.post(
-        "/logout",
+        "/auth/logout",
         {},
         {
           headers: {
