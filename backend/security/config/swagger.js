@@ -8,7 +8,7 @@ const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "config.env") });
 
 //Configs
-const { PORT } = require("./config/constats");
+const { PORT } = require("./constats");
 const { specs, swaggerUi } = require("./config/swagger");
 
 //Routes

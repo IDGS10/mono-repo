@@ -43,6 +43,7 @@ const authenticateToken =
       }
 
       //Search for the token in the login_sessions table to verify its validity
+      // CORRECCIÓN: Usar 'token' en lugar de 'token_hash'
       const sessionResult = await pool.query(
         `SELECT ls.user_id, ls.expires_at, ls.is_active, u.email, u.first_name, u.last_name
        FROM login_sessions ls 

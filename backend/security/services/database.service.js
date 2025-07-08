@@ -44,10 +44,11 @@ async function initializeDatabase() {
     );
 
     -- Tabla de sesiones de login
+    -- CORRECCIÓN: Cambiar token_hash por token
     CREATE TABLE IF NOT EXISTS login_sessions (
       id SERIAL PRIMARY KEY,
       user_id INTEGER NOT NULL,
-      token_hash VARCHAR(255) NOT NULL,
+      token TEXT NOT NULL,
       ip_address INET,
       user_agent TEXT,
       is_active BOOLEAN DEFAULT true,
@@ -83,7 +84,7 @@ async function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
     CREATE INDEX IF NOT EXISTS idx_face_embeddings_user_id ON face_embeddings(user_id);
     CREATE INDEX IF NOT EXISTS idx_login_sessions_user_id ON login_sessions(user_id);
-    CREATE INDEX IF NOT EXISTS idx_login_sessions_token ON login_sessions(token_hash);
+    CREATE INDEX IF NOT EXISTS idx_login_sessions_token ON login_sessions(token);
     CREATE INDEX IF NOT EXISTS idx_login_attempts_email ON login_attempts(email);
     CREATE INDEX IF NOT EXISTS idx_login_attempts_created_at ON login_attempts(created_at);
   `;
@@ -102,6 +103,22 @@ async function initializeDatabase() {
 async function migrateDatabase() {
   try {
     console.log("🔄 Verificando migraciones de base de datos...");
+
+    // Migración para corregir la columna token_hash a token
+    const migrateTokenColumn = `
+      -- Verificar si la columna token_hash existe y cambiarla por token
+      DO $$ 
+      BEGIN
+        IF EXISTS(SELECT * FROM information_schema.columns 
+                  WHERE table_name='login_sessions' AND column_name='token_hash') THEN
+          ALTER TABLE login_sessions RENAME COLUMN token_hash TO token;
+          ALTER TABLE login_sessions ALTER COLUMN token TYPE TEXT;
+        END IF;
+      END $$;
+    `;
+
+    await pool.query(migrateTokenColumn);
+    console.log("✅ Migración de columna token completada");
 
     //Migration for capture_type constraint
     const migrateCaptureTypeConstraint = `
