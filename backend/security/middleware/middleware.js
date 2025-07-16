@@ -1,4 +1,3 @@
-// middleware/middleware.js
 // Middleware refactorizado con mejor estructura y uso de utilidades
 
 const jwt = require("jsonwebtoken");

@@ -1,4 +1,3 @@
-// services/dashboard.service.js
 // Servicio para manejar la lógica del dashboard y estadísticas
 const { pool } = require("../config/database");
 

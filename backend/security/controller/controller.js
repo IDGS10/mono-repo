@@ -1,5 +1,4 @@
-// controller/controller.js
-// Controlador mejorado que actúa como un verdadero controlador MVC
+// Controlador mejorado que actúa como controlador MVC
 // Orquesta las llamadas entre rutas y modelo
 
 const FacialAuthModel = require("../model/model");

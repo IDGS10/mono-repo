@@ -7,17 +7,17 @@ const morgan = require("morgan");
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "config.env") });
 
-//Configs (TUS ARCHIVOS ORIGINALES)
+
 const { PORT } = require("./config/constats");
 const { specs, swaggerUi } = require("./config/swagger");
 
-//Routes (ACTUALIZADA)
+
 const routes = require("./router/routes");
 
-//Services (TU ARCHIVO ORIGINAL)
+
 const { connectDatabase } = require("./services/database.service");
 
-// Utilidades NUEVAS
+
 const ResponseUtils = require("./utils/responseUtils");
 const { requestLogger } = require("./middleware/middleware");
 
@@ -40,7 +40,7 @@ app.use(
   })
 );
 
-//Security middlewares (TU CONFIGURACIÓN ORIGINAL)
+
 app.use(
   helmet({
     contentSecurityPolicy: false,
@@ -49,7 +49,7 @@ app.use(
 app.use(compression());
 app.use(morgan("combined"));
 
-//Rate limiting (TU CONFIGURACIÓN ORIGINAL)
+
 const limiter = rateLimit({
   windowMs: (Number.parseInt(process.env.RATE_LIMIT_WINDOW) || 15) * 60 * 1000,
   max: Number.parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
@@ -60,7 +60,7 @@ const limiter = rateLimit({
 });
 app.use("/api/", limiter);
 
-//Middlewares (TU CONFIGURACIÓN ORIGINAL)
+
 app.use(cors());
 app.use(express.json({ limit: process.env.MAX_FILE_SIZE || "10mb" }));
 app.use(
@@ -70,23 +70,23 @@ app.use(
   })
 );
 
-// Logging personalizado NUEVO (opcional - solo si quieres mejor logging)
+// Logging personalizado NUEVO (opciona si no es test)
 if (process.env.NODE_ENV !== 'test') {
   app.use(requestLogger);
 }
 
-//Api's routes (ACTUALIZADAS)
+//Api's routes 
 app.use("/api", routes);
 
-//Error handling for undefined routes (MEJORADO)
+//Error handling for undefined routes
 app.use("*", (req, res) => {
   ResponseUtils.notFound(res, `Endpoint ${req.originalUrl} no encontrado`);
 });
 
-//Global error handler (MEJORADO)
+//Global error handler 
 app.use(ResponseUtils.globalErrorHandler);
 
-//Start server and connect to database (MEJORADO)
+//Start server and connect to database 
 async function startServer() {
   try {
     console.log("🚀 Iniciando servidor...");
@@ -119,7 +119,7 @@ async function startServer() {
       console.log(`   GET  /api/dashboard/stats - Estadísticas del dashboard\n`);
     });
 
-    // Configurar shutdown graceful NUEVO
+    // Configurar shutdown graceful
     setupGracefulShutdown(server);
     
     return server;
@@ -146,7 +146,7 @@ async function startServer() {
   }
 }
 
-//Graceful shutdown NUEVO
+//Graceful shutdown
 function setupGracefulShutdown(server) {
   const gracefulShutdown = async (signal) => {
     console.log(`\n🛑 Recibido ${signal}. Cerrando servidor...`);
@@ -174,7 +174,6 @@ function setupGracefulShutdown(server) {
 // Exportar para testing
 module.exports = { app, startServer };
 
-// Iniciar servidor solo si este archivo se ejecuta directamente
 if (require.main === module) {
   startServer();
 }

@@ -1,8 +1,7 @@
-// services/auth.service.js
 // Servicio para manejar la lógica de autenticación
 const { pool } = require("../config/database");
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs"); // Asumo que usarás bcrypt para hash de contraseñas
+const bcrypt = require("bcryptjs");
 const { JWT_SECRET } = require("../config/constats");
 
 class AuthService {
@@ -138,7 +137,7 @@ class AuthService {
    */
   async createSession(userId, token) {
     try {
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 horas
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
       
       const result = await pool.query(
         `INSERT INTO login_sessions (user_id, token_hash, expires_at, created_at, is_active) 

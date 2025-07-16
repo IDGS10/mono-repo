@@ -1,4 +1,3 @@
-// services/user.service.js
 // Servicio para manejar la lógica de usuarios
 const { pool } = require("../config/database");
 

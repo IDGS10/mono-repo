@@ -1,6 +1,3 @@
-// utils/validationUtils.js
-// Utilidades para validación de datos
-
 /**
  * Clase para manejar validaciones comunes
  */

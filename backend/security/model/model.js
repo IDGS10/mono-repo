@@ -1,6 +1,5 @@
-// model/model.js
-// Modelo refactorizado que actúa como controlador de respuestas HTTP
-// Usa los servicios para la lógica de negocio
+// Modelo  de respuestas HTTP
+// Usa los servicios para la lógica
 
 const AuthService = require("../services/auth.service");
 const UserService = require("../services/user.service");
@@ -151,7 +150,7 @@ module.exports = {
       // Llamar al servicio de autenticación
       const result = await AuthService.loginUser(email.toLowerCase().trim(), password);
 
-      // Actualizar último login
+      // Actualizar último login no hay en tabla
       // await UserService.updateLastLogin(result.user.id);
 
       res.status(200).json({

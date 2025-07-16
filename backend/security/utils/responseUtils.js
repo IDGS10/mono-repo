@@ -1,8 +1,5 @@
-// utils/responseUtils.js
-// Utilidades para estandarizar las respuestas HTTP
-
 /**
- * Clase para manejar respuestas HTTP estandarizadas
+ * Clase para manejar respuestas HTTP con estandares
  */
 class ResponseUtils {
   /**
