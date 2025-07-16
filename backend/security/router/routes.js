@@ -13,16 +13,8 @@ const { authenticateToken } = require("../middleware/middleware");
  *     responses:
  *       200:
  *         description: Servidor funcionando correctamente
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/HealthResponse'
  *       500:
  *         description: Error del servidor
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.get("/health", Controller.checkHealth);
 
@@ -38,32 +30,32 @@ router.get("/health", Controller.checkHealth);
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/RegisterUser'
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *               - firstName
+ *               - lastName
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *               firstName:
+ *                 type: string
+ *               lastName:
+ *                 type: string
  *     responses:
  *       201:
  *         description: Usuario registrado exitosamente
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/LoginResponse'
  *       400:
  *         description: Datos de entrada inválidos
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
  *       409:
  *         description: Usuario ya existe
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
  *       500:
  *         description: Error interno del servidor
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post("/auth/register", Controller.registerUser);
 
@@ -79,32 +71,25 @@ router.post("/auth/register", Controller.registerUser);
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/LoginCredentials'
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
  *     responses:
  *       200:
  *         description: Login exitoso
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/LoginResponse'
  *       400:
  *         description: Credenciales faltantes
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
  *       401:
  *         description: Credenciales inválidas
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
  *       500:
  *         description: Error interno del servidor
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post("/auth/login", Controller.loginSession);
 
@@ -113,35 +98,17 @@ router.post("/auth/login", Controller.loginSession);
  * /auth/logout:
  *   post:
  *     summary: Cerrar sesión
- *     description: Desactiva todas las sesiones activas del usuario autenticado
+ *     description: Desactiva la sesión activa del usuario autenticado
  *     tags: [Autenticación]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Logout exitoso
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/SuccessResponse'
  *       401:
- *         description: Token requerido
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *       403:
- *         description: Token inválido
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *         description: Token requerido o inválido
  *       500:
  *         description: Error interno del servidor
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post("/auth/logout", authenticateToken(), Controller.logoutSession);
 
@@ -157,40 +124,12 @@ router.post("/auth/logout", authenticateToken(), Controller.logoutSession);
  *     responses:
  *       200:
  *         description: Perfil obtenido exitosamente
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 user:
- *                   $ref: '#/components/schemas/User'
  *       401:
- *         description: Token requerido
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *       403:
- *         description: Token inválido
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *         description: Token requerido o inválido
  *       404:
  *         description: Usuario no encontrado
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
  *       500:
  *         description: Error interno del servidor
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.get("/user/profile", authenticateToken(), Controller.getUserProfile);
 
@@ -199,35 +138,17 @@ router.get("/user/profile", authenticateToken(), Controller.getUserProfile);
  * /dashboard/stats:
  *   get:
  *     summary: Obtener estadísticas del dashboard
- *     description: Obtiene estadísticas y datos del dashboard para el usuario autenticado
+ *     description: Obtiene estadísticas generales del sistema para el usuario autenticado
  *     tags: [Dashboard]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Estadísticas obtenidas exitosamente
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/DashboardStats'
  *       401:
- *         description: Token requerido
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *       403:
- *         description: Token inválido
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *         description: Token requerido o inválido
  *       500:
  *         description: Error interno del servidor
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.get("/dashboard/stats", authenticateToken(), Controller.getDashboardStats);
 

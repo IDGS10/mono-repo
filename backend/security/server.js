@@ -7,19 +7,23 @@ const morgan = require("morgan");
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "config.env") });
 
-//Configs
+//Configs (TUS ARCHIVOS ORIGINALES)
 const { PORT } = require("./config/constats");
 const { specs, swaggerUi } = require("./config/swagger");
 
-//Routes
+//Routes (ACTUALIZADA)
 const routes = require("./router/routes");
 
-//Services
+//Services (TU ARCHIVO ORIGINAL)
 const { connectDatabase } = require("./services/database.service");
+
+// Utilidades NUEVAS
+const ResponseUtils = require("./utils/responseUtils");
+const { requestLogger } = require("./middleware/middleware");
 
 const app = express();
 
-//UI Swagger configuration
+//UI Swagger configuration (TU CONFIGURACIÓN ORIGINAL)
 app.use(
   "/api/docs",
   swaggerUi.serve,
@@ -36,7 +40,7 @@ app.use(
   })
 );
 
-//Security middlewares
+//Security middlewares (TU CONFIGURACIÓN ORIGINAL)
 app.use(
   helmet({
     contentSecurityPolicy: false,
@@ -45,7 +49,7 @@ app.use(
 app.use(compression());
 app.use(morgan("combined"));
 
-//Rate limiting
+//Rate limiting (TU CONFIGURACIÓN ORIGINAL)
 const limiter = rateLimit({
   windowMs: (Number.parseInt(process.env.RATE_LIMIT_WINDOW) || 15) * 60 * 1000,
   max: Number.parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
@@ -56,7 +60,7 @@ const limiter = rateLimit({
 });
 app.use("/api/", limiter);
 
-//Middlewares
+//Middlewares (TU CONFIGURACIÓN ORIGINAL)
 app.use(cors());
 app.use(express.json({ limit: process.env.MAX_FILE_SIZE || "10mb" }));
 app.use(
@@ -66,27 +70,23 @@ app.use(
   })
 );
 
-//Api's routes
+// Logging personalizado NUEVO (opcional - solo si quieres mejor logging)
+if (process.env.NODE_ENV !== 'test') {
+  app.use(requestLogger);
+}
+
+//Api's routes (ACTUALIZADAS)
 app.use("/api", routes);
 
-//Error handling for undefined routes
+//Error handling for undefined routes (MEJORADO)
 app.use("*", (req, res) => {
-  res.status(404).json({
-    success: false,
-    error: "Endpoint no encontrado",
-  });
+  ResponseUtils.notFound(res, `Endpoint ${req.originalUrl} no encontrado`);
 });
 
-//Global error handler
-app.use((err, req, res, next) => {
-  console.error("Error no manejado:", err);
-  res.status(500).json({
-    success: false,
-    error: "Error interno del servidor",
-  });
-});
+//Global error handler (MEJORADO)
+app.use(ResponseUtils.globalErrorHandler);
 
-//Start server and connect to database
+//Start server and connect to database (MEJORADO)
 async function startServer() {
   try {
     console.log("🚀 Iniciando servidor...");
@@ -98,7 +98,7 @@ async function startServer() {
       console.log("⚠️  Servidor iniciándose sin conexión a base de datos");
     }
 
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`\n🚀 Servidor iniciado exitosamente`);
       console.log(`🌐 URL: http://localhost:${PORT}`);
       console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
@@ -113,21 +113,32 @@ async function startServer() {
       console.log(`   POST /api/auth/login - Login con credenciales`);
       console.log(`   POST /api/auth/logout - Logout`);
       console.log(`   GET  /api/user/profile - Perfil de usuario`);
+      console.log(`   PUT  /api/user/profile - Actualizar perfil`);
+      console.log(`   GET  /api/user/sessions - Historial de sesiones`);
+      console.log(`   GET  /api/user/stats - Estadísticas del usuario`);
       console.log(`   GET  /api/dashboard/stats - Estadísticas del dashboard\n`);
     });
+
+    // Configurar shutdown graceful NUEVO
+    setupGracefulShutdown(server);
+    
+    return server;
   } catch (error) {
     console.error("❌ Error iniciando servidor:", error);
     console.log("🔄 Intentando iniciar servidor sin base de datos...");
     
     // Intentar iniciar el servidor sin BD
     try {
-      app.listen(PORT, () => {
+      const server = app.listen(PORT, () => {
         console.log(`\n🚀 Servidor iniciado en modo sin base de datos`);
         console.log(`🌐 URL: http://localhost:${PORT}`);
         console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
         console.log(`📚 Documentación Swagger: http://localhost:${PORT}/api/docs`);
         console.log(`⚠️  ADVERTENCIA: Sin conexión a base de datos`);
       });
+      
+      setupGracefulShutdown(server);
+      return server;
     } catch (serverError) {
       console.error("❌ Error crítico iniciando servidor:", serverError);
       process.exit(1);
@@ -135,21 +146,35 @@ async function startServer() {
   }
 }
 
-//Handle shutdown
-process.on("SIGINT", async () => {
-  console.log("\n🛑 Cerrando servidor...");
-  const { pool } = require("./config/database");
-  await pool.end();
-  console.log("✅ Conexiones de base de datos cerradas");
-  process.exit(0);
-});
+//Graceful shutdown NUEVO
+function setupGracefulShutdown(server) {
+  const gracefulShutdown = async (signal) => {
+    console.log(`\n🛑 Recibido ${signal}. Cerrando servidor...`);
+    
+    server.close(async () => {
+      console.log("🔌 Servidor HTTP cerrado");
+      
+      try {
+        const { pool } = require("./config/database");
+        await pool.end();
+        console.log("✅ Conexiones de base de datos cerradas");
+      } catch (dbError) {
+        console.error("⚠️  Error cerrando conexiones de BD:", dbError.message);
+      }
+      
+      console.log("✅ Shutdown completado");
+      process.exit(0);
+    });
+  };
 
-process.on("SIGTERM", async () => {
-  console.log("\n🛑 Cerrando servidor...");
-  const { pool } = require("./config/database");
-  await pool.end();
-  console.log("✅ Conexiones de base de datos cerradas");
-  process.exit(0);
-});
+  process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+  process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+}
 
-startServer();
+// Exportar para testing
+module.exports = { app, startServer };
+
+// Iniciar servidor solo si este archivo se ejecuta directamente
+if (require.main === module) {
+  startServer();
+}
