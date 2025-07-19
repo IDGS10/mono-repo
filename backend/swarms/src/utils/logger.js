@@ -1,5 +1,6 @@
 import { addColors, format, transports, createLogger } from 'winston'
 import { join } from 'path'
+import process from 'process'
 
 // 1. LOG LEVELS AND COLORS CONFIGURATION
 const LOG_LEVELS = {

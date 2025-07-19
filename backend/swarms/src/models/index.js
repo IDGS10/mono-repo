@@ -1,4 +1,3 @@
-// src/models/index.js
 import sequelize from '../config/database.js'
 import Swarm from './Swarm.js'
 import SwarmDevice from './SwarmDevice.js'

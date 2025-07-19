@@ -1,7 +1,4 @@
 import { Sequelize } from 'sequelize'
-import fs from 'fs'
-import path from 'path'
-import { fileURLToPath } from 'url'
 import {
   DB_HOST,
   DB_PORT,
@@ -11,38 +8,13 @@ import {
   DATABASE_URL,
 } from './environment.js'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-
-// Función para leer certificados SSL
-function getSSLConfig() {
-  try {
-    const sslDir = path.join(__dirname, '.ssl')
-    
-    return {
-      ca: fs.readFileSync(path.join(sslDir, 'postgresql-ca.crt')),
-      cert: fs.readFileSync(path.join(sslDir, 'client.crt')),
-      key: fs.readFileSync(path.join(sslDir, 'client.key')),
-      rejectUnauthorized: false, // Cambia a true en producción
-    }
-  } catch (error) {
-    console.error('Error al leer los certificados SSL:', error)
-    return null
-  }
-}
-
-const sslConfig = getSSLConfig()
-
 let sequelize
 
 if (DATABASE_URL) {
-  // Si tienes DATABASE_URL, úsala con SSL
+  // If DATABASE_URL is set, use it
   sequelize = new Sequelize(DATABASE_URL, {
     dialect: 'postgres',
     logging: false,
-    dialectOptions: {
-      ssl: sslConfig
-    },
     pool: {
       max: 10,
       min: 0,
@@ -55,7 +27,7 @@ if (DATABASE_URL) {
     },
   })
 } else {
-  // Si no tienes DATABASE_URL, usa las variables individuales
+  // Otherwise, use the environment variables
   sequelize = new Sequelize({
     dialect: 'postgres',
     host: DB_HOST,
@@ -64,9 +36,6 @@ if (DATABASE_URL) {
     username: DB_USERNAME,
     password: DB_PASSWORD,
     logging: false,
-    dialectOptions: {
-      ssl: sslConfig
-    },
     pool: {
       max: 10,
       min: 0,
@@ -80,13 +49,14 @@ if (DATABASE_URL) {
   })
 }
 
-// Probar la conexión
-sequelize.authenticate()
+// Test the connection
+sequelize
+  .authenticate()
   .then(() => {
-    console.log('✅ Conexión SSL a PostgreSQL establecida correctamente')
+    console.log('✅ Conexión a PostgreSQL establecida correctamente')
   })
-  .catch(err => {
-    console.error('❌ Error al conectar con SSL:', err)
+  .catch((err) => {
+    console.error('❌ Error al conectar a PostgreSQL:', err)
   })
 
 export default sequelize
