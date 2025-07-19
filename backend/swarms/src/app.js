@@ -3,6 +3,7 @@ import express from 'express'
 import cors from 'cors'
 import compression from 'compression'
 import morgan from 'morgan'
+import process from 'process'
 
 import routes from './routes/index.js'
 import errorHandler from './middlewares/errorHandler.js'
@@ -17,8 +18,7 @@ app.use(cors())
 app.use(compression())
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
-console.log("HOLA")
-console.log("PUERTO", NODE_ENV)
+
 // Logging
 if (NODE_ENV !== 'test') {
   app.use(
