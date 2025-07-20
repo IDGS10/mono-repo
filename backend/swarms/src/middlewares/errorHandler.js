@@ -83,7 +83,7 @@ const sendErrorProd = (err, res) => {
 };
 
 // Main error handling middleware
-const errorHandler = (err, req, res, next) => {
+const errorHandler = (err, req, res) => {
   err.statusCode = err.statusCode || 500;
   err.status = err.status || 'error';
 

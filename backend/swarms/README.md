@@ -4,7 +4,8 @@
 
 ### POST /swarms - Create new swarm
 ```bash
-curl -X POST http://localhost:3000/swarms \
+curl -X POST http://IP_SERVER:DESIGNED_PORT
+/swarms \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Urban Sensor Swarm",
@@ -35,7 +36,8 @@ curl -X POST http://localhost:3000/swarms \
 
 ### GET /swarms - Get all swarms
 ```bash
-curl -X GET http://localhost:3000/swarms
+curl -X GET http://IP_SERVER:DESIGNED_PORT
+/swarms
 
 **Expected Response:**
 ```json
@@ -63,12 +65,14 @@ curl -X GET http://localhost:3000/swarms
 
 ### GET /swarms/:id - Get specific swarm
 ```bash
-curl -X GET http://localhost:3000/swarms/123e4567-e89b-12d3-a456-426614174000
+curl -X GET http://IP_SERVER:DESIGNED_PORT
+/swarms/123e4567-e89b-12d3-a456-426614174000
 ```
 
 ### PUT /swarms/:id - Update swarm
 ```bash
-curl -X PUT http://localhost:3000/swarms/123e4567-e89b-12d3-a456-426614174000 \
+curl -X PUT http://IP_SERVER:DESIGNED_PORT
+/swarms/123e4567-e89b-12d3-a456-426614174000 \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Urban Sensor Swarm - Updated",
@@ -79,14 +83,16 @@ curl -X PUT http://localhost:3000/swarms/123e4567-e89b-12d3-a456-426614174000 \
 
 ### DELETE /swarms/:id - Delete swarm
 ```bash
-curl -X DELETE http://localhost:3000/swarms/123e4567-e89b-12d3-a456-426614174000
+curl -X DELETE http://IP_SERVER:DESIGNED_PORT
+/swarms/123e4567-e89b-12d3-a456-426614174000
 ```
 
 ## 2. State Management
 
 ### POST /swarms/:id/assign - Assign to cluster manager
 ```bash
-curl -X POST http://localhost:3000/swarms/123e4567-e89b-12d3-a456-426614174000/assign \
+curl -X POST http://IP_SERVER:DESIGNED_PORT
+/swarms/123e4567-e89b-12d3-a456-426614174000/assign \
   -H "Content-Type: application/json" \
   -d '{
     "clusterManagerId": "cluster-mgr-001"
@@ -111,29 +117,34 @@ curl -X POST http://localhost:3000/swarms/123e4567-e89b-12d3-a456-426614174000/a
 
 ### POST /swarms/:id/activate - Activate swarm
 ```bash
-curl -X POST http://localhost:3000/swarms/123e4567-e89b-12d3-a456-426614174000/activate
+curl -X POST http://IP_SERVER:DESIGNED_PORT
+/swarms/123e4567-e89b-12d3-a456-426614174000/activate
 ```
 
 ### POST /swarms/:id/pause - Pause swarm
 ```bash
-curl -X POST http://localhost:3000/swarms/123e4567-e89b-12d3-a456-426614174000/pause
+curl -X POST http://IP_SERVER:DESIGNED_PORT
+/swarms/123e4567-e89b-12d3-a456-426614174000/pause
 ```
 
 ### POST /swarms/:id/complete - Complete swarm
 ```bash
-curl -X POST http://localhost:3000/swarms/123e4567-e89b-12d3-a456-426614174000/complete
+curl -X POST http://IP_SERVER:DESIGNED_PORT
+/swarms/123e4567-e89b-12d3-a456-426614174000/complete
 ```
 
 ### POST /swarms/:id/reject - Reject swarm
 ```bash
-curl -X POST http://localhost:3000/swarms/123e4567-e89b-12d3-a456-426614174000/reject
+curl -X POST http://IP_SERVER:DESIGNED_PORT
+/swarms/123e4567-e89b-12d3-a456-426614174000/reject
 ```
 
 ## 3. Device Management
 
 ### GET /swarms/:id/devices - Get swarm devices
 ```bash
-curl -X GET http://localhost:3000/swarms/123e4567-e89b-12d3-a456-426614174000/devices
+curl -X GET http://IP_SERVER:DESIGNED_PORT
+/swarms/123e4567-e89b-12d3-a456-426614174000/devices
 ```
 
 **Expected Response:**
@@ -166,7 +177,8 @@ curl -X GET http://localhost:3000/swarms/123e4567-e89b-12d3-a456-426614174000/de
 
 ### POST /swarms/:id/devices - Add device to swarm
 ```bash
-curl -X POST http://localhost:3000/swarms/123e4567-e89b-12d3-a456-426614174000/devices \
+curl -X POST http://IP_SERVER:DESIGNED_PORT
+/swarms/123e4567-e89b-12d3-a456-426614174000/devices \
   -H "Content-Type: application/json" \
   -d '{
     "deviceId": "device-003",
@@ -195,14 +207,16 @@ curl -X POST http://localhost:3000/swarms/123e4567-e89b-12d3-a456-426614174000/d
 
 ### DELETE /swarms/:id/devices/:deviceId - Remove device
 ```bash
-curl -X DELETE http://localhost:3000/swarms/123e4567-e89b-12d3-a456-426614174000/devices/device-003
+curl -X DELETE http://IP_SERVER:DESIGNED_PORT
+/swarms/123e4567-e89b-12d3-a456-426614174000/devices/device-003
 ```
 
 ## 4. Statistics
 
 ### GET /swarms/:id/stats - Get swarm statistics
 ```bash
-curl -X GET http://localhost:3000/swarms/123e4567-e89b-12d3-a456-426614174000/stats
+curl -X GET http://IP_SERVER:DESIGNED_PORT
+/swarms/123e4567-e89b-12d3-a456-426614174000/stats
 ```
 
 **Expected Response:**
@@ -237,7 +251,8 @@ curl -X GET http://localhost:3000/swarms/123e4567-e89b-12d3-a456-426614174000/st
 
 ### 1. Create a swarm
 ```bash
-curl -X POST http://localhost:3000/swarms \
+curl -X POST http://IP_SERVER:DESIGNED_PORT
+/swarms \
   -H "Content-Type: application/json" \
   -d '{
     "name": "My First Swarm",
@@ -249,19 +264,22 @@ curl -X POST http://localhost:3000/swarms \
 
 ### 2. Assign to cluster manager
 ```bash
-curl -X POST http://localhost:3000/swarms/SWARM_ID/assign \
+curl -X POST http://IP_SERVER:DESIGNED_PORT
+/swarms/SWARM_ID/assign \
   -H "Content-Type: application/json" \
   -d '{"clusterManagerId": "cluster-mgr-001"}'
 ```
 
 ### 3. Activate the swarm
 ```bash
-curl -X POST http://localhost:3000/swarms/SWARM_ID/activate
+curl -X POST http://IP_SERVER:DESIGNED_PORT
+/swarms/SWARM_ID/activate
 ```
 
 ### 4. Add devices
 ```bash
-curl -X POST http://localhost:3000/swarms/SWARM_ID/devices \
+curl -X POST http://IP_SERVER:DESIGNED_PORT
+/swarms/SWARM_ID/devices \
   -H "Content-Type: application/json" \
   -d '{
     "deviceId": "device-001",
@@ -272,7 +290,8 @@ curl -X POST http://localhost:3000/swarms/SWARM_ID/devices \
 
 ### 5. Monitor statistics
 ```bash
-curl -X GET http://localhost:3000/swarms/SWARM_ID/stats
+curl -X GET http://IP_SERVER:DESIGNED_PORT
+/swarms/SWARM_ID/stats
 ```
 
 ## Common Error Codes

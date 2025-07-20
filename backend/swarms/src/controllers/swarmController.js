@@ -1,7 +1,7 @@
 import models from '../models/index.js'
 import { successResponse, errorResponse } from '../utils/responses.js'
 import logger from '../utils/logger.js'
-import { v4 as uuidv4 } from 'uuid'
+// import { v4 as uuidv4 } from 'uuid'
 
 const { Swarm, SwarmDevice } = models
 
