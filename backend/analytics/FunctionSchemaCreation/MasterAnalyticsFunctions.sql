@@ -1,0 +1,168 @@
+/*
+    Author: Angel Eduardo Anaya Becerril
+    Created: 2025-07-22
+    Comment: Script to perform data insertion and helpers in 
+    MasterAnalytics tables, populated by .NET API background services.
+*/
+
+-- Function to get or create hour boundary timestamp
+-- CREATE OR REPLACE FUNCTION get_hour_boundary(input_timestamp TIMESTAMP WITH TIME ZONE)
+-- RETURNS TIMESTAMP WITH TIME ZONE AS $
+-- BEGIN
+--     RETURN DATE_TRUNC('hour', input_timestamp);
+-- END;
+-- $ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION get_hour_boundary(input_timestamp TIMESTAMP WITH TIME ZONE)
+RETURNS TIMESTAMP WITH TIME ZONE AS '
+BEGIN
+    RETURN DATE_TRUNC(''hour'', input_timestamp);
+END;
+' LANGUAGE plpgsql;
+
+-- Test the get_hour_boundary function
+SELECT 
+    'Test get_hour_boundary function' as test_name,
+    NOW() as current_timestamp,
+    get_hour_boundary(NOW()) as hour_boundary,
+    get_hour_boundary('2024-07-21 15:45:30+00'::TIMESTAMP WITH TIME ZONE) as specific_test;
+
+
+
+-- Function to calculate trend direction
+CREATE OR REPLACE FUNCTION calculate_trend_direction(
+    current_avg DECIMAL(10,4),
+    previous_avg DECIMAL(10,4),
+    threshold DECIMAL(10,4) DEFAULT 0.05
+)
+RETURNS VARCHAR(10) AS '
+DECLARE
+    change_ratio DECIMAL(10,4);
+BEGIN
+    IF previous_avg IS NULL OR previous_avg = 0 THEN
+        RETURN ''stable'';
+    END IF;
+    
+    change_ratio := ABS((current_avg - previous_avg) / previous_avg);
+    
+    IF change_ratio < threshold THEN
+        RETURN ''stable'';
+    ELSIF current_avg > previous_avg THEN
+        RETURN ''increasing'';
+    ELSE
+        RETURN ''decreasing'';
+    END IF;
+END;
+' LANGUAGE plpgsql;
+
+-- Function to calculate volatility score (0-100)
+CREATE OR REPLACE FUNCTION calculate_volatility_score(
+    stddev_val DECIMAL(10,4),
+    avg_val DECIMAL(10,4)
+)
+RETURNS DECIMAL(5,2) AS '
+DECLARE
+    coefficient_of_variation DECIMAL(10,4);
+    volatility_score DECIMAL(5,2);
+BEGIN
+    IF avg_val IS NULL OR avg_val = 0 OR stddev_val IS NULL THEN
+        RETURN 0.0;
+    END IF;
+    
+    -- Calculate coefficient of variation (CV)
+    coefficient_of_variation := stddev_val / ABS(avg_val);
+    
+    -- Convert to 0-100 scale (100 = very volatile, 0 = not volatile)
+    -- CV of 1.0 = 50 points, CV of 2.0 = 100 points
+    volatility_score := LEAST(coefficient_of_variation * 50, 100);
+    
+    RETURN volatility_score;
+END;
+' LANGUAGE plpgsql;
+
+-- Function to calculate calibrated value (TRIGGER FUNCTION)
+CREATE OR REPLACE FUNCTION calculate_calibrated_value()
+RETURNS TRIGGER AS '
+BEGIN
+    IF NEW.calibrated_value IS NULL THEN
+        SELECT (NEW.raw_value * ds.calibration_multiplier) + ds.calibration_offset
+        INTO NEW.calibrated_value
+        FROM device_sensors ds
+        WHERE ds.device_id = NEW.device_id 
+        AND ds.sensor_type_id = NEW.sensor_type_id
+        AND ds.is_active = true
+        LIMIT 1;
+        
+        -- If no calibration found, use raw value
+        IF NEW.calibrated_value IS NULL THEN
+            NEW.calibrated_value := NEW.raw_value;
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+' LANGUAGE plpgsql;
+
+
+-- Drop the existing trigger if it exists
+DROP TRIGGER IF EXISTS trigger_calculate_calibrated_value ON sensor_readings;
+
+-- Create the trigger to calculate calibrated values before insert
+CREATE TRIGGER trigger_calculate_calibrated_value
+    BEFORE INSERT ON sensor_readings
+    FOR EACH ROW
+    EXECUTE FUNCTION calculate_calibrated_value();
+
+
+-- ========================================
+-- TEST QUERIES FOR HELPER FUNCTIONS
+-- ========================================
+
+-- Test 1: get_hour_boundary function
+SELECT 
+    'Test get_hour_boundary function' as test_name,
+    NOW() as current_timestamp,
+    get_hour_boundary(NOW()) as hour_boundary,
+    get_hour_boundary('2024-07-21 15:45:30+00'::TIMESTAMP WITH TIME ZONE) as specific_test;
+
+-- Test 2: calculate_trend_direction function  
+SELECT 
+    'Test calculate_trend_direction function' as test_name,
+    calculate_trend_direction(25.5, 24.0, 0.05) as increasing_trend,
+    calculate_trend_direction(23.2, 24.8, 0.05) as decreasing_trend,
+    calculate_trend_direction(24.1, 24.0, 0.05) as stable_trend,
+    calculate_trend_direction(25.0, NULL, 0.05) as null_previous,
+    calculate_trend_direction(25.0, 0, 0.05) as zero_previous;
+
+-- Test 3: calculate_volatility_score function
+SELECT 
+    'Test calculate_volatility_score function' as test_name,
+    calculate_volatility_score(2.5, 25.0) as low_volatility,
+    calculate_volatility_score(10.0, 25.0) as high_volatility,
+    calculate_volatility_score(25.0, 25.0) as very_high_volatility,
+    calculate_volatility_score(NULL, 25.0) as null_stddev,
+    calculate_volatility_score(2.5, NULL) as null_avg,
+    calculate_volatility_score(2.5, 0) as zero_avg;
+
+-- ========================================
+-- USAGE EXAMPLES FOR YOUR API          THIS CODE GENERATED BY AI PLEASE EVALUATE AND TEST BEFORE USE A.A comment
+-- ========================================
+
+-- Example 1: Using get_hour_boundary in INSERT
+-- INSERT INTO device_metrics_hourly (device_id, hour_timestamp, uptime_percentage)
+-- VALUES ('some-uuid', get_hour_boundary(NOW()), 95.5);
+
+-- Example 2: Using calculate_trend_direction in UPDATE
+-- UPDATE sensor_metrics_hourly 
+-- SET trend_direction = calculate_trend_direction(avg_value, 
+--     (SELECT avg_value FROM sensor_metrics_hourly 
+--      WHERE device_id = 'some-uuid' AND sensor_type_id = 1 
+--      AND hour_timestamp = get_hour_boundary(NOW() - INTERVAL '1 hour')), 
+--     0.05)
+-- WHERE device_id = 'some-uuid' AND sensor_type_id = 1 
+-- AND hour_timestamp = get_hour_boundary(NOW());
+
+-- Example 3: Using calculate_volatility_score in INSERT
+-- INSERT INTO sensor_metrics_hourly (device_id, sensor_type_id, hour_timestamp, 
+--                                   avg_value, stddev_value, volatility_score)
+-- VALUES ('some-uuid', 1, get_hour_boundary(NOW()), 
+--         24.5, 2.3, calculate_volatility_score(2.3, 24.5));
