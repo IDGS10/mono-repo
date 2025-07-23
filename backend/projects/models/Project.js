@@ -15,6 +15,13 @@ export default class Project {
     this.updated_at = data.updated_at
   }
 
+  // POLÍTICA DE SEGURIDAD: NO SELECT * - Campos específicos solamente
+  static getSelectFields() {
+    return `id_project, name, description, location, status, 
+            modified_by, created_by, id_org, owner_id, 
+            created_at, updated_at`
+  }
+
   // La tabla ya existe, pero verificamos que tenga la estructura correcta
   static async verifyTable() {
     const checkTableQuery = `
@@ -42,7 +49,7 @@ export default class Project {
         modified_by, created_by, id_org, owner_id,
         created_at, updated_at
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-      RETURNING *
+      RETURNING ${Project.getSelectFields()}
     `
     
     const now = new Date()
@@ -70,9 +77,15 @@ export default class Project {
     }
   }
 
-  // Find all projects
-  static async findAll(ownerId = null, idOrg = null) {
-    let findQuery = 'SELECT * FROM projects'
+  // POLÍTICA DE SEGURIDAD: Paginación obligatoria - NO SELECT *
+  static async findAll(ownerId = null, idOrg = null, page = 1, limit = 10) {
+    // Validar parámetros de paginación
+    const pageNum = Math.max(1, parseInt(page) || 1)
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 10)) // Máximo 100 registros
+    const offset = (pageNum - 1) * limitNum
+
+    let findQuery = `SELECT ${Project.getSelectFields()} FROM projects`
+    let countQuery = `SELECT COUNT(*) as total FROM projects`
     let values = []
     let conditions = []
     let paramCount = 1
@@ -89,24 +102,47 @@ export default class Project {
       paramCount++
     }
     
-    if (conditions.length > 0) {
-      findQuery += ' WHERE ' + conditions.join(' AND ')
-    }
+    const whereClause = conditions.length > 0 ? ' WHERE ' + conditions.join(' AND ') : ''
+    findQuery += whereClause
+    countQuery += whereClause
     
-    findQuery += ' ORDER BY created_at DESC'
+    // Agregar paginación
+    findQuery += ` ORDER BY created_at DESC LIMIT $${paramCount} OFFSET $${paramCount + 1}`
+    const queryValues = [...values, limitNum, offset]
     
     try {
-      const result = await query(findQuery, values)
-      return result.rows.map(row => new Project(row))
+      // Ejecutar ambas consultas
+      const [dataResult, countResult] = await Promise.all([
+        query(findQuery, queryValues),
+        query(countQuery, values)
+      ])
+      
+      const projects = dataResult.rows.map(row => new Project(row))
+      const total = parseInt(countResult.rows[0].total)
+      const totalPages = Math.ceil(total / limitNum)
+      
+      console.log(`✅ Found ${projects.length} projects (page ${pageNum}/${totalPages})`)
+      
+      return {
+        projects,
+        pagination: {
+          currentPage: pageNum,
+          totalPages,
+          totalItems: total,
+          itemsPerPage: limitNum,
+          hasNext: pageNum < totalPages,
+          hasPrev: pageNum > 1
+        }
+      }
     } catch (error) {
       console.error('❌ Error finding projects:', error)
       throw error
     }
   }
 
-  // Find project by ID
+  // POLÍTICA DE SEGURIDAD: NO SELECT * - Campos específicos
   static async findById(id) {
-    const findQuery = 'SELECT * FROM projects WHERE id_project = $1'
+    const findQuery = `SELECT ${Project.getSelectFields()} FROM projects WHERE id_project = $1`
     
     try {
       const result = await query(findQuery, [id])
@@ -150,7 +186,7 @@ export default class Project {
       UPDATE projects 
       SET ${updateFields.join(', ')}
       WHERE id_project = $${paramCount}
-      RETURNING *
+      RETURNING ${Project.getSelectFields()}
     `
 
     try {
@@ -174,7 +210,7 @@ export default class Project {
 
   // Delete project
   static async delete(id) {
-    const deleteQuery = 'DELETE FROM projects WHERE id_project = $1 RETURNING *'
+    const deleteQuery = `DELETE FROM projects WHERE id_project = $1 RETURNING ${Project.getSelectFields()}`
     
     try {
       const result = await query(deleteQuery, [id])
@@ -188,36 +224,62 @@ export default class Project {
     }
   }
 
-  // Find projects by status
-  static async findByStatus(status, ownerId = null, idOrg = null) {
-    let findQuery = 'SELECT * FROM projects WHERE status = $1'
+  // POLÍTICA DE SEGURIDAD: Paginación obligatoria en findByStatus
+  static async findByStatus(status, ownerId = null, idOrg = null, page = 1, limit = 10) {
+    const pageNum = Math.max(1, parseInt(page) || 1)
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 10))
+    const offset = (pageNum - 1) * limitNum
+
+    let findQuery = `SELECT ${Project.getSelectFields()} FROM projects WHERE status = $1`
+    let countQuery = `SELECT COUNT(*) as total FROM projects WHERE status = $1`
     let values = [status]
     let paramCount = 2
     
     if (ownerId) {
       findQuery += ` AND owner_id = $${paramCount}`
+      countQuery += ` AND owner_id = $${paramCount}`
       values.push(ownerId)
       paramCount++
     }
     
     if (idOrg) {
       findQuery += ` AND id_org = $${paramCount}`
+      countQuery += ` AND id_org = $${paramCount}`
       values.push(idOrg)
       paramCount++
     }
     
-    findQuery += ' ORDER BY created_at DESC'
+    findQuery += ` ORDER BY created_at DESC LIMIT $${paramCount} OFFSET $${paramCount + 1}`
+    const queryValues = [...values, limitNum, offset]
     
     try {
-      const result = await query(findQuery, values)
-      return result.rows.map(row => new Project(row))
+      const [dataResult, countResult] = await Promise.all([
+        query(findQuery, queryValues),
+        query(countQuery, values)
+      ])
+      
+      const projects = dataResult.rows.map(row => new Project(row))
+      const total = parseInt(countResult.rows[0].total)
+      const totalPages = Math.ceil(total / limitNum)
+      
+      return {
+        projects,
+        pagination: {
+          currentPage: pageNum,
+          totalPages,
+          totalItems: total,
+          itemsPerPage: limitNum,
+          hasNext: pageNum < totalPages,
+          hasPrev: pageNum > 1
+        }
+      }
     } catch (error) {
       console.error('❌ Error finding projects by status:', error)
       throw error
     }
   }
 
-  // Get project statistics
+  // Get project statistics - CAMPOS ESPECÍFICOS, NO SELECT *
   static async getStats(ownerId = null, idOrg = null) {
     let statsQuery = `
       SELECT 

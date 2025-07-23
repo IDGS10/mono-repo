@@ -1,5 +1,7 @@
-// modules/analytics/routes/index.js
+// modules/projects/routes/index.js
+import React from 'react';
 import { MODULE_CONFIG, ROUTE_DEFINITIONS } from './routeConfig.js';
+import { ProjectDashboard, CreateProject, ProjectDetail, AddSwarm } from '../pages';
 
 // Helper to build complete routes
 const createRoute = (relativePath, config) => ({
@@ -12,10 +14,18 @@ const routeDefinitions = ROUTE_DEFINITIONS.map(route =>
   createRoute(route.path, route)
 );
 
+// Map component strings to actual component references
+const componentMap = {
+  'ProjectDashboard': ProjectDashboard,
+  'CreateProject': CreateProject,
+  'ProjectDetail': ProjectDetail,
+  'AddSwarm': AddSwarm
+};
+
 // For React Router
-export const analyticsRoutes = routeDefinitions.map(route => ({
+export const projectsRoutes = routeDefinitions.map(route => ({
   path: route.path,
-  element: <route.component />,
+  element: React.createElement(componentMap[route.component]),
   requiresAuth: route.requiresAuth !== false,
   permissions: route.permissions,
   name: route.name
@@ -36,4 +46,4 @@ export const menuConfig = {
 // Module info
 export const moduleInfo = MODULE_CONFIG;
 
-export default analyticsRoutes;
+export default projectsRoutes;
