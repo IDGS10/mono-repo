@@ -3,14 +3,17 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 
+
 const errorHandler = require('./middleware/errorHandler');
 const organizationRoutes = require('./routes/organizations');
+const invitationRoutes = require('./routes/invitations');
+const projectRoutes = require('./routes/projects');
 
 const app = express();
 
 app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL,
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true
 }));
 
@@ -28,7 +31,8 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/api/organizations', organizationRoutes);
-
+app.use('/api/invitations', invitationRoutes);
+app.use('/api/projects', projectRoutes);
 
 app.use('*', (req, res) => {
   res.status(404).json({ 
