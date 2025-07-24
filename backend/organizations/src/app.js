@@ -28,6 +28,7 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/api/organizations', organizationRoutes);
+app.use('/api/projects', projectRoutes);
 
 
 app.use('*', (req, res) => {
