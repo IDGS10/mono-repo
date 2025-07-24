@@ -3,38 +3,38 @@ const { pool } = require("../config/database");
 //Connection to PostgreSQL
 async function connectDatabase() {
   console.log("🔄 Intentando conectar a la base de datos...");
-  
+
   try {
     // Agregar timeout de 10 segundos
-    const timeoutPromise = new Promise((_, reject) => 
+    const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('Timeout: La conexión tardó más de 10 segundos')), 10000)
     );
-    
+
     const connectPromise = pool.connect();
-    
+
     const client = await Promise.race([connectPromise, timeoutPromise]);
-    
+
     console.log("✅ Conectado exitosamente a PostgreSQL (VPC)");
     console.log(`🗄️  Base de datos: ${process.env.DB_NAME || 'segDatabase'}`);
     console.log(`🌐 Host: ${process.env.DB_HOST || 'Base de datos externa'}`);
-    
+
     client.release();
-    
+
     console.log("🔄 Inicializando tablas de la base de datos...");
     await initializeDatabase();
     console.log("✅ Base de datos inicializada correctamente");
-    
+
   } catch (err) {
     console.error("❌ Error conectando a PostgreSQL:");
     console.error("   Mensaje:", err.message);
     console.error("   Código:", err.code);
     console.error("   Stack:", err.stack);
-    
+
     // No salir del proceso inmediatamente para debugging
     console.log("⚠️  Continuando sin base de datos (modo desarrollo)");
     return false;
   }
-  
+
   return true;
 }
 
@@ -42,7 +42,7 @@ async function connectDatabase() {
 async function initializeDatabase() {
   try {
     console.log("🔄 Creando tablas necesarias...");
-    
+
     const createTables = `
       -- Tabla de usuarios
       CREATE TABLE IF NOT EXISTS users (
@@ -105,7 +105,7 @@ async function initializeDatabase() {
     await pool.query(createTables);
     console.log("✅ Tablas de PostgreSQL inicializadas correctamente");
     await seedDefaultData();
-    
+
   } catch (err) {
     console.error("❌ Error creando tablas:", err.message);
     throw err;
@@ -146,4 +146,6 @@ async function seedDefaultData() {
 
 module.exports = {
   connectDatabase,
+  initializeDatabase,
+  seedDefaultData,
 };

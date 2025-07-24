@@ -71,22 +71,46 @@ export default function Register() {
 
     if (!registrationData.password) {
       errors.password = "La contraseña es requerida";
-    } else if (registrationData.password.length < 6) {
-      errors.password = "La contraseña debe tener al menos 6 caracteres";
+    } else if (registrationData.password.length < 8) {
+      errors.password = "La contraseña debe tener al menos 8 caracteres";
+    } else {
+      // Validaciones más estrictas para coincidir con el backend
+      const passwordErrors = [];
+      if (!/[a-z]/.test(registrationData.password)) {
+        passwordErrors.push("una letra minúscula");
+      }
+      if (!/[A-Z]/.test(registrationData.password)) {
+        passwordErrors.push("una letra mayúscula");
+      }
+      if (!/\d/.test(registrationData.password)) {
+        passwordErrors.push("un número");
+      }
+      if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(registrationData.password)) {
+        passwordErrors.push("un carácter especial");
+      }
+      if (passwordErrors.length > 0) {
+        errors.password = `La contraseña debe contener al menos: ${passwordErrors.join(', ')}`;
+      }
     }
 
     if (registrationData.password !== registrationData.confirmPassword) {
       errors.confirmPassword = "Las contraseñas no coinciden";
     }
 
-    if (!registrationData.phone.trim()) {
-      errors.phone = "El teléfono es requerido";
-    } else if (!/^\d{10}$/.test(registrationData.phone.replace(/\D/g, ""))) {
-      errors.phone = "El teléfono debe tener 10 dígitos";
+    // Phone validation (optional but if provided, validate format)
+    if (registrationData.phone && registrationData.phone.trim()) {
+      const cleanPhone = registrationData.phone.replace(/\D/g, '');
+      if (cleanPhone.length < 10 || cleanPhone.length > 15) {
+        errors.phone = `El teléfono debe tener entre 10 y 15 dígitos (actualmente tiene ${cleanPhone.length})`;
+      }
     }
 
-    if (!registrationData.idNumber.trim()) {
-      errors.idNumber = "La cédula es requerida";
+    // ID Number validation (optional but if provided, validate format)
+    if (registrationData.idNumber && registrationData.idNumber.trim()) {
+      const cleanIdNumber = registrationData.idNumber.replace(/\D/g, '');
+      if (cleanIdNumber.length < 6 || cleanIdNumber.length > 20) {
+        errors.idNumber = `Número de identificación debe tener entre 6 y 20 dígitos (actualmente tiene ${cleanIdNumber.length})`;
+      }
     }
 
     setFormErrors(errors);
@@ -130,9 +154,10 @@ export default function Register() {
             //Guardamos el estado de login para verificación de la sesión
             localStorage.setItem("isLoggedIn", "true");
 
+            // Guardar los datos completos del usuario y token
             const userData = {
               token: response.token,
-              user: response.user || null,
+              user: response.user // Almacenar el objeto completo del usuario
             };
             localStorage.setItem("monoRepoUserData", JSON.stringify(userData));
 
@@ -144,7 +169,29 @@ export default function Register() {
             return false;
           }
         } else {
-          toast.error(response.error || "Error durante el registro");
+          // Handle validation errors from backend
+          if (response.validationErrors && Object.keys(response.validationErrors).length > 0) {
+            // Set form errors from backend validation
+            setFormErrors(response.validationErrors);
+
+            // Show detailed error message
+            const errorMessages = Object.values(response.validationErrors);
+            toast.error(`Errores de validación:\n${errorMessages.join('\n')}`, {
+              autoClose: 8000,
+              style: { whiteSpace: 'pre-line' }
+            });
+
+            // Focus on first invalid field
+            setTimeout(() => {
+              const firstErrorField = Object.keys(response.validationErrors)[0];
+              const firstErrorElement = document.querySelector(`[name="${firstErrorField}"]`);
+              if (firstErrorElement) {
+                firstErrorElement.focus();
+              }
+            }, 100);
+          } else {
+            toast.error(response.error || "Error durante el registro");
+          }
           return false;
         }
       } catch (error) {
@@ -214,15 +261,14 @@ export default function Register() {
                       onBlur={() =>
                         setTouched((prev) => ({ ...prev, firstName: true }))
                       }
-                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
-                        formErrors.firstName
-                          ? "border-red-500 bg-red-50"
-                          : touched.firstName &&
-                            registrationData.firstName &&
-                            !formErrors.firstName
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${formErrors.firstName
+                        ? "border-red-500 bg-red-50"
+                        : touched.firstName &&
+                          registrationData.firstName &&
+                          !formErrors.firstName
                           ? "border-green-400 bg-green-50"
                           : "border-gray-300 hover:border-gray-400"
-                      }`}
+                        }`}
                       placeholder="Juan"
                       ref={
                         formErrors.firstName && !firstInvalidRef.current
@@ -254,15 +300,14 @@ export default function Register() {
                       onBlur={() =>
                         setTouched((prev) => ({ ...prev, lastName: true }))
                       }
-                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
-                        formErrors.lastName
-                          ? "border-red-500 bg-red-50"
-                          : touched.lastName &&
-                            registrationData.lastName &&
-                            !formErrors.lastName
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${formErrors.lastName
+                        ? "border-red-500 bg-red-50"
+                        : touched.lastName &&
+                          registrationData.lastName &&
+                          !formErrors.lastName
                           ? "border-green-400 bg-green-50"
                           : "border-gray-300 hover:border-gray-400"
-                      }`}
+                        }`}
                       placeholder="Pérez"
                       ref={
                         formErrors.lastName && !firstInvalidRef.current
@@ -294,15 +339,14 @@ export default function Register() {
                     onBlur={() =>
                       setTouched((prev) => ({ ...prev, email: true }))
                     }
-                    className={`pl-10 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
-                      formErrors.email
-                        ? "border-red-500 bg-red-50"
-                        : touched.email &&
-                          registrationData.email &&
-                          !formErrors.email
+                    className={`pl-10 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${formErrors.email
+                      ? "border-red-500 bg-red-50"
+                      : touched.email &&
+                        registrationData.email &&
+                        !formErrors.email
                         ? "border-green-400 bg-green-50"
                         : "border-gray-300 hover:border-gray-400"
-                    }`}
+                      }`}
                     placeholder="juan.perez@ejemplo.com"
                     ref={
                       formErrors.email && !firstInvalidRef.current
@@ -342,15 +386,14 @@ export default function Register() {
                       onBlur={() =>
                         setTouched((prev) => ({ ...prev, password: true }))
                       }
-                      className={`pl-10 pr-10 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
-                        formErrors.password
-                          ? "border-red-500 bg-red-50"
-                          : touched.password &&
-                            registrationData.password &&
-                            !formErrors.password
+                      className={`pl-10 pr-10 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${formErrors.password
+                        ? "border-red-500 bg-red-50"
+                        : touched.password &&
+                          registrationData.password &&
+                          !formErrors.password
                           ? "border-green-400 bg-green-50"
                           : "border-gray-300 hover:border-gray-400"
-                      }`}
+                        }`}
                       placeholder="••••••••"
                       ref={
                         formErrors.password && !firstInvalidRef.current
@@ -376,22 +419,21 @@ export default function Register() {
                   {/* Barra de fortaleza de contraseña */}
                   <div className="h-2 mt-2 rounded bg-gray-200 overflow-hidden">
                     <div
-                      className={`h-2 rounded transition-all duration-300 ${
-                        passwordStrength <= 2
-                          ? "bg-red-400 w-1/5"
-                          : passwordStrength === 3
+                      className={`h-2 rounded transition-all duration-300 ${passwordStrength <= 2
+                        ? "bg-red-400 w-1/5"
+                        : passwordStrength === 3
                           ? "bg-yellow-400 w-3/5"
                           : passwordStrength >= 4
-                          ? "bg-green-500 w-full"
-                          : ""
-                      }`}
+                            ? "bg-green-500 w-full"
+                            : ""
+                        }`}
                     ></div>
                   </div>
                   <div className="text-xs text-gray-500 mt-1">
                     Fortaleza:{" "}
                     {
                       ["Débil", "Débil", "Media", "Fuerte", "Muy fuerte"][
-                        passwordStrength
+                      passwordStrength
                       ]
                     }
                   </div>
@@ -426,15 +468,14 @@ export default function Register() {
                           confirmPassword: true,
                         }))
                       }
-                      className={`pl-10 pr-10 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
-                        formErrors.confirmPassword
-                          ? "border-red-500 bg-red-50"
-                          : touched.confirmPassword &&
-                            registrationData.confirmPassword &&
-                            !formErrors.confirmPassword
+                      className={`pl-10 pr-10 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${formErrors.confirmPassword
+                        ? "border-red-500 bg-red-50"
+                        : touched.confirmPassword &&
+                          registrationData.confirmPassword &&
+                          !formErrors.confirmPassword
                           ? "border-green-400 bg-green-50"
                           : "border-gray-300 hover:border-gray-400"
-                      }`}
+                        }`}
                       placeholder="••••••••"
                       ref={
                         formErrors.confirmPassword && !firstInvalidRef.current
@@ -482,15 +523,14 @@ export default function Register() {
                       onBlur={() =>
                         setTouched((prev) => ({ ...prev, phone: true }))
                       }
-                      className={`pl-10 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
-                        formErrors.phone
-                          ? "border-red-500 bg-red-50"
-                          : touched.phone &&
-                            registrationData.phone &&
-                            !formErrors.phone
+                      className={`pl-10 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${formErrors.phone
+                        ? "border-red-500 bg-red-50"
+                        : touched.phone &&
+                          registrationData.phone &&
+                          !formErrors.phone
                           ? "border-green-400 bg-green-50"
                           : "border-gray-300 hover:border-gray-400"
-                      }`}
+                        }`}
                       placeholder="3001234567"
                       ref={
                         formErrors.phone && !firstInvalidRef.current
@@ -528,15 +568,14 @@ export default function Register() {
                       onBlur={() =>
                         setTouched((prev) => ({ ...prev, idNumber: true }))
                       }
-                      className={`pl-10 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
-                        formErrors.idNumber
-                          ? "border-red-500 bg-red-50"
-                          : touched.idNumber &&
-                            registrationData.idNumber &&
-                            !formErrors.idNumber
+                      className={`pl-10 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${formErrors.idNumber
+                        ? "border-red-500 bg-red-50"
+                        : touched.idNumber &&
+                          registrationData.idNumber &&
+                          !formErrors.idNumber
                           ? "border-green-400 bg-green-50"
                           : "border-gray-300 hover:border-gray-400"
-                      }`}
+                        }`}
                       placeholder="12345678"
                       ref={
                         formErrors.idNumber && !firstInvalidRef.current

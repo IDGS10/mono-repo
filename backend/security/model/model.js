@@ -67,7 +67,7 @@ module.exports = {
   async register(req, res) {
     try {
       const { email, password, firstName, lastName } = req.body;
-      
+
       // Validación básica
       if (!email || !password || !firstName || !lastName) {
         return res.status(400).json({
@@ -115,7 +115,7 @@ module.exports = {
       });
     } catch (error) {
       console.error("Error en register:", error);
-      
+
       // Manejar errores específicos
       if (error.message.includes('ya existe')) {
         return res.status(409).json({
@@ -133,12 +133,12 @@ module.exports = {
   },
 
   /**
-   * Autentica un usuario (login)
+   * Autentica un usuario (login) - Enhanced with IP and User Agent tracking
    */
   async login(req, res) {
     try {
       const { email, password } = req.body;
-      
+
       // Validación básica
       if (!email || !password) {
         return res.status(400).json({
@@ -147,27 +147,44 @@ module.exports = {
         });
       }
 
-      // Llamar al servicio de autenticación
-      const result = await AuthService.loginUser(email.toLowerCase().trim(), password);
+      // Get IP address and user agent for security logging
+      const ipAddress = req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'];
+      const userAgent = req.get('User-Agent');
 
-      // Actualizar último login no hay en tabla
-      // await UserService.updateLastLogin(result.user.id);
+      // Llamar al servicio de autenticación con información adicional
+      const result = await AuthService.loginUser(
+        email.toLowerCase().trim(),
+        password,
+        ipAddress,
+        userAgent
+      );
 
       res.status(200).json({
         success: true,
         message: "Login exitoso",
         token: result.token,
         user: result.user,
-        expiresIn: '24h'
+        expiresIn: result.expiresIn || '24h',
+        session: {
+          sessionId: result.session.sessionId,
+          expiresAt: result.session.expiresAt
+        }
       });
     } catch (error) {
       console.error("Error en login:", error);
-      
+
       // Manejar errores específicos
       if (error.message.includes('Credenciales inválidas')) {
         return res.status(401).json({
           success: false,
           message: "Email o contraseña incorrectos"
+        });
+      }
+
+      if (error.message.includes('Usuario desactivado')) {
+        return res.status(403).json({
+          success: false,
+          message: "Tu cuenta ha sido desactivada. Contacta al administrador."
         });
       }
 
@@ -235,7 +252,7 @@ module.exports = {
       });
     } catch (error) {
       console.error("Error en getUserProfile:", error);
-      
+
       if (error.message.includes('no encontrado')) {
         return res.status(404).json({
           success: false,
@@ -299,7 +316,7 @@ module.exports = {
       });
     } catch (error) {
       console.error("Error en updateUserProfile:", error);
-      
+
       if (error.message.includes('no encontrado')) {
         return res.status(404).json({
           success: false,
@@ -356,7 +373,7 @@ module.exports = {
       });
     } catch (error) {
       console.error("Error en getUserStats:", error);
-      
+
       if (error.message.includes('no encontrado')) {
         return res.status(404).json({
           success: false,

@@ -5,7 +5,7 @@ const rateLimit = require("express-rate-limit");
 const compression = require("compression");
 const morgan = require("morgan");
 const path = require("path");
-require("dotenv").config({ path: path.join(__dirname, "config.env") });
+require("dotenv").config();
 
 
 const { PORT } = require("./config/constats");
@@ -90,10 +90,10 @@ app.use(ResponseUtils.globalErrorHandler);
 async function startServer() {
   try {
     console.log("🚀 Iniciando servidor...");
-    
+
     // Intentar conectar a la base de datos con timeout
     const dbConnected = await connectDatabase();
-    
+
     if (!dbConnected) {
       console.log("⚠️  Servidor iniciándose sin conexión a base de datos");
     }
@@ -121,12 +121,12 @@ async function startServer() {
 
     // Configurar shutdown graceful
     setupGracefulShutdown(server);
-    
+
     return server;
   } catch (error) {
     console.error("❌ Error iniciando servidor:", error);
     console.log("🔄 Intentando iniciar servidor sin base de datos...");
-    
+
     // Intentar iniciar el servidor sin BD
     try {
       const server = app.listen(PORT, () => {
@@ -136,7 +136,7 @@ async function startServer() {
         console.log(`📚 Documentación Swagger: http://localhost:${PORT}/api/docs`);
         console.log(`⚠️  ADVERTENCIA: Sin conexión a base de datos`);
       });
-      
+
       setupGracefulShutdown(server);
       return server;
     } catch (serverError) {
@@ -150,10 +150,10 @@ async function startServer() {
 function setupGracefulShutdown(server) {
   const gracefulShutdown = async (signal) => {
     console.log(`\n🛑 Recibido ${signal}. Cerrando servidor...`);
-    
+
     server.close(async () => {
       console.log("🔌 Servidor HTTP cerrado");
-      
+
       try {
         const { pool } = require("./config/database");
         await pool.end();
@@ -161,7 +161,7 @@ function setupGracefulShutdown(server) {
       } catch (dbError) {
         console.error("⚠️  Error cerrando conexiones de BD:", dbError.message);
       }
-      
+
       console.log("✅ Shutdown completado");
       process.exit(0);
     });
