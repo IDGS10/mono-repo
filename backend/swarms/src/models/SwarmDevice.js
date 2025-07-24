@@ -5,7 +5,7 @@ class SwarmDevice extends Model {
     return super.init(
       {
         swarmId: {
-          type: DataTypes.UUID,
+          type: DataTypes.INTEGER,
           primaryKey: true,
           allowNull: false,
           field: 'swarm_id',
@@ -15,7 +15,7 @@ class SwarmDevice extends Model {
           },
         },
         deviceId: {
-          type: DataTypes.UUID,
+          type: DataTypes.INTEGER,
           primaryKey: true,
           allowNull: false,
           field: 'device_id',
@@ -29,7 +29,7 @@ class SwarmDevice extends Model {
           },
         },
         assignedBy: {
-          type: DataTypes.UUID,
+          type: DataTypes.INTEGER,
           allowNull: false,
           field: 'assigned_by',
         },
@@ -39,9 +39,12 @@ class SwarmDevice extends Model {
           field: 'removed_at',
         },
         status: {
-          type: DataTypes.ENUM('assigned', 'active', 'inactive', 'removed'),
+          type: DataTypes.STRING(20),
           defaultValue: 'assigned',
           allowNull: false,
+          validate: {
+            isIn: [['assigned', 'active', 'inactive', 'removed']],
+          },
         },
       },
       {

@@ -10,11 +10,12 @@ import errorHandler from './middlewares/errorHandler.js'
 import DatabaseService from './services/databaseService.js'
 import logger from './utils/logger.js'
 import { NODE_ENV } from './config/environment.js'
+import getCorsOptions from './config/cors.js'
 
 const app = express()
 
 // Basic middleware
-app.use(cors())
+app.use(cors(getCorsOptions()))
 app.use(compression())
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
