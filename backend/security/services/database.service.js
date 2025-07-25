@@ -1,11 +1,11 @@
 const { pool } = require("../config/database");
 
-//Connection to PostgreSQL
+// Connection to PostgreSQL
 async function connectDatabase() {
   console.log("🔄 Intentando conectar a la base de datos...");
 
   try {
-    // Agregar timeout de 10 segundos
+    // Add 10 seconds timeout
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('Timeout: La conexión tardó más de 10 segundos')), 10000)
     );
@@ -30,7 +30,7 @@ async function connectDatabase() {
     console.error("   Código:", err.code);
     console.error("   Stack:", err.stack);
 
-    // No salir del proceso inmediatamente para debugging
+    // Don't exit process immediately for debugging
     console.log("⚠️  Continuando sin base de datos (modo desarrollo)");
     return false;
   }
@@ -38,7 +38,7 @@ async function connectDatabase() {
   return true;
 }
 
-//Create tables if not exist
+// Create tables if not exist
 async function initializeDatabase() {
   try {
     console.log("🔄 Creando tablas necesarias...");
@@ -52,7 +52,12 @@ async function initializeDatabase() {
         email VARCHAR(255) UNIQUE NOT NULL,
         password_hash VARCHAR(255) NOT NULL,
         phone VARCHAR(20),
-        id_number VARCHAR(50) UNIQUE,
+        status VARCHAR(20) DEFAULT 'active',
+        rol VARCHAR(20) DEFAULT 'Propietario' CHECK (rol IN ('Propietario', 'Lider', 'Encargado')),
+        accepted INTEGER DEFAULT 0,
+        org_id INTEGER,
+        last_login TIMESTAMP,
+        profile_picture TEXT,
         is_active BOOLEAN DEFAULT true,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -62,7 +67,7 @@ async function initializeDatabase() {
       CREATE TABLE IF NOT EXISTS login_sessions (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
-        token_hash VARCHAR(255) NOT NULL,
+        token_hash TEXT NOT NULL,
         ip_address INET,
         user_agent TEXT,
         is_active BOOLEAN DEFAULT true,
@@ -104,6 +109,29 @@ async function initializeDatabase() {
 
     await pool.query(createTables);
     console.log("✅ Tablas de PostgreSQL inicializadas correctamente");
+
+    // Migration to add last_login column if it doesn't exist
+    try {
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS last_login TIMESTAMP;
+      `);
+      console.log("✅ Columna last_login agregada/verificada");
+    } catch (err) {
+      console.log("⚠️  Columna last_login ya existe o error menor:", err.message);
+    }
+
+    // Migration to add profile_picture column if it doesn't exist
+    try {
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS profile_picture TEXT;
+      `);
+      console.log("✅ Columna profile_picture agregada/verificada");
+    } catch (err) {
+      console.log("⚠️  Columna profile_picture ya existe o error menor:", err.message);
+    }
+
     await seedDefaultData();
 
   } catch (err) {
@@ -112,7 +140,7 @@ async function initializeDatabase() {
   }
 }
 
-//Initial seed data for default user in case of empty database
+// Initial seed data for default user in case of empty database
 async function seedDefaultData() {
   try {
     const { rows } = await pool.query("SELECT COUNT(*) as count FROM users");
@@ -124,8 +152,8 @@ async function seedDefaultData() {
 
       await pool.query(
         `
-        INSERT INTO users (first_name, last_name, email, password_hash, phone, id_number)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO users (first_name, last_name, email, password_hash, phone, status, rol)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
       `,
         [
           "Admin",
@@ -133,7 +161,8 @@ async function seedDefaultData() {
           "admin@faceauth.com",
           hashedPassword,
           "3001234567",
-          "12345678",
+          "active",
+          "Propietario",
         ]
       );
 

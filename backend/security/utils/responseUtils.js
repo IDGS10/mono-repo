@@ -1,16 +1,16 @@
 /**
- * Clase para manejar respuestas HTTP con estandares
+ * Class to handle HTTP responses with standards
  */
 class ResponseUtils {
   /**
-   * Respuesta exitosa genérica
-   * @param {Object} res - Response object de Express
-   * @param {number} statusCode - Código de estado HTTP
-   * @param {string} message - Mensaje de éxito
-   * @param {Object} data - Datos adicionales
-   * @returns {Object} - Respuesta JSON
+   * Generic success response
+   * @param {Object} res - Express Response object
+   * @param {number} statusCode - HTTP status code
+   * @param {string} message - Success message
+   * @param {Object} data - Additional data
+   * @returns {Object} - JSON response
    */
-  static success(res, statusCode = 200, message = 'Operación exitosa', data = {}) {
+  static success(res, statusCode = 200, message = 'Operation successful', data = {}) {
     return res.status(statusCode).json({
       success: true,
       message,
@@ -20,15 +20,15 @@ class ResponseUtils {
   }
 
   /**
-   * Respuesta de error genérica
-   * @param {Object} res - Response object de Express
-   * @param {number} statusCode - Código de estado HTTP
-   * @param {string} message - Mensaje de error
-   * @param {Object} error - Detalles del error (opcional)
-   * @param {Object} additionalData - Datos adicionales (opcional)
-   * @returns {Object} - Respuesta JSON
+   * Generic error response
+   * @param {Object} res - Express Response object
+   * @param {number} statusCode - HTTP status code
+   * @param {string} message - Error message
+   * @param {Object} error - Error details (optional)
+   * @param {Object} additionalData - Additional data (optional)
+   * @returns {Object} - JSON response
    */
-  static error(res, statusCode = 500, message = 'Error interno del servidor', error = null, additionalData = {}) {
+  static error(res, statusCode = 500, message = 'Internal server error', error = null, additionalData = {}) {
     const response = {
       success: false,
       message,
@@ -36,7 +36,7 @@ class ResponseUtils {
       ...additionalData
     };
 
-    // Solo incluir detalles del error en desarrollo
+    // Only include error details in development
     if (process.env.NODE_ENV === 'development' && error) {
       response.error = error instanceof Error ? error.message : error;
       if (error instanceof Error && error.stack) {
@@ -48,13 +48,13 @@ class ResponseUtils {
   }
 
   /**
-   * Respuesta de validación fallida
-   * @param {Object} res - Response object de Express
-   * @param {string} message - Mensaje de error
-   * @param {Array|Object} validationErrors - Errores de validación específicos
-   * @returns {Object} - Respuesta JSON
+   * Validation failed response
+   * @param {Object} res - Express Response object
+   * @param {string} message - Error message
+   * @param {Array|Object} validationErrors - Specific validation errors
+   * @returns {Object} - JSON response
    */
-  static validationError(res, message = 'Datos de entrada inválidos', validationErrors = []) {
+  static validationError(res, message = 'Invalid input data', validationErrors = []) {
     return res.status(400).json({
       success: false,
       message,
@@ -64,13 +64,13 @@ class ResponseUtils {
   }
 
   /**
-   * Respuesta de no autorizado
-   * @param {Object} res - Response object de Express
-   * @param {string} message - Mensaje de error
-   * @param {boolean} shouldLogout - Si debe cerrar sesión en el frontend
-   * @returns {Object} - Respuesta JSON
+   * Unauthorized response
+   * @param {Object} res - Express Response object
+   * @param {string} message - Error message
+   * @param {boolean} shouldLogout - Whether to logout on frontend
+   * @returns {Object} - JSON response
    */
-  static unauthorized(res, message = 'No autorizado', shouldLogout = true) {
+  static unauthorized(res, message = 'Unauthorized', shouldLogout = true) {
     return res.status(401).json({
       success: false,
       message,
@@ -80,12 +80,12 @@ class ResponseUtils {
   }
 
   /**
-   * Respuesta de acceso prohibido
-   * @param {Object} res - Response object de Express
-   * @param {string} message - Mensaje de error
-   * @returns {Object} - Respuesta JSON
+   * Forbidden access response
+   * @param {Object} res - Express Response object
+   * @param {string} message - Error message
+   * @returns {Object} - JSON response
    */
-  static forbidden(res, message = 'Acceso denegado') {
+  static forbidden(res, message = 'Access denied') {
     return res.status(403).json({
       success: false,
       message,
@@ -94,12 +94,12 @@ class ResponseUtils {
   }
 
   /**
-   * Respuesta de recurso no encontrado
-   * @param {Object} res - Response object de Express
-   * @param {string} message - Mensaje de error
-   * @returns {Object} - Respuesta JSON
+   * Resource not found response
+   * @param {Object} res - Express Response object
+   * @param {string} message - Error message
+   * @returns {Object} - JSON response
    */
-  static notFound(res, message = 'Recurso no encontrado') {
+  static notFound(res, message = 'Resource not found') {
     return res.status(404).json({
       success: false,
       message,
@@ -108,12 +108,12 @@ class ResponseUtils {
   }
 
   /**
-   * Respuesta de conflicto (duplicados, etc.)
-   * @param {Object} res - Response object de Express
-   * @param {string} message - Mensaje de error
-   * @returns {Object} - Respuesta JSON
+   * Conflict response (duplicates, etc.)
+   * @param {Object} res - Express Response object
+   * @param {string} message - Error message
+   * @returns {Object} - JSON response
    */
-  static conflict(res, message = 'Conflicto con el estado actual del recurso') {
+  static conflict(res, message = 'Conflict with current resource state') {
     return res.status(409).json({
       success: false,
       message,
@@ -122,13 +122,13 @@ class ResponseUtils {
   }
 
   /**
-   * Respuesta de límite de velocidad excedido
-   * @param {Object} res - Response object de Express
-   * @param {string} message - Mensaje de error
-   * @param {number} retryAfter - Segundos para reintentar
-   * @returns {Object} - Respuesta JSON
+   * Rate limit exceeded response
+   * @param {Object} res - Express Response object
+   * @param {string} message - Error message
+   * @param {number} retryAfter - Seconds to retry
+   * @returns {Object} - JSON response
    */
-  static rateLimited(res, message = 'Demasiadas peticiones', retryAfter = 60) {
+  static rateLimited(res, message = 'Too many requests', retryAfter = 60) {
     return res.status(429).json({
       success: false,
       message,
@@ -138,34 +138,34 @@ class ResponseUtils {
   }
 
   /**
-   * Respuesta de creación exitosa
-   * @param {Object} res - Response object de Express
-   * @param {string} message - Mensaje de éxito
-   * @param {Object} data - Datos del recurso creado
-   * @returns {Object} - Respuesta JSON
+   * Successful creation response
+   * @param {Object} res - Express Response object
+   * @param {string} message - Success message
+   * @param {Object} data - Created resource data
+   * @returns {Object} - JSON response
    */
-  static created(res, message = 'Recurso creado exitosamente', data = {}) {
+  static created(res, message = 'Resource created successfully', data = {}) {
     return this.success(res, 201, message, data);
   }
 
   /**
-   * Respuesta sin contenido (para deletes exitosos)
-   * @param {Object} res - Response object de Express
-   * @returns {Object} - Respuesta sin contenido
+   * No content response (for successful deletes)
+   * @param {Object} res - Express Response object
+   * @returns {Object} - No content response
    */
   static noContent(res) {
     return res.status(204).send();
   }
 
   /**
-   * Respuesta con paginación
-   * @param {Object} res - Response object de Express
-   * @param {Array} data - Datos paginados
-   * @param {Object} pagination - Información de paginación
-   * @param {string} message - Mensaje de éxito
-   * @returns {Object} - Respuesta JSON
+   * Paginated response
+   * @param {Object} res - Express Response object
+   * @param {Array} data - Paginated data
+   * @param {Object} pagination - Pagination information
+   * @param {string} message - Success message
+   * @returns {Object} - JSON response
    */
-  static paginated(res, data, pagination, message = 'Datos obtenidos exitosamente') {
+  static paginated(res, data, pagination, message = 'Data retrieved successfully') {
     return res.status(200).json({
       success: true,
       message,
@@ -183,9 +183,9 @@ class ResponseUtils {
   }
 
   /**
-   * Middleware para capturar errores async y pasarlos al handler de errores
-   * @param {Function} fn - Función async a wrappear
-   * @returns {Function} - Middleware de Express
+   * Middleware to catch async errors and pass them to error handler
+   * @param {Function} fn - Async function to wrap
+   * @returns {Function} - Express middleware
    */
   static asyncHandler(fn) {
     return (req, res, next) => {
@@ -194,40 +194,40 @@ class ResponseUtils {
   }
 
   /**
-   * Handler global de errores para Express
-   * @param {Error} err - Error capturado
+   * Global error handler for Express
+   * @param {Error} err - Caught error
    * @param {Object} req - Request object
    * @param {Object} res - Response object
    * @param {Function} next - Next function
    */
   static globalErrorHandler(err, req, res, next) {
-    console.error('Error no manejado:', err);
+    console.error('Unhandled error:', err);
 
-    // Error de validación de Joi o similar
+    // Joi validation error or similar
     if (err.isJoi || err.name === 'ValidationError') {
-      return ResponseUtils.validationError(res, 'Datos de entrada inválidos', err.details);
+      return ResponseUtils.validationError(res, 'Invalid input data', err.details);
     }
 
-    // Error de JWT
+    // JWT error
     if (err.name === 'JsonWebTokenError') {
-      return ResponseUtils.unauthorized(res, 'Token inválido');
+      return ResponseUtils.unauthorized(res, 'Invalid token');
     }
 
     if (err.name === 'TokenExpiredError') {
-      return ResponseUtils.unauthorized(res, 'Token expirado');
+      return ResponseUtils.unauthorized(res, 'Expired token');
     }
 
-    // Error de base de datos
-    if (err.code === '23505') { // Duplicate key error en PostgreSQL
-      return ResponseUtils.conflict(res, 'El recurso ya existe');
+    // Database error
+    if (err.code === '23505') { // Duplicate key error in PostgreSQL
+      return ResponseUtils.conflict(res, 'Resource already exists');
     }
 
     if (err.code === '23503') { // Foreign key constraint error
-      return ResponseUtils.validationError(res, 'Referencia inválida');
+      return ResponseUtils.validationError(res, 'Invalid reference');
     }
 
-    // Error por defecto
-    return ResponseUtils.error(res, 500, 'Error interno del servidor', err);
+    // Default error
+    return ResponseUtils.error(res, 500, 'Internal server error', err);
   }
 }
 

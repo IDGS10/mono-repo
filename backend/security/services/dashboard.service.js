@@ -1,10 +1,10 @@
-// Servicio para manejar la lógica del dashboard y estadísticas
+// Service to handle dashboard logic and statistics
 const { pool } = require("../config/database");
 
 class DashboardService {
   /**
-   * Obtiene estadísticas generales del sistema
-   * @returns {Object} - Estadísticas del dashboard
+   * Gets general system statistics
+   * @returns {Object} - Dashboard statistics
    */
   async getDashboardStats() {
     try {
@@ -30,27 +30,27 @@ class DashboardService {
         }
       };
     } catch (error) {
-      throw new Error(`Error al obtener estadísticas: ${error.message}`);
+      throw new Error(`Error getting statistics: ${error.message}`);
     }
   }
 
   /**
-   * Obtiene el total de usuarios registrados
-   * @returns {number} - Total de usuarios
+   * Gets the total number of registered users
+   * @returns {number} - Total users
    */
   async getTotalUsers() {
     try {
       const result = await pool.query('SELECT COUNT(*) as total FROM users');
       return parseInt(result.rows[0].total);
     } catch (error) {
-      console.error('Error al obtener total de usuarios:', error);
+      console.error('Error getting total users:', error);
       return 0;
     }
   }
 
   /**
-   * Obtiene el número de usuarios activos
-   * @returns {number} - Usuarios activos
+   * Gets the number of active users
+   * @returns {number} - Active users
    */
   async getActiveUsers() {
     try {
@@ -59,28 +59,28 @@ class DashboardService {
       );
       return parseInt(result.rows[0].active);
     } catch (error) {
-      console.error('Error al obtener usuarios activos:', error);
+      console.error('Error getting active users:', error);
       return 0;
     }
   }
 
   /**
-   * Obtiene el total de sesiones
-   * @returns {number} - Total de sesiones
+   * Gets the total number of sessions
+   * @returns {number} - Total sessions
    */
   async getTotalSessions() {
     try {
       const result = await pool.query('SELECT COUNT(*) as total FROM login_sessions');
       return parseInt(result.rows[0].total);
     } catch (error) {
-      console.error('Error al obtener total de sesiones:', error);
+      console.error('Error getting total sessions:', error);
       return 0;
     }
   }
 
   /**
-   * Calcula el tiempo promedio de sesión en minutos
-   * @returns {number} - Tiempo promedio en minutos
+   * Calculates the average session time in minutes
+   * @returns {number} - Average time in minutes
    */
   async getAverageSessionTime() {
     try {
@@ -92,15 +92,15 @@ class DashboardService {
       
       return result.rows[0].avg_time ? Math.round(result.rows[0].avg_time) : 0;
     } catch (error) {
-      console.error('Error al calcular tiempo promedio de sesión:', error);
+      console.error('Error calculating average session time:', error);
       return 0;
     }
   }
 
   /**
-   * Obtiene estadísticas de registros por período
-   * @param {number} days - Días hacia atrás para calcular
-   * @returns {Object} - Estadísticas de registro
+   * Gets registration statistics by period
+   * @param {number} days - Days backward to calculate
+   * @returns {Object} - Registration statistics
    */
   async getRegistrationStats(days = 30) {
     try {
@@ -139,7 +139,7 @@ class DashboardService {
         thisMonth: parseInt(thisMonth.rows[0].month_count)
       };
     } catch (error) {
-      console.error('Error al obtener estadísticas de registro:', error);
+      console.error('Error getting registration statistics:', error);
       return {
         daily: [],
         today: 0,
@@ -150,9 +150,9 @@ class DashboardService {
   }
 
   /**
-   * Obtiene estadísticas de logins por período
-   * @param {number} days - Días hacia atrás para calcular
-   * @returns {Object} - Estadísticas de login
+   * Gets login statistics by period
+   * @param {number} days - Days backward to calculate
+   * @returns {Object} - Login statistics
    */
   async getLoginStats(days = 30) {
     try {
@@ -184,7 +184,7 @@ class DashboardService {
         todaySessions: parseInt(todaySessions.rows[0].today_count)
       };
     } catch (error) {
-      console.error('Error al obtener estadísticas de login:', error);
+      console.error('Error getting login statistics:', error);
       return {
         daily: [],
         activeSessions: 0,
@@ -194,9 +194,9 @@ class DashboardService {
   }
 
   /**
-   * Obtiene estadísticas específicas para un usuario
-   * @param {number} userId - ID del usuario
-   * @returns {Object} - Estadísticas del usuario
+   * Gets specific statistics for a user
+   * @param {number} userId - User ID
+   * @returns {Object} - User statistics
    */
   async getUserStats(userId) {
     try {
@@ -207,7 +207,7 @@ class DashboardService {
       `, [userId]);
 
       if (userInfo.rows.length === 0) {
-        throw new Error('Usuario no encontrado');
+        throw new Error('User not found');
       }
 
       const sessionCount = await pool.query(`
@@ -240,13 +240,13 @@ class DashboardService {
         }
       };
     } catch (error) {
-      throw new Error(`Error al obtener estadísticas del usuario: ${error.message}`);
+      throw new Error(`Error getting user statistics: ${error.message}`);
     }
   }
 
   /**
-   * Obtiene métricas de rendimiento del sistema
-   * @returns {Object} - Métricas del sistema
+   * Gets system performance metrics
+   * @returns {Object} - System metrics
    */
   async getSystemMetrics() {
     try {
@@ -274,7 +274,7 @@ class DashboardService {
         }
       };
     } catch (error) {
-      throw new Error(`Error al obtener métricas del sistema: ${error.message}`);
+      throw new Error(`Error getting system metrics: ${error.message}`);
     }
   }
 }

@@ -1,5 +1,5 @@
-// Modelo  de respuestas HTTP
-// Usa los servicios para la lógica
+// HTTP response model
+// Uses services for logic
 
 const AuthService = require("../services/auth.service");
 const UserService = require("../services/user.service");
@@ -8,25 +8,25 @@ const { pool } = require("../config/database");
 
 module.exports = {
   /**
-   * Verifica el estado de salud del servidor y base de datos
+   * Verifies server and database health status
    */
   async checkHealth(req, res) {
     try {
       let dbStatus = 'disconnected';
       let dbError = null;
 
-      // Verificar conexión a la base de datos
+      // Verify database connection
       try {
         await pool.query('SELECT 1');
         dbStatus = 'connected';
       } catch (error) {
         dbError = error.message;
-        console.error("Error conectando a la base de datos:", error);
+        console.error("Error connecting to database:", error);
       }
 
       const healthData = {
         success: true,
-        message: "Servidor funcionando correctamente",
+        message: "Server working correctly",
         timestamp: new Date().toISOString(),
         status: "healthy",
         services: {
@@ -43,18 +43,18 @@ module.exports = {
         }
       };
 
-      // Si la DB está desconectada, cambiar el status general
+      // If DB is disconnected, change general status
       if (dbStatus === 'disconnected') {
         healthData.status = 'degraded';
-        healthData.message = 'Servidor funcionando con servicios limitados';
+        healthData.message = 'Server running with limited services';
       }
 
       res.status(200).json(healthData);
     } catch (error) {
-      console.error("Error en checkHealth:", error);
+      console.error("Error in checkHealth:", error);
       res.status(500).json({
         success: false,
-        message: "Error del servidor",
+        message: "Server error",
         error: error.message,
         timestamp: new Date().toISOString()
       });
@@ -62,88 +62,117 @@ module.exports = {
   },
 
   /**
-   * Registra un nuevo usuario
+   * Registers a new user
    */
   async register(req, res) {
     try {
-      const { email, password, firstName, lastName } = req.body;
+      const { email, password, firstName, lastName, phone, status, rol, accepted, orgId } = req.body;
 
-      // Validación básica
+      // Basic validation
       if (!email || !password || !firstName || !lastName) {
         return res.status(400).json({
           success: false,
-          message: "Todos los campos son requeridos",
+          message: "All fields are required",
           required: ["email", "password", "firstName", "lastName"]
         });
       }
 
-      // Validar formato de email
+      // Validate email format
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
         return res.status(400).json({
           success: false,
-          message: "Formato de email inválido"
+          message: "Invalid email format"
         });
       }
 
-      // Validar longitud de contraseña
+      // Validate password length
       if (password.length < 6) {
         return res.status(400).json({
           success: false,
-          message: "La contraseña debe tener al menos 6 caracteres"
+          message: "Password must be at least 6 characters long"
         });
       }
 
-      // Llamar al servicio de autenticación
+      // Call authentication service
       const result = await AuthService.registerUser({
         email: email.toLowerCase().trim(),
         password,
         firstName: firstName.trim(),
-        lastName: lastName.trim()
-      });
+        lastName: lastName.trim(),
+        phone: phone ? phone.trim() : null,
+        status: status || 'active',
+        rol: rol || 'Propietario',
+        accepted: accepted !== undefined ? accepted : 0,
+        orgId: orgId || null
+      }, req.ip, req.get('User-Agent'));
 
       res.status(201).json({
         success: true,
-        message: "Usuario registrado exitosamente",
+        message: "User registered successfully",
         user: {
           id: result.user.id,
           email: result.user.email,
           firstName: result.user.first_name,
           lastName: result.user.last_name,
+          phone: result.user.phone,
+          status: result.user.status,
+          rol: result.user.rol,
+          accepted: result.user.accepted,
+          orgId: result.user.org_id,
           createdAt: result.user.created_at
-        }
+        },
+        token: result.token,
+        expiresIn: result.expiresIn
       });
     } catch (error) {
-      console.error("Error en register:", error);
+      console.error("Error in register:", error);
 
-      // Manejar errores específicos
+      // Handle specific errors
       if (error.message.includes('ya existe')) {
         return res.status(409).json({
           success: false,
-          message: "El usuario ya existe con ese email"
+          message: "User already exists with that email"
+        });
+      }
+
+      if (error.message.includes('Rol inválido')) {
+        return res.status(500).json({
+          success: false,
+          message: error.message
+        });
+      }
+
+      if (error.message.includes('Formato de email inválido') ||
+        error.message.includes('Campos requeridos faltantes') ||
+        error.message.includes('debe tener entre') ||
+        error.message.includes('contraseña debe tener')) {
+        return res.status(400).json({
+          success: false,
+          message: error.message
         });
       }
 
       res.status(500).json({
         success: false,
-        message: "Error interno del servidor al registrar usuario",
+        message: "Internal server error while registering user",
         error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   },
 
   /**
-   * Autentica un usuario (login) - Enhanced with IP and User Agent tracking
+   * Authenticates a user (login) - Enhanced with IP and User Agent tracking
    */
   async login(req, res) {
     try {
       const { email, password } = req.body;
 
-      // Validación básica
+      // Basic validation
       if (!email || !password) {
         return res.status(400).json({
           success: false,
-          message: "Email y contraseña son requeridos"
+          message: "Email and password are required"
         });
       }
 
@@ -151,7 +180,7 @@ module.exports = {
       const ipAddress = req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'];
       const userAgent = req.get('User-Agent');
 
-      // Llamar al servicio de autenticación con información adicional
+      // Call authentication service with additional information
       const result = await AuthService.loginUser(
         email.toLowerCase().trim(),
         password,
@@ -161,7 +190,7 @@ module.exports = {
 
       res.status(200).json({
         success: true,
-        message: "Login exitoso",
+        message: "Login successful",
         token: result.token,
         user: result.user,
         expiresIn: result.expiresIn || '24h',
@@ -171,79 +200,79 @@ module.exports = {
         }
       });
     } catch (error) {
-      console.error("Error en login:", error);
+      console.error("Error in login:", error);
 
-      // Manejar errores específicos
+      // Handle specific errors
       if (error.message.includes('Credenciales inválidas')) {
         return res.status(401).json({
           success: false,
-          message: "Email o contraseña incorrectos"
+          message: "Incorrect email or password"
         });
       }
 
       if (error.message.includes('Usuario desactivado')) {
         return res.status(403).json({
           success: false,
-          message: "Tu cuenta ha sido desactivada. Contacta al administrador."
+          message: "Your account has been deactivated. Contact the administrator."
         });
       }
 
       res.status(500).json({
         success: false,
-        message: "Error interno del servidor al iniciar sesión",
+        message: "Internal server error while logging in",
         error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   },
 
   /**
-   * Cierra sesión del usuario
+   * Logs out the user
    */
   async logout(req, res) {
     try {
-      // El token viene del middleware de autenticación
+      // Token comes from authentication middleware
       const token = req.headers["authorization"]?.split(" ")[1];
 
       if (!token) {
         return res.status(400).json({
           success: false,
-          message: "Token no proporcionado"
+          message: "Token not provided"
         });
       }
 
-      // Llamar al servicio de autenticación
+      // Call authentication service
       await AuthService.logoutUser(token);
 
       res.status(200).json({
         success: true,
-        message: "Sesión cerrada exitosamente"
+        message: "Session closed successfully"
       });
     } catch (error) {
-      console.error("Error en logout:", error);
+      console.error("Error in logout:", error);
       res.status(500).json({
         success: false,
-        message: "Error interno del servidor al cerrar sesión",
+        message: "Internal server error while logging out",
         error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   },
 
   /**
-   * Obtiene el perfil del usuario autenticado
+   * Gets the authenticated user's profile
    */
   async getUserProfile(req, res) {
     try {
-      // El userId viene del middleware de autenticación
+      // userId comes from authentication middleware
       const userId = req.user.userId;
 
       if (!userId) {
         return res.status(400).json({
           success: false,
-          message: "Usuario no identificado"
+          message: "User not identified"
         });
       }
 
-      // Llamar al servicio de usuario
+      // Call user service
       const result = await UserService.getUserProfile(userId);
 
       res.status(200).json({
@@ -251,29 +280,29 @@ module.exports = {
         user: result.user
       });
     } catch (error) {
-      console.error("Error en getUserProfile:", error);
+      console.error("Error in getUserProfile:", error);
 
       if (error.message.includes('no encontrado')) {
         return res.status(404).json({
           success: false,
-          message: "Usuario no encontrado"
+          message: "User not found"
         });
       }
 
       res.status(500).json({
         success: false,
-        message: "Error interno del servidor al obtener perfil",
+        message: "Internal server error while getting profile",
         error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   },
 
   /**
-   * Obtiene estadísticas del dashboard
+   * Gets dashboard statistics
    */
   async getDashboardStats(req, res) {
     try {
-      // Llamar al servicio de dashboard
+      // Call dashboard service
       const result = await DashboardService.getDashboardStats();
 
       res.status(200).json({
@@ -281,66 +310,73 @@ module.exports = {
         stats: result.stats
       });
     } catch (error) {
-      console.error("Error en getDashboardStats:", error);
+      console.error("Error in getDashboardStats:", error);
       res.status(500).json({
         success: false,
-        message: "Error interno del servidor al obtener estadísticas",
+        message: "Internal server error while getting statistics",
         error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   },
 
   /**
-   * Actualiza el perfil del usuario autenticado
+   * Updates the authenticated user's profile
    */
   async updateUserProfile(req, res) {
     try {
       const userId = req.user.userId;
       const updateData = req.body;
 
-      // Validar que hay datos para actualizar
+      // Validate that there's data to update
       if (!updateData || Object.keys(updateData).length === 0) {
         return res.status(400).json({
           success: false,
-          message: "No se proporcionaron datos para actualizar"
+          message: "No data provided to update"
         });
       }
 
-      // Llamar al servicio de usuario
+      // Call user service
       const result = await UserService.updateUserProfile(userId, updateData);
 
       res.status(200).json({
         success: true,
-        message: "Perfil actualizado exitosamente",
+        message: "Profile updated successfully",
         user: result.user
       });
     } catch (error) {
-      console.error("Error en updateUserProfile:", error);
+      console.error("Error in updateUserProfile:", error);
 
       if (error.message.includes('no encontrado')) {
         return res.status(404).json({
           success: false,
-          message: "Usuario no encontrado"
+          message: "User not found"
+        });
+      }
+
+      if (error.message.includes('Rol inválido')) {
+        return res.status(500).json({
+          success: false,
+          message: error.message
         });
       }
 
       res.status(500).json({
         success: false,
-        message: "Error interno del servidor al actualizar perfil",
+        message: "Internal server error while updating profile",
         error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   },
 
   /**
-   * Obtiene el historial de sesiones del usuario
+   * Gets the user's session history
    */
   async getUserSessions(req, res) {
     try {
       const userId = req.user.userId;
       const limit = parseInt(req.query.limit) || 10;
 
-      // Llamar al servicio de usuario
+      // Call user service
       const result = await UserService.getUserSessions(userId, limit);
 
       res.status(200).json({
@@ -348,23 +384,23 @@ module.exports = {
         sessions: result.sessions
       });
     } catch (error) {
-      console.error("Error en getUserSessions:", error);
+      console.error("Error in getUserSessions:", error);
       res.status(500).json({
         success: false,
-        message: "Error interno del servidor al obtener sesiones",
+        message: "Internal server error while getting sessions",
         error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   },
 
   /**
-   * Obtiene estadísticas específicas del usuario autenticado
+   * Gets specific statistics for the authenticated user
    */
   async getUserStats(req, res) {
     try {
       const userId = req.user.userId;
 
-      // Llamar al servicio de dashboard
+      // Call dashboard service
       const result = await DashboardService.getUserStats(userId);
 
       res.status(200).json({
@@ -372,18 +408,18 @@ module.exports = {
         userStats: result.userStats
       });
     } catch (error) {
-      console.error("Error en getUserStats:", error);
+      console.error("Error in getUserStats:", error);
 
       if (error.message.includes('no encontrado')) {
         return res.status(404).json({
           success: false,
-          message: "Usuario no encontrado"
+          message: "User not found"
         });
       }
 
       res.status(500).json({
         success: false,
-        message: "Error interno del servidor al obtener estadísticas de usuario",
+        message: "Internal server error while getting user statistics",
         error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }

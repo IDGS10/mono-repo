@@ -5,26 +5,26 @@ const options = {
   definition: {
     openapi: "3.0.0",
     info: {
-      title: "Sistema de Autenticación Biométrica Facial - API",
+      title: "Authentication System - API",
       version: "1.0.0",
       description: `
-        API completa para sistema de reconocimiento facial con autenticación biométrica.
+        Complete API for facial recognition system with biometric authentication.
         
-        **Características principales:**
-        - 🔐 Autenticación por reconocimiento facial
-        - 🛡️ JWT tokens para seguridad
-        - 📊 Auditoría completa de accesos
-        - 🗄️ Base de datos PostgreSQL ()
-        - 🚀 Optimizado para producción
+        **Main Features:**
+        - 🔐 Facial recognition authentication
+        - 🛡️ JWT tokens for security
+        - 📊 Complete access auditing
+        - 🗄️ PostgreSQL database
+        - 🚀 Production optimized
         
-        **Flujo de autenticación:**
-        1. Registro de usuario con credenciales
-        2. Enrollment de embeddings faciales
-        3. Login facial con liveness detection
-        4. Acceso a recursos protegidos con JWT
+        **Authentication Flow:**
+        1. User registration with credentials
+        2. Facial embeddings enrollment
+        3. Facial login with liveness detection
+        4. Access to protected resources with JWT
       `,
       contact: {
-        name: "Equipo de Desarrollo",
+        name: "Development Team",
         email: "support@faceauth.com",
       },
       license: {
@@ -35,11 +35,11 @@ const options = {
     servers: [
       {
         url: "http://localhost:8000/api",
-        description: "Servidor de desarrollo",
+        description: "Development server",
       },
       {
         url: "https://api.faceauth.com/api",
-        description: "Servidor de producción",
+        description: "Production server",
       },
     ],
     components: {
@@ -48,7 +48,7 @@ const options = {
           type: "http",
           scheme: "bearer",
           bearerFormat: "JWT",
-          description: "Token JWT obtenido del login",
+          description: "JWT token obtained from login",
         },
       },
       schemas: {
@@ -56,12 +56,12 @@ const options = {
           type: "object",
           properties: {
             id: { type: "integer", example: 1 },
-            firstName: { type: "string", example: "Juan" },
-            lastName: { type: "string", example: "Pérez" },
+            firstName: { type: "string", example: "John" },
+            lastName: { type: "string", example: "Doe" },
             email: {
               type: "string",
               format: "email",
-              example: "juan@example.com",
+              example: "john@example.com",
             },
             phone: { type: "string", example: "3001234567" },
             idNumber: { type: "string", example: "12345678" },
@@ -77,7 +77,7 @@ const options = {
             email: {
               type: "string",
               format: "email",
-              example: "juan@example.com",
+              example: "john@example.com",
             },
             password: {
               type: "string",
@@ -90,12 +90,12 @@ const options = {
           type: "object",
           required: ["firstName", "lastName", "email", "password"],
           properties: {
-            firstName: { type: "string", example: "Juan" },
-            lastName: { type: "string", example: "Pérez" },
+            firstName: { type: "string", example: "John" },
+            lastName: { type: "string", example: "Doe" },
             email: {
               type: "string",
               format: "email",
-              example: "juan@example.com",
+              example: "john@example.com",
             },
             password: {
               type: "string",
@@ -115,20 +115,20 @@ const options = {
               items: { type: "number" },
               example: [0.1, 0.2, 0.3, -0.1, 0.5],
               description:
-                "Array de números que representa el embedding facial (típicamente 128 o 512 dimensiones)",
+                "Array of numbers representing the facial embedding (typically 128 or 512 dimensions)",
             },
             type: {
               type: "string",
-              enum: ["normal", "sonrisa", "ojos_cerrados"],
+              enum: ["normal", "smile", "eyes_closed"],
               example: "normal",
-              description: "Tipo de captura facial",
+              description: "Type of facial capture",
             },
             quality: {
               type: "number",
               minimum: 0,
               maximum: 1,
               example: 0.95,
-              description: "Puntuación de calidad del embedding (0-1)",
+              description: "Embedding quality score (0-1)",
             },
           },
         },
@@ -140,7 +140,7 @@ const options = {
               type: "array",
               items: { type: "number" },
               example: [0.1, 0.2, 0.3, -0.1, 0.5],
-              description: "Embedding facial para comparación",
+              description: "Facial embedding for comparison",
             },
           },
         },
@@ -148,21 +148,21 @@ const options = {
           type: "object",
           properties: {
             success: { type: "boolean", example: true },
-            message: { type: "string", example: "Operación exitosa" },
+            message: { type: "string", example: "Operation successful" },
           },
         },
         ErrorResponse: {
           type: "object",
           properties: {
             success: { type: "boolean", example: false },
-            error: { type: "string", example: "Descripción del error" },
+            error: { type: "string", example: "Error description" },
           },
         },
         LoginResponse: {
           type: "object",
           properties: {
             success: { type: "boolean", example: true },
-            message: { type: "string", example: "Login exitoso" },
+            message: { type: "string", example: "Login successful" },
             token: {
               type: "string",
               example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
@@ -174,7 +174,7 @@ const options = {
           type: "object",
           properties: {
             success: { type: "boolean", example: true },
-            message: { type: "string", example: "Login facial exitoso" },
+            message: { type: "string", example: "Facial login successful" },
             userToken: {
               type: "string",
               example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
@@ -183,7 +183,7 @@ const options = {
             similarity: {
               type: "string",
               example: "0.876",
-              description: "Puntuación de similitud facial",
+              description: "Facial similarity score",
             },
           },
         },
@@ -194,7 +194,7 @@ const options = {
             status: { type: "string", example: "online" },
             timestamp: { type: "string", format: "date-time" },
             database: { type: "string", example: "connected" },
-            database_type: { type: "string", example: "PostgreSQL ()" },
+            database_type: { type: "string", example: "PostgreSQL" },
             stats: {
               type: "object",
               properties: {
@@ -220,7 +220,7 @@ const options = {
                   items: {
                     type: "object",
                     properties: {
-                      email: { type: "string", example: "juan@example.com" },
+                      email: { type: "string", example: "john@example.com" },
                       ip_address: { type: "string", example: "192.168.1.1" },
                       success: { type: "boolean", example: true },
                       failure_reason: { type: "string", nullable: true },
@@ -248,25 +248,25 @@ const options = {
     },
     tags: [
       {
-        name: "Estado del Sistema",
+        name: "System Status",
         description:
-          "Endpoints para verificar el estado del servidor y base de datos",
+          "Endpoints to check server and database status",
       },
       {
-        name: "Autenticación",
-        description: "Endpoints para registro, login y logout de usuarios",
+        name: "Authentication",
+        description: "Endpoints for user registration, login and logout",
       },
       {
-        name: "Biometría Facial",
-        description: "Endpoints para enrollment y autenticación facial",
+        name: "Facial Biometry",
+        description: "Endpoints for enrollment and facial authentication",
       },
       {
-        name: "Usuario",
-        description: "Endpoints para gestión de perfil de usuario",
+        name: "User",
+        description: "Endpoints for user profile management",
       },
       {
         name: "Dashboard",
-        description: "Endpoints para estadísticas y datos del dashboard",
+        description: "Endpoints for statistics and dashboard data",
       },
     ],
   },

@@ -1,24 +1,24 @@
-// Servicio para manejar la lógica de usuarios
+// Service to handle user logic
 const { pool } = require("../config/database");
 
 class UserService {
   /**
-   * Obtiene el perfil completo de un usuario
-   * @param {number} userId - ID del usuario
-   * @returns {Object} - Datos del perfil del usuario
+   * Gets the complete profile of a user
+   * @param {number} userId - User ID
+   * @returns {Object} - User profile data
    */
   async getUserProfile(userId) {
     try {
       const result = await pool.query(
         `SELECT id, email, first_name, last_name, created_at, updated_at, 
-                last_login, profile_picture, phone, is_active
+                last_login, profile_picture, phone, is_active, rol, status
          FROM users 
          WHERE id = $1`,
         [userId]
       );
 
       if (result.rows.length === 0) {
-        throw new Error('Usuario no encontrado');
+        throw new Error('User not found');
       }
 
       const user = result.rows[0];
@@ -35,54 +35,75 @@ class UserService {
           lastLogin: user.last_login,
           profilePicture: user.profile_picture,
           phone: user.phone,
-          isActive: user.is_active
+          isActive: user.is_active,
+          rol: user.rol,
+          status: user.status
         }
       };
     } catch (error) {
-      throw new Error(`Error al obtener perfil: ${error.message}`);
+      throw new Error(`Error getting profile: ${error.message}`);
     }
   }
 
   /**
-   * Actualiza el perfil de un usuario
-   * @param {number} userId - ID del usuario
-   * @param {Object} updateData - Datos a actualizar
-   * @returns {Object} - Usuario actualizado
+   * Updates a user's profile
+   * @param {number} userId - User ID
+   * @param {Object} updateData - Data to update
+   * @returns {Object} - Updated user
    */
   async updateUserProfile(userId, updateData) {
     try {
-      const { firstName, lastName, phone, profilePicture } = updateData;
-      
+      const { firstName, lastName, phone, profilePicture, rol } = updateData;
+
+      // Validate rol if provided
+      if (rol) {
+        const validRoles = ['Propietario', 'Lider', 'Encargado'];
+        if (!validRoles.includes(rol)) {
+          throw new Error(`Invalid role. Must be one of: ${validRoles.join(', ')}`);
+        }
+      }
+
       const result = await pool.query(
         `UPDATE users 
          SET first_name = COALESCE($1, first_name),
              last_name = COALESCE($2, last_name),
              phone = COALESCE($3, phone),
              profile_picture = COALESCE($4, profile_picture),
+             rol = COALESCE($5, rol),
              updated_at = NOW()
-         WHERE id = $5
-         RETURNING id, email, first_name, last_name, phone, profile_picture, updated_at`,
-        [firstName, lastName, phone, profilePicture, userId]
+         WHERE id = $6
+         RETURNING id, email, first_name, last_name, phone, profile_picture, rol, updated_at`,
+        [firstName, lastName, phone, profilePicture, rol, userId]
       );
 
       if (result.rows.length === 0) {
-        throw new Error('Usuario no encontrado');
+        throw new Error('User not found');
       }
 
+      const user = result.rows[0];
       return {
         success: true,
-        user: result.rows[0]
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.first_name,
+          lastName: user.last_name,
+          phone: user.phone,
+          profilePicture: user.profile_picture,
+          rol: user.rol,
+          updatedAt: user.updated_at
+        }
       };
     } catch (error) {
-      throw new Error(`Error al actualizar perfil: ${error.message}`);
+      throw new Error(`Error updating profile: ${error.message}`);
     }
   }
 
   /**
-   * Obtiene el historial de sesiones de un usuario
-   * @param {number} userId - ID del usuario
-   * @param {number} limit - Límite de resultados
-   * @returns {Object} - Historial de sesiones
+   * Gets a user's session history
+   * @param {number} userId - User ID
+   * @param {number} limit - Results limit
+   * @returns {Object} - Session history
    */
   async getUserSessions(userId, limit = 10) {
     try {
@@ -101,13 +122,13 @@ class UserService {
         sessions: result.rows
       };
     } catch (error) {
-      throw new Error(`Error al obtener sesiones: ${error.message}`);
+      throw new Error(`Error getting sessions: ${error.message}`);
     }
   }
 
   /**
-   * Actualiza la fecha de último login
-   * @param {number} userId - ID del usuario
+   * Updates the last login date
+   * @param {number} userId - User ID
    * @returns {void}
    */
   async updateLastLogin(userId) {
@@ -117,15 +138,15 @@ class UserService {
         [userId]
       );
     } catch (error) {
-      console.error('Error al actualizar último login:', error);
-      // No lanzamos error porque no es crítico
+      console.error('Error updating last login:', error);
+      // We don't throw error because it's not critical
     }
   }
 
   /**
-   * Desactiva un usuario
-   * @param {number} userId - ID del usuario
-   * @returns {Object} - Resultado de la operación
+   * Deactivates a user
+   * @param {number} userId - User ID
+   * @returns {Object} - Operation result
    */
   async deactivateUser(userId) {
     try {
@@ -138,10 +159,10 @@ class UserService {
       );
 
       if (result.rows.length === 0) {
-        throw new Error('Usuario no encontrado');
+        throw new Error('User not found');
       }
 
-      // También desactivar todas las sesiones activas
+      // Also deactivate all active sessions
       await pool.query(
         'UPDATE login_sessions SET is_active = false WHERE user_id = $1',
         [userId]
@@ -149,22 +170,22 @@ class UserService {
 
       return {
         success: true,
-        message: 'Usuario desactivado exitosamente'
+        message: 'User deactivated successfully'
       };
     } catch (error) {
-      throw new Error(`Error al desactivar usuario: ${error.message}`);
+      throw new Error(`Error deactivating user: ${error.message}`);
     }
   }
 
   /**
-   * Busca usuarios por criterios
-   * @param {Object} searchCriteria - Criterios de búsqueda
-   * @returns {Object} - Usuarios encontrados
+   * Searches users by criteria
+   * @param {Object} searchCriteria - Search criteria
+   * @returns {Object} - Found users
    */
   async searchUsers(searchCriteria) {
     try {
       const { email, firstName, lastName, isActive, limit = 50 } = searchCriteria;
-      
+
       let query = `
         SELECT id, email, first_name, last_name, created_at, last_login, is_active
         FROM users 

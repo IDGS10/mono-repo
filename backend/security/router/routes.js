@@ -7,14 +7,14 @@ const { authenticateToken } = require("../middleware/middleware");
  * @swagger
  * /health:
  *   get:
- *     summary: Verificar estado del servidor
- *     description: Endpoint para verificar que el servidor esté funcionando y conectado a la base de datos
- *     tags: [Estado del Sistema]
+ *     summary: Check server status
+ *     description: Endpoint to verify that the server is running and connected to the database
+ *     tags: [System Status]
  *     responses:
  *       200:
- *         description: Servidor funcionando correctamente
+ *         description: Server running correctly
  *       500:
- *         description: Error del servidor
+ *         description: Server error
  */
 router.get("/health", Controller.checkHealth);
 
@@ -22,9 +22,9 @@ router.get("/health", Controller.checkHealth);
  * @swagger
  * /auth/register:
  *   post:
- *     summary: Registrar nuevo usuario
- *     description: Crea una nueva cuenta de usuario con credenciales básicas
- *     tags: [Autenticación]
+ *     summary: Register new user
+ *     description: Creates a new user account with basic credentials
+ *     tags: [Authentication]
  *     requestBody:
  *       required: true
  *       content:
@@ -49,13 +49,13 @@ router.get("/health", Controller.checkHealth);
  *                 type: string
  *     responses:
  *       201:
- *         description: Usuario registrado exitosamente
+ *         description: User registered successfully
  *       400:
- *         description: Datos de entrada inválidos
+ *         description: Invalid input data
  *       409:
- *         description: Usuario ya existe
+ *         description: User already exists
  *       500:
- *         description: Error interno del servidor
+ *         description: Internal server error
  */
 router.post("/auth/register", Controller.registerUser);
 
@@ -63,9 +63,9 @@ router.post("/auth/register", Controller.registerUser);
  * @swagger
  * /auth/login:
  *   post:
- *     summary: Login con credenciales
- *     description: Autenticación de usuario con email y contraseña
- *     tags: [Autenticación]
+ *     summary: Login with credentials
+ *     description: User authentication with email and password
+ *     tags: [Authentication]
  *     requestBody:
  *       required: true
  *       content:
@@ -83,13 +83,13 @@ router.post("/auth/register", Controller.registerUser);
  *                 type: string
  *     responses:
  *       200:
- *         description: Login exitoso
+ *         description: Successful login
  *       400:
- *         description: Credenciales faltantes
+ *         description: Missing credentials
  *       401:
- *         description: Credenciales inválidas
+ *         description: Invalid credentials
  *       500:
- *         description: Error interno del servidor
+ *         description: Internal server error
  */
 router.post("/auth/login", Controller.loginSession);
 
@@ -97,18 +97,18 @@ router.post("/auth/login", Controller.loginSession);
  * @swagger
  * /auth/logout:
  *   post:
- *     summary: Cerrar sesión
- *     description: Desactiva la sesión activa del usuario autenticado
- *     tags: [Autenticación]
+ *     summary: Logout
+ *     description: Deactivates the active session of the authenticated user
+ *     tags: [Authentication]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Logout exitoso
+ *         description: Successful logout
  *       401:
- *         description: Token requerido o inválido
+ *         description: Token required or invalid
  *       500:
- *         description: Error interno del servidor
+ *         description: Internal server error
  */
 router.post("/auth/logout", authenticateToken(), Controller.logoutSession);
 
@@ -116,20 +116,20 @@ router.post("/auth/logout", authenticateToken(), Controller.logoutSession);
  * @swagger
  * /user/profile:
  *   get:
- *     summary: Obtener perfil de usuario
- *     description: Obtiene la información del perfil del usuario autenticado
- *     tags: [Usuario]
+ *     summary: Get user profile
+ *     description: Gets the profile information of the authenticated user
+ *     tags: [User]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Perfil obtenido exitosamente
+ *         description: Profile retrieved successfully
  *       401:
- *         description: Token requerido o inválido
+ *         description: Token required or invalid
  *       404:
- *         description: Usuario no encontrado
+ *         description: User not found
  *       500:
- *         description: Error interno del servidor
+ *         description: Internal server error
  */
 router.get("/user/profile", authenticateToken(), Controller.getUserProfile);
 
@@ -137,19 +137,94 @@ router.get("/user/profile", authenticateToken(), Controller.getUserProfile);
  * @swagger
  * /dashboard/stats:
  *   get:
- *     summary: Obtener estadísticas del dashboard
- *     description: Obtiene estadísticas generales del sistema para el usuario autenticado
+ *     summary: Get dashboard statistics
+ *     description: Gets general system statistics for the authenticated user
  *     tags: [Dashboard]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Estadísticas obtenidas exitosamente
+ *         description: Statistics retrieved successfully
  *       401:
- *         description: Token requerido o inválido
+ *         description: Token required or invalid
  *       500:
- *         description: Error interno del servidor
+ *         description: Internal server error
  */
 router.get("/dashboard/stats", authenticateToken(), Controller.getDashboardStats);
+
+/**
+ * @swagger
+ * /user/profile:
+ *   put:
+ *     summary: Update user profile
+ *     description: Updates the profile information of the authenticated user
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *               lastName:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *               rol:
+ *                 type: string
+ *                 enum: [Owner, Leader, Manager]
+ *     responses:
+ *       200:
+ *         description: Profile updated successfully
+ *       400:
+ *         description: Invalid data
+ *       401:
+ *         description: Unauthorized token
+ *       500:
+ *         description: Internal server error
+ */
+router.put("/user/profile", authenticateToken(), Controller.updateUserProfile);
+
+/**
+ * @swagger
+ * /user/sessions:
+ *   get:
+ *     summary: Get user active sessions
+ *     description: Returns all active sessions of the authenticated user
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of active sessions
+ *       401:
+ *         description: Unauthorized token
+ *       500:
+ *         description: Internal server error
+ */
+router.get("/user/sessions", authenticateToken(), Controller.getUserSessions);
+
+/**
+ * @swagger
+ * /user/stats:
+ *   get:
+ *     summary: Get user statistics
+ *     description: Returns activity statistics of the authenticated user
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User statistics
+ *       401:
+ *         description: Unauthorized token
+ *       500:
+ *         description: Internal server error
+ */
+router.get("/user/stats", authenticateToken(), Controller.getUserStats);
 
 module.exports = router;
