@@ -17,7 +17,8 @@ api.interceptors.request.use(
   (config) => {
     console.log(`[ApiService] ${config.method?.toUpperCase()} ${config.url}`);
     if (config.data) {
-      console.log("[ApiService] Request data:", config.data);
+      //No longer needded
+      // console.log("[ApiService] Request data:", config.data);
     }
     return config;
   },
