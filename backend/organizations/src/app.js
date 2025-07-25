@@ -32,6 +32,7 @@ app.use('/api/invitations', invitationRoutes)
 app.use('/api/projects', projectRoutes);
 
 
+
 app.use('*', (req, res) => {
   res.status(404).json({ 
     error: 'Endpoint no encontrado',
