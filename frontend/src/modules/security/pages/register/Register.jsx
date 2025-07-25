@@ -71,8 +71,8 @@ export default function Register() {
 
     if (!registrationData.password) {
       errors.password = "La contraseña es requerida";
-    } else if (registrationData.password.length < 8) {
-      errors.password = "La contraseña debe tener al menos 8 caracteres";
+    } else if (registrationData.password.length < 6) {
+      errors.password = "La contraseña debe tener al menos 6 caracteres";
     } else {
       // Validaciones más estrictas para coincidir con el backend
       const passwordErrors = [];
