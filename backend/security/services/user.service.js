@@ -59,7 +59,7 @@ class UserService {
       if (rol) {
         const validRoles = ['Propietario', 'Lider', 'Encargado'];
         if (!validRoles.includes(rol)) {
-          throw new Error(`Invalid role. Must be one of: ${validRoles.join(', ')}`);
+          throw new Error(`Rol inválido. Debe ser uno de: ${validRoles.join(', ')}`);
         }
       }
 

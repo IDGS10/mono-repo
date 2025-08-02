@@ -72,7 +72,7 @@ module.exports = {
       if (!email || !password || !firstName || !lastName) {
         return res.status(400).json({
           success: false,
-          message: "All fields are required",
+          message: "Todos los campos son requeridos",
           required: ["email", "password", "firstName", "lastName"]
         });
       }
@@ -82,7 +82,7 @@ module.exports = {
       if (!emailRegex.test(email)) {
         return res.status(400).json({
           success: false,
-          message: "Invalid email format"
+          message: "Formato de email inválido"
         });
       }
 
@@ -90,7 +90,7 @@ module.exports = {
       if (password.length < 6) {
         return res.status(400).json({
           success: false,
-          message: "Password must be at least 6 characters long"
+          message: "La contraseña debe tener al menos 6 caracteres"
         });
       }
 
@@ -132,7 +132,7 @@ module.exports = {
       if (error.message.includes('ya existe')) {
         return res.status(409).json({
           success: false,
-          message: "User already exists with that email"
+          message: "El usuario ya existe con ese email"
         });
       }
 
@@ -172,7 +172,7 @@ module.exports = {
       if (!email || !password) {
         return res.status(400).json({
           success: false,
-          message: "Email and password are required"
+          message: "Email y contraseña son requeridos"
         });
       }
 
@@ -206,7 +206,7 @@ module.exports = {
       if (error.message.includes('Credenciales inválidas')) {
         return res.status(401).json({
           success: false,
-          message: "Incorrect email or password"
+          message: "Email o contraseña incorrectos"
         });
       }
 
@@ -245,7 +245,7 @@ module.exports = {
 
       res.status(200).json({
         success: true,
-        message: "Session closed successfully"
+        message: "Sesión cerrada exitosamente"
       });
     } catch (error) {
       console.error("Error in logout:", error);

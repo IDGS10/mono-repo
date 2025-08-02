@@ -60,7 +60,7 @@ class ValidationUtils {
     }
 
     if (password.length < minLength) {
-      errors.push(`Password must have at least ${minLength} characters`);
+      errors.push(`La contraseña debe tener al menos ${minLength} caracteres`);
     }
 
     if (requireUppercase && !/[A-Z]/.test(password)) {
@@ -217,7 +217,7 @@ class ValidationUtils {
 
     // Validate email
     if (email && !ValidationUtils.isValidEmail(email)) {
-      errors.push('Invalid email format');
+      errors.push('Formato de email inválido');
     }
 
     // Validate password
@@ -266,7 +266,7 @@ class ValidationUtils {
 
     // Validate email
     if (email && !ValidationUtils.isValidEmail(email)) {
-      errors.push('Invalid email format');
+      errors.push('Formato de email inválido');
     }
 
     return {
