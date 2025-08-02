@@ -17,7 +17,8 @@ api.interceptors.request.use(
   (config) => {
     console.log(`[ApiService] ${config.method?.toUpperCase()} ${config.url}`);
     if (config.data) {
-      console.log("[ApiService] Request data:", config.data);
+      //No longer needded
+      // console.log("[ApiService] Request data:", config.data);
     }
     return config;
   },
@@ -77,7 +78,7 @@ class ApiService {
           success: true,
           userId: response.data.user?.id,
           token: response.data.token,
-          user: response.data.user,
+          user: response.data.user, // Devolver el objeto completo del usuario
           message: response.data.message || "Usuario registrado exitosamente",
         };
       } else {
@@ -95,6 +96,20 @@ class ApiService {
             error: "El usuario ya existe con ese correo o cédula",
           };
         }
+
+        // Handle validation errors (400 status)
+        if (error.response?.status === 400) {
+          const errorData = error.response.data;
+          return {
+            success: false,
+            error: errorData?.error || "Error de validación",
+            message: errorData?.message || "Por favor, corrige los errores en el formulario",
+            details: errorData?.details || {},
+            errorCount: errorData?.errorCount || 0,
+            validationErrors: errorData?.details || {}
+          };
+        }
+
         return {
           success: false,
           error: error.response?.data?.error || "Error durante el registro",
@@ -117,6 +132,7 @@ class ApiService {
         return {
           success: true,
           token: response.data.token,
+          user: response.data.user, // Devolver el objeto completo del usuario
           message: "Login exitoso",
         };
       } else {
@@ -161,7 +177,7 @@ class ApiService {
         console.log("[ApiService] Perfil obtenido exitosamente");
         return {
           success: true,
-          user: response.data.user,
+          user: response.data.user, // Devolver el objeto completo del usuario
         };
       } else {
         return {

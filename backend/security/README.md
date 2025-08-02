@@ -1,6 +1,6 @@
-# 🔐 Facial Biometric Authentication System - Backend
+# 🔐 Authentication System - Backend
 
-A complete backend for facial recognition authentication using **PostgreSQL (Neon)** as the database and integrated **Swagger/OpenAPI** documentation.
+A complete backend for facial recognition authentication using **PostgreSQL in a vpc** as the database and integrated **Swagger/OpenAPI** documentation.
 
 ## 🚀 Features
 
