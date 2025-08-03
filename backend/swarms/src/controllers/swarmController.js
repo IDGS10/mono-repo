@@ -6,18 +6,15 @@ import axios from 'axios'
 
 const { Swarm, SwarmDevice } = models
 
-// Helper function to extract token from Authorization header
-const extractTokenFromHeaders = (req) => {
-  const authHeader = req.headers.authorization
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return null
-  }
-  return authHeader.substring(7) // Remove 'Bearer ' prefix
-}
-
-// Helper function to get user information
-const getUserInfo = async (token) => {
+// Middleware to validate token and attach user info to req
+export const validateToken = async (req, res, next) => {
   try {
+    const authHeader = req.headers.authorization
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return errorResponse(res, 'Authorization token is required', 401)
+    }
+
+    const token = authHeader.substring(7) // Remove 'Bearer ' prefix
     const response = await axios.get(`${SECURITY_URL}/api/user/profile`, {
       headers: {
         Authorization: `Bearer ${token}`,
