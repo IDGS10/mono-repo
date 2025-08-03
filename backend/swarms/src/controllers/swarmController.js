@@ -660,7 +660,7 @@ export const removeDeviceFromSwarm = async (req, res, next) => {
     } catch (error) {
       return errorResponse(
         res,
-        `Invalid or expired token. Error: ${error}`,
+        `Invalid or expired token. Error: ${error.message}`,
         401
       )
     }
