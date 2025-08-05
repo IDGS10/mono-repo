@@ -19,34 +19,46 @@ const orderOptions = [
   { value: "lastActivity", label: "Last activity" },
 ];
 
-// Simulate API fetch
+const API_BASE = "http://localhost:5052";
+
 const fetchSwarms = async () => {
-  return new Promise((resolve) =>
-    setTimeout(
-      () =>
-        resolve([
-          {
-            id: 1,
-            name: "Alpha Swarm",
-            status: "active",
-            devices: 5,
-            maxDevices: 10,
-            createdAt: "2024-06-01",
-            lastActivity: "2024-07-01",
-          },
-          {
-            id: 2,
-            name: "Beta Swarm",
-            status: "inactive",
-            devices: 2,
-            maxDevices: 8,
-            createdAt: "2024-05-15",
-            lastActivity: "2024-06-20",
-          },
-        ]),
-      1000
-    )
+  const res = await fetch(`${API_BASE}/swarms`);
+  if (!res.ok) throw new Error("Error al obtener swarms");
+  const json = await res.json();
+  return (
+    json.data?.swarms?.map((s) => ({
+      id: s.id,
+      name: s.name,
+      status: s.status,
+      devices: Array.isArray(s.devices) ? s.devices.length : 0,
+      maxDevices: s.maxDevices || 0,
+      createdAt: s.created_at ? s.created_at.substring(0, 10) : "",
+      lastActivity: s.lastActivity ? s.lastActivity.substring(0, 10) : "",
+    })) || []
   );
+};
+
+const deleteSwarm = async (id) => {
+  const res = await fetch(`${API_BASE}/swarms/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Error al eliminar swarm");
+  return true;
+};
+
+const duplicateSwarm = async (swarm) => {
+  const body = {
+    name: `${swarm.name} (Copy)`,
+    description: swarm.description || "",
+    maxDevices: swarm.maxDevices,
+    requesterId: swarm.requesterId,
+  };
+  const res = await fetch(`${API_BASE}/swarms`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error("Error al duplicar swarm");
+  const json = await res.json();
+  return json.data?.swarm;
 };
 
 export default function MySwarmCatalog() {
@@ -76,7 +88,6 @@ export default function MySwarmCatalog() {
       });
   }, []);
 
-  // Close menu when clicking outside
   useEffect(() => {
     if (!anchorEl) return;
     function handleClickOutside(event) {
@@ -88,7 +99,6 @@ export default function MySwarmCatalog() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [anchorEl]);
 
-  // Filtering
   let filteredSwarms = swarms.filter(
     (s) =>
       (!statusFilter || s.status === statusFilter) &&
@@ -96,7 +106,6 @@ export default function MySwarmCatalog() {
       (!dateFilter || s.createdAt === dateFilter)
   );
 
-  // Ordering
   filteredSwarms = filteredSwarms.sort((a, b) => {
     if (orderBy === "name") {
       return a.name.localeCompare(b.name);
@@ -112,6 +121,43 @@ export default function MySwarmCatalog() {
     }
     return 0;
   });
+
+  const handleDelete = async (id) => {
+    setLoading(true);
+    setError(false);
+    try {
+      await deleteSwarm(id);
+      setSwarms((prev) => prev.filter((s) => s.id !== id));
+    } catch {
+      setError(true);
+    }
+    setLoading(false);
+    setAnchorEl(null);
+  };
+
+  const handleDuplicate = async (swarm) => {
+    setLoading(true);
+    setError(false);
+    try {
+      const newSwarm = await duplicateSwarm(swarm);
+      setSwarms((prev) => [
+        ...prev,
+        {
+          id: newSwarm.id,
+          name: newSwarm.name,
+          status: newSwarm.status,
+          devices: 0,
+          maxDevices: newSwarm.maxDevices,
+          createdAt: newSwarm.createdAt?.substring(0, 10) || "",
+          lastActivity: "",
+        },
+      ]);
+    } catch {
+      setError(true);
+    }
+    setLoading(false);
+    setAnchorEl(null);
+  };
 
   if (loading) {
     return <LoadingSpinner message="Loading swarm catalog..." />;
@@ -247,19 +293,13 @@ export default function MySwarmCatalog() {
               >
                 <button
                   className="block w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
-                  onClick={() => {
-                    // Delete logic
-                    setAnchorEl(null);
-                  }}
+                  onClick={() => handleDelete(swarm.id)}
                 >
                   Delete
                 </button>
                 <button
                   className="block w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
-                  onClick={() => {
-                    // Duplicate logic
-                    setAnchorEl(null);
-                  }}
+                  onClick={() => handleDuplicate(swarm)}
                 >
                   Duplicate
                 </button>
