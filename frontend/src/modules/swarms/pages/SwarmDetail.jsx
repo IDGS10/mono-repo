@@ -45,11 +45,11 @@ export default function SwarmDetail() {
   }, [currentView, id]);
 
   const handleBackToCatalog = () => {
-    setCurrentView("catalog");
+    navigate('/swarm');
   };
 
   const handleEditSwarm = () => {
-    navigate(`/EditSwarm/${id}`);
+    navigate(`/swarm/EditSwarm/${id}`);
   };
 
   const handleViewDeviceDetail = (deviceId) => {
@@ -79,7 +79,7 @@ export default function SwarmDetail() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
         <p className="text-lg text-gray-600 dark:text-gray-400 mb-4">Enjambre no encontrado</p>
-        <button 
+        <button
           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-lg font-medium transition-colors"
           onClick={handleBackToCatalog}
         >
@@ -127,26 +127,26 @@ export default function SwarmDetail() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <MetricCard 
-          title="Total Dispositivos" 
+        <MetricCard
+          title="Total Dispositivos"
           value={`${totalDevices}/${swarm.maxDevices}`}
           color="blue"
           icon="📱"
         />
-        <MetricCard 
-          title="Conectados" 
+        <MetricCard
+          title="Conectados"
           value={connectedDevices}
           color="green"
           icon="🟢"
         />
-        <MetricCard 
-          title="Desconectados" 
+        <MetricCard
+          title="Desconectados"
           value={disconnectedDevices}
           color="gray"
           icon="⚫"
         />
-        <MetricCard 
-          title="En Error" 
+        <MetricCard
+          title="En Error"
           value={errorDevices}
           color="red"
           icon="🔴"
@@ -179,9 +179,9 @@ export default function SwarmDetail() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredDevices.map((device) => (
-              <DeviceCard 
-                key={device.id} 
-                device={device} 
+              <DeviceCard
+                key={device.id}
+                device={device}
                 onViewDetail={handleViewDeviceDetail}
               />
             ))}
@@ -216,7 +216,7 @@ export default function SwarmDetail() {
       </div>
 
       {isDeviceModalOpen && selectedDeviceId && (
-        <DeviceDetailModal 
+        <DeviceDetailModal
           isOpen={isDeviceModalOpen}
           deviceId={selectedDeviceId}
           swarmName={swarm.name}

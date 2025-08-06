@@ -267,22 +267,14 @@ export default function MySwarmCatalog() {
             <div className="text-gray-500 dark:text-gray-400 text-sm">
               Last activity: {swarm.lastActivity}
             </div>
-            <div className="flex gap-2 mt-3">
+            <div className="flex justify-center gap-2 mt-3 ">
               <button
-                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors"
+                className="px-20 py-1 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors"
                 onClick={() => {
                   navigate(`/swarm/SwarmDetail/${swarm.id}`);
                 }}
               >
                 View Detail
-              </button>
-              <button
-                className="px-3 py-1 border border-blue-600 dark:border-blue-400 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg text-sm font-medium transition-colors"
-                onClick={() => {
-                  navigate(`/swarm/EditSwarm/${swarm.id}`);
-                }}
-              >
-                Edit
               </button>
             </div>
             {/* Simple dropdown menu */}

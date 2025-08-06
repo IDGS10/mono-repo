@@ -7,7 +7,7 @@
 ### POST /swarms - Create new swarm
 ```bash
 curl -X POST http://IP_SERVER:DESIGNED_PORT
-/swarms \
+/swarms 
   -H "Content-Type: application/json" \
   -d '{
     "name": "Urban Sensor Swarm",
