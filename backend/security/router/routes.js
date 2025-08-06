@@ -1,7 +1,16 @@
 const express = require("express");
 const router = express.Router();
 const Controller = require("../controller/controller");
-const { authenticateToken } = require("../middleware/middleware");
+
+// ===== IMPORT SHARED MIDDLEWARE =====
+const { createMiddleware } = require('@mono-repo/shared-middleware');
+
+// Configure middleware (reuse the same configuration from server)
+const middleware = createMiddleware({
+  serviceName: 'security-service',
+  jwtSecret: process.env.JWT_SECRET,
+  databasePool: null // Will be configured automatically from server.js
+});
 
 /**
  * @swagger
@@ -17,6 +26,19 @@ const { authenticateToken } = require("../middleware/middleware");
  *         description: Server error
  */
 router.get("/health", Controller.checkHealth);
+
+/**
+ * @swagger
+ * /hello:
+ *   get:
+ *     summary: Get service greeting
+ *     description: Returns a simple greeting from the security service
+ *     tags: [System Status]
+ *     responses:
+ *       200:
+ *         description: Greeting message
+ */
+router.get("/hello", Controller.sayHello);
 
 /**
  * @swagger
@@ -57,7 +79,9 @@ router.get("/health", Controller.checkHealth);
  *       500:
  *         description: Internal server error
  */
-router.post("/auth/register", Controller.registerUser);
+router.post("/auth/register", 
+  Controller.registerUser
+);
 
 /**
  * @swagger
@@ -91,7 +115,9 @@ router.post("/auth/register", Controller.registerUser);
  *       500:
  *         description: Internal server error
  */
-router.post("/auth/login", Controller.loginSession);
+router.post("/auth/login", 
+  Controller.loginSession
+);
 
 /**
  * @swagger
@@ -110,7 +136,10 @@ router.post("/auth/login", Controller.loginSession);
  *       500:
  *         description: Internal server error
  */
-router.post("/auth/logout", authenticateToken(), Controller.logoutSession);
+router.post("/auth/logout", 
+  middleware.authenticateToken(), // No specific types = any authenticated user
+  Controller.logoutSession
+);
 
 /**
  * @swagger
@@ -131,7 +160,10 @@ router.post("/auth/logout", authenticateToken(), Controller.logoutSession);
  *       500:
  *         description: Internal server error
  */
-router.get("/user/profile", authenticateToken(), Controller.getUserProfile);
+router.get("/user/profile", 
+  middleware.authenticateToken(), 
+  Controller.getUserProfile
+);
 
 /**
  * @swagger
@@ -150,7 +182,10 @@ router.get("/user/profile", authenticateToken(), Controller.getUserProfile);
  *       500:
  *         description: Internal server error
  */
-router.get("/dashboard/stats", authenticateToken(), Controller.getDashboardStats);
+router.get("/dashboard/stats", 
+  middleware.authenticateToken(['Propietario', 'Lider']), // Solo estos roles
+  Controller.getDashboardStats
+);
 
 /**
  * @swagger
@@ -187,7 +222,10 @@ router.get("/dashboard/stats", authenticateToken(), Controller.getDashboardStats
  *       500:
  *         description: Internal server error
  */
-router.put("/user/profile", authenticateToken(), Controller.updateUserProfile);
+router.put("/user/profile", 
+  middleware.authenticateToken(),
+  Controller.updateUserProfile
+);
 
 /**
  * @swagger
@@ -206,7 +244,11 @@ router.put("/user/profile", authenticateToken(), Controller.updateUserProfile);
  *       500:
  *         description: Internal server error
  */
-router.get("/user/sessions", authenticateToken(), Controller.getUserSessions);
+router.get("/user/sessions", 
+  middleware.authenticateToken(),
+  middleware.validatePagination(), // Automatic pagination validation
+  Controller.getUserSessions
+);
 
 /**
  * @swagger
@@ -225,6 +267,8 @@ router.get("/user/sessions", authenticateToken(), Controller.getUserSessions);
  *       500:
  *         description: Internal server error
  */
-router.get("/user/stats", authenticateToken(), Controller.getUserStats);
-
+router.get("/user/stats", 
+  middleware.authenticateToken(), 
+  Controller.getUserStats
+);
 module.exports = router;
