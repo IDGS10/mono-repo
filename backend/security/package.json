@@ -37,6 +37,7 @@
   "author": "Sistema Biométrico Auth",
   "license": "MIT",
   "dependencies": {
+    "@mono-repo/shared-middleware": "file:../shared/middleware-package",
     "bcryptjs": "^2.4.3",
     "compression": "^1.7.4",
     "cors": "^2.8.5",

@@ -39,10 +39,17 @@ try {
   console.log("🔒 SSL configuration for PostgreSQL loaded correctly");
 } catch (err) {
   console.warn('⚠️ SSL certificates not found, using simple connection:', err.message);
-  // For development, allow connection without certificates but with basic SSL
-  sslConfig = {
-    rejectUnauthorized: true // Change to false only if necessary for development
-  };
+  // For development, you can choose between:
+  if (process.env.NODE_ENV === 'development') {
+    // Option 1: No SSL for development (simpler)
+    sslConfig = false;
+    console.log('🔓 Development mode: SSL disabled');
+  } else {
+    // Option 2: SSL without certificate verification
+    sslConfig = {
+      rejectUnauthorized: false
+    };
+  }
 }
 
 // Optimized pool configuration

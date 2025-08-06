@@ -62,6 +62,29 @@ module.exports = {
   },
 
   /**
+   * Returns a simple greeting from the security service
+   */
+  async sayHello(req, res) {
+    try {
+      res.status(200).json({
+        success: true,
+        message: "Hello from Security Service",
+        timestamp: new Date().toISOString(),
+        service: "security-service",
+        version: "1.0.0"
+      });
+    } catch (error) {
+      console.error("Error in sayHello:", error);
+      res.status(500).json({
+        success: false,
+        message: "Server error",
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  },
+
+  /**
    * Registers a new user
    */
   async register(req, res) {

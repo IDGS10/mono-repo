@@ -1,29 +1,57 @@
 const express = require("express");
-const cors = require("cors");
-const helmet = require("helmet");
-const rateLimit = require("express-rate-limit");
-const compression = require("compression");
-const morgan = require("morgan");
-const path = require("path");
 require("dotenv").config();
 
+// ===== MIDDLEWARE COMPARTIDO =====
+const { createMiddleware } = require('@mono-repo/shared-middleware');
 
 const { PORT } = require("./config/constats");
 const { specs, swaggerUi } = require("./config/swagger");
-
-
 const routes = require("./router/routes");
-
-
 const { connectDatabase } = require("./services/database.service");
 
+// ===== SHARED MIDDLEWARE CONFIGURATION =====
+const middleware = createMiddleware({
+  serviceName: 'security-service',
+  jwtSecret: process.env.JWT_SECRET,
+  sessionTimeout: process.env.SESSION_TIMEOUT || "24h",
+  databasePool: null, // Will be configured after DB connection
+  
+  // Security configuration
+  corsOrigin: [
+    'http://localhost:5173',  // Vite dev server
+    'http://127.0.0.1:5173',  // Alternative localhost
+    'http://127.0.0.1:3000'   // Alternative localhost
+  ],
+  rateLimitWindow: parseInt(process.env.RATE_LIMIT_WINDOW) || 15,
+  rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
+  maxFileSize: process.env.MAX_FILE_SIZE || "10mb",
+  
+  // Logging configuration
+  loggingFormat: 'combined',
+  enableMetrics: true,
+  skipHealthChecks: true
+});
 
-const ResponseUtils = require("./utils/responseUtils");
-const { requestLogger } = require("./middleware/middleware");
+// ===== AUTOMATIC EXPRESS CONFIGURATION =====
+const expressHelper = middleware.setupExpressApp({
+  enableCompression: true,
+  enableJsonParsing: true,
+  jsonLimit: process.env.MAX_FILE_SIZE || "10mb",
+  enableUrlEncoded: true,
+  enableSecurity: true,
+  enableLogging: process.env.NODE_ENV !== 'test',
+  enableErrorHandling: false, // Lo configuraremos manualmente al final
+  
+  // Middlewares personalizados adicionales
+  customMiddlewares: [
+    // Middleware personalizado de logging si lo necesitas
+    process.env.NODE_ENV !== 'test' ? middleware.requestLogger() : null
+  ].filter(Boolean)
+});
 
-const app = express();
+const { app, addPublicRoutes, setupErrorHandling, listen } = expressHelper;
 
-//UI Swagger configuration (TU CONFIGURACIÓN ORIGINAL)
+// ===== SWAGGER CONFIGURATION (same as before) =====
 app.use(
   "/api/docs",
   swaggerUi.serve,
@@ -40,71 +68,45 @@ app.use(
   })
 );
 
-
-app.use(
-  helmet({
-    contentSecurityPolicy: false,
-  })
-);
-app.use(compression());
-app.use(morgan("combined"));
-
-
-const limiter = rateLimit({
-  windowMs: (Number.parseInt(process.env.RATE_LIMIT_WINDOW) || 15) * 60 * 1000,
-  max: Number.parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
-  message: {
-    success: false,
-    error: "Demasiadas peticiones, intente más tarde",
-  },
-});
-app.use("/api/", limiter);
-
-
-app.use(cors());
-app.use(express.json({ limit: process.env.MAX_FILE_SIZE || "10mb" }));
-app.use(
-  express.urlencoded({
-    extended: true,
-    limit: process.env.MAX_FILE_SIZE || "10mb",
-  })
-);
-
-// Logging personalizado NUEVO (opciona si no es test)
-if (process.env.NODE_ENV !== 'test') {
-  app.use(requestLogger);
-}
-
-//Api's routes 
-app.use("/api", routes);
-
-//Error handling for undefined routes
-app.use("*", (req, res) => {
-  ResponseUtils.notFound(res, `Endpoint ${req.originalUrl} no encontrado`);
+// ===== ADDITIONAL CORS CONFIGURATION =====
+// Handle preflight requests for all routes
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin);
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.status(200).send();
 });
 
-//Global error handler 
-app.use(ResponseUtils.globalErrorHandler);
+// ===== ROUTES CONFIGURATION =====
+addPublicRoutes("/api", routes);
 
-//Start server and connect to database 
+// ===== ERROR HANDLING (at the end) =====
+setupErrorHandling();
+
+// ===== SERVER START FUNCTION ===== 
 async function startServer() {
   try {
-    console.log("🚀 Iniciando servidor...");
+    console.log("🚀 Iniciando Security Service...");
 
-    // Intentar conectar a la base de datos con timeout
+    // Connect to database
     const dbConnected = await connectDatabase();
-
-    if (!dbConnected) {
-      console.log("⚠️  Servidor iniciándose sin conexión a base de datos");
+    
+    if (dbConnected) {
+      // Configure DB pool in middleware after connection
+      const { pool } = require("./config/database");
+      middleware.config.auth.databasePool = pool;
+      console.log("✅ Middleware configurado con conexión a BD");
+    } else {
+      console.log("⚠️  Middleware iniciándose sin conexión a BD");
     }
 
-    const server = app.listen(PORT, () => {
-      console.log(`\n🚀 Servidor iniciado exitosamente`);
+    // Start server with helper - Graceful shutdown is included automatically
+    const server = listen(PORT, (server) => {
+      console.log(`\n🚀 Security Service iniciado exitosamente`);
       console.log(`🌐 URL: http://localhost:${PORT}`);
       console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
-      console.log(
-        `📚 Documentación Swagger: http://localhost:${PORT}/api/docs`
-      );
+      console.log(`📚 Documentación: http://localhost:${PORT}/api/docs`);
       console.log(`🗄️  Base de datos: ${dbConnected ? '✅ PostgreSQL (Conectado)' : '❌ Sin conexión'}`);
       console.log(`⏰ Hora: ${new Date().toLocaleString("es-ES")}`);
       console.log(`\n📋 Endpoints disponibles:`);
@@ -119,25 +121,20 @@ async function startServer() {
       console.log(`   GET  /api/dashboard/stats - Estadísticas del dashboard\n`);
     });
 
-    // Configurar shutdown graceful
-    setupGracefulShutdown(server);
-
     return server;
   } catch (error) {
-    console.error("❌ Error iniciando servidor:", error);
-    console.log("🔄 Intentando iniciar servidor sin base de datos...");
+    console.error("❌ Error iniciando Security Service:", error);
+    console.log("🔄 Intentando iniciar en modo degradado...");
 
-    // Intentar iniciar el servidor sin BD
     try {
-      const server = app.listen(PORT, () => {
-        console.log(`\n🚀 Servidor iniciado en modo sin base de datos`);
+      const server = listen(PORT, () => {
+        console.log(`\n🚀 Security Service iniciado en modo degradado`);
         console.log(`🌐 URL: http://localhost:${PORT}`);
         console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
-        console.log(`📚 Documentación Swagger: http://localhost:${PORT}/api/docs`);
+        console.log(`📚 Documentación: http://localhost:${PORT}/api/docs`);
         console.log(`⚠️  ADVERTENCIA: Sin conexión a base de datos`);
       });
-
-      setupGracefulShutdown(server);
+      
       return server;
     } catch (serverError) {
       console.error("❌ Error crítico iniciando servidor:", serverError);
@@ -146,34 +143,14 @@ async function startServer() {
   }
 }
 
-//Graceful shutdown
-function setupGracefulShutdown(server) {
-  const gracefulShutdown = async (signal) => {
-    console.log(`\n🛑 Recibido ${signal}. Cerrando servidor...`);
+// ===== EXPORTAR PARA TESTING =====
+module.exports = { 
+  app, 
+  startServer,
+  middleware // Exportar middleware para uso en tests
+};
 
-    server.close(async () => {
-      console.log("🔌 Servidor HTTP cerrado");
-
-      try {
-        const { pool } = require("./config/database");
-        await pool.end();
-        console.log("✅ Conexiones de base de datos cerradas");
-      } catch (dbError) {
-        console.error("⚠️  Error cerrando conexiones de BD:", dbError.message);
-      }
-
-      console.log("✅ Shutdown completado");
-      process.exit(0);
-    });
-  };
-
-  process.on("SIGINT", () => gracefulShutdown("SIGINT"));
-  process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
-}
-
-// Exportar para testing
-module.exports = { app, startServer };
-
+// ===== INICIAR SI ES EJECUTADO DIRECTAMENTE =====
 if (require.main === module) {
   startServer();
 }
