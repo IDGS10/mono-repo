@@ -20,12 +20,12 @@ const ProjectDashboard = () => {
         setLoading(true);
         const response = await getProjects();
         
-        // POLÍTICA DE SEGURIDAD: getProjects ahora retorna objeto con paginación
+        // Security policy: getProjects now returns object with pagination
         if (response.projects) {
-          setProjects(response.projects); // Array de proyectos
-          setPagination(response.pagination); // Info de paginación
+          setProjects(response.projects); // Array of projects
+          setPagination(response.pagination); // Pagination info
         } else {
-          // Fallback para compatibilidad
+          // Fallback for compatibility
           setProjects(Array.isArray(response) ? response : []);
         }
         
