@@ -5,9 +5,9 @@ class Swarm extends Model {
     return super.init(
       {
         id: {
-          type: DataTypes.UUID,
+          type: DataTypes.INTEGER,
           primaryKey: true,
-          defaultValue: DataTypes.UUIDV4,
+          autoIncrement: true,
           allowNull: false,
         },
         name: {
@@ -32,26 +32,27 @@ class Swarm extends Model {
           },
         },
         requesterId: {
-          type: DataTypes.UUID,
+          type: DataTypes.INTEGER,
           allowNull: false,
           field: 'requester_id',
         },
+        projectId: {
+          type: DataTypes.INTEGER,
+          allowNull: true,
+          field: 'project_id',
+        },
         clusterManagerId: {
-          type: DataTypes.UUID,
+          type: DataTypes.INTEGER,
           allowNull: true,
           field: 'cluster_manager_id',
         },
         status: {
-          type: DataTypes.ENUM(
-            'requested',
-            'assigned',
-            'active',
-            'paused',
-            'completed',
-            'rejected'
-          ),
+          type: DataTypes.STRING(20),
           defaultValue: 'requested',
           allowNull: false,
+          validate: {
+            isIn: [['requested', 'assigned', 'active', 'paused', 'completed', 'rejected']],
+          },
         },
         assignedAt: {
           type: DataTypes.DATE,
@@ -152,6 +153,18 @@ class Swarm extends Model {
   static async findByRequester(requesterId) {
     return await this.findAll({
       where: { requesterId },
+      include: [
+        {
+          model: this.sequelize.models.SwarmDevice,
+          as: 'devices',
+        },
+      ],
+    })
+  }
+
+  static async findByProject(projectId) {
+    return await this.findAll({
+      where: { projectId },
       include: [
         {
           model: this.sequelize.models.SwarmDevice,

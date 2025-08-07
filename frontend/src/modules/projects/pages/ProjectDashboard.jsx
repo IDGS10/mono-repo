@@ -20,6 +20,7 @@ const ProjectDashboard = () => {
         setLoading(true);
         const response = await getProjects();
         
+
         // Security policy: getProjects now returns object with pagination
         if (response.projects) {
           setProjects(response.projects); // Array of projects

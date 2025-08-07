@@ -41,12 +41,14 @@ export default function PasswordLogin() {
         //Guardamos el estado de login para verificación de la sesión
         localStorage.setItem("isLoggedIn", "true");
 
+        // Guardar los datos completos del usuario y token
         const userData = {
           token: response.token,
-          user: response.user || null,
+          user: response.user // Almacenar el objeto completo del usuario
         };
         localStorage.setItem("monoRepoUserData", JSON.stringify(userData));
 
+        //Redirigir al dashboard o página principal
         navigate("/analytics");
       } else {
         setError(response.error || "Error en el inicio de sesión");
@@ -60,7 +62,6 @@ export default function PasswordLogin() {
   };
 
   const handleInputChange = (field, value) => {
-    //Quitamos el error cuando el usuario empiece a escribir
     if (error) setError("");
 
     const newData = {
