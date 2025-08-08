@@ -1,49 +1,18 @@
 import models from '../models/index.js'
-import { SECURITY_URL } from '../config/environment.js'
 import { successResponse, errorResponse } from '../utils/responses.js'
 import logger from '../utils/logger.js'
-import axios from 'axios'
 
 const { Swarm, SwarmDevice } = models
-
-// Middleware to validate token and attach user info to req
-export const validateToken = async (req, res, next) => {
-  try {
-    const authHeader = req.headers.authorization
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return errorResponse(res, 'Authorization token is required', 401)
-    }
-
-    const token = authHeader.substring(7) // Remove 'Bearer ' prefix
-    const response = await axios.get(`${SECURITY_URL}/api/user/profile`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-
-    if (response.data.success) {
-      return response.data.user
-    } else {
-      return errorResponse('incorrect token.', 400)
-    }
-  } catch (error) {
-    logger.error('Error fetching user info:', error.message)
-    throw new Error('Invalid or expired token')
-  }
-}
 
 // @desc    Create new swarm
 // @route   POST /swarms
 // @access  Private (requires Bearer token)
 export const createSwarm = async (req, res, next) => {
   try {
+    const { userId, email, rol } = req.user
     const { name, description, maxDevices, projectId } = req.body
 
-    // Extract token from Authorization header
-    const token = extractTokenFromHeaders(req)
-    if (!token) {
-      return errorResponse(res, 'Authorization token is required', 401)
-    }
+    logger.info(`User ${email} (${rol}) creating swarm: ${name}`)
 
     // Basic validations
     if (!name || !maxDevices || !projectId) {
@@ -58,42 +27,20 @@ export const createSwarm = async (req, res, next) => {
       return errorResponse(res, 'maxDevices must be between 1 and 1000', 400)
     }
 
-    // Get user information from token
-    let userInfo
-    try {
-      userInfo = await getUserInfo(token)
-    } catch (error) {
-      return errorResponse(
-        res,
-        `Invalid or expired token. Error: ${error}`,
-        401
-      )
-    }
-
-    // Extract userId from userInfo (using the actual response structure)
-    const requesterId = userInfo.id
-
-    if (!requesterId) {
-      return errorResponse(res, 'Could not extract user ID from token', 400)
-    }
-
-    // Create swarm
     const swarm = await Swarm.create({
       name,
       description,
       maxDevices,
-      requesterId,
+      requesterId: userId,
       projectId,
       status: 'requested',
     })
 
-    logger.info(`New swarm created: ${swarm.id} by user: ${requesterId}`)
+    logger.info(`New swarm created: ${swarm.id} by user: ${userId}`)
 
     return successResponse(
       res,
-      {
-        swarm,
-      },
+      { swarm },
       'Swarm created successfully',
       201
     )
@@ -105,9 +52,10 @@ export const createSwarm = async (req, res, next) => {
 
 // @desc    Get all swarms
 // @route   GET /swarms
-// @access  Public
+// @access  Private (requires Bearer token)
 export const getSwarms = async (req, res, next) => {
   try {
+    const { userId, rol } = req.user
     const { status, requesterId, clusterManagerId, projectId } = req.query
 
     // Build filters
@@ -116,6 +64,11 @@ export const getSwarms = async (req, res, next) => {
     if (requesterId) where.requesterId = requesterId
     if (clusterManagerId) where.clusterManagerId = clusterManagerId
     if (projectId) where.projectId = projectId
+
+    // Apply role-based filters
+    if (rol === 'User') {
+      where.requesterId = userId
+    }
 
     const swarms = await Swarm.findAll({
       where,
@@ -132,6 +85,7 @@ export const getSwarms = async (req, res, next) => {
     return successResponse(res, {
       swarms,
       count: swarms.length,
+      userContext: { userId, rol }
     })
   } catch (error) {
     logger.error('Error getting swarms:', error)
@@ -141,12 +95,20 @@ export const getSwarms = async (req, res, next) => {
 
 // @desc    Get swarm by ID
 // @route   GET /swarms/:id
-// @access  Public
+// @access  Private (requires Bearer token)
 export const getSwarm = async (req, res, next) => {
   try {
+    const { userId, rol } = req.user
     const { id } = req.params
 
-    const swarm = await Swarm.findByPk(id, {
+    // Check access permissions
+    let whereClause = { id }
+    if (rol !== 'Owner') {
+      whereClause.requesterId = userId
+    }
+
+    const swarm = await Swarm.findOne({
+      where: whereClause,
       include: [
         {
           model: SwarmDevice,
@@ -156,7 +118,7 @@ export const getSwarm = async (req, res, next) => {
     })
 
     if (!swarm) {
-      return errorResponse(res, 'Swarm not found', 404)
+      return errorResponse(res, 'Swarm not found or access denied', 404)
     }
 
     return successResponse(res, { swarm })
@@ -171,26 +133,9 @@ export const getSwarm = async (req, res, next) => {
 // @access  Private (requires Bearer token)
 export const updateSwarm = async (req, res, next) => {
   try {
+    const { userId, email, rol } = req.user
     const { id } = req.params
     const { name, description, maxDevices } = req.body
-
-    // Extract token from Authorization header
-    const token = extractTokenFromHeaders(req)
-    if (!token) {
-      return errorResponse(res, 'Authorization token is required', 401)
-    }
-
-    // Verify token and get user info
-    let userInfo
-    try {
-      userInfo = await getUserInfo(token)
-    } catch (error) {
-      return errorResponse(
-        res,
-        `Invalid or expired token. Error: ${error.message || 'An error occurred'}`,
-        401
-      )
-    }
 
     const swarm = await Swarm.findByPk(id)
 
@@ -198,9 +143,8 @@ export const updateSwarm = async (req, res, next) => {
       return errorResponse(res, 'Swarm not found', 404)
     }
 
-    // Check if user is the owner of the swarm (using actual response structure)
-    const userId = userInfo.id
-    if (swarm.requesterId !== userId) {
+    // Check ownership or permissions
+    if (rol !== 'Owner' && swarm.requesterId !== userId) {
       return errorResponse(
         res,
         'You are not authorized to update this swarm',
@@ -208,7 +152,7 @@ export const updateSwarm = async (req, res, next) => {
       )
     }
 
-    // Only allow updating certain fields based on status
+    // Build allowed updates
     const allowedUpdates = {}
     if (name) allowedUpdates.name = name
     if (description) allowedUpdates.description = description
@@ -223,7 +167,7 @@ export const updateSwarm = async (req, res, next) => {
 
     await swarm.update(allowedUpdates)
 
-    logger.info(`Swarm updated: ${id} by user: ${userId}`)
+    logger.info(`Swarm updated: ${id} by user: ${userId} (${email})`)
 
     return successResponse(res, { swarm }, 'Swarm updated successfully')
   } catch (error) {
@@ -237,25 +181,8 @@ export const updateSwarm = async (req, res, next) => {
 // @access  Private (requires Bearer token)
 export const deleteSwarm = async (req, res, next) => {
   try {
+    const { userId, email, rol } = req.user
     const { id } = req.params
-
-    // Extract token from Authorization header
-    const token = extractTokenFromHeaders(req)
-    if (!token) {
-      return errorResponse(res, 'Authorization token is required', 401)
-    }
-
-    // Verify token and get user info
-    let userInfo
-    try {
-      userInfo = await getUserInfo(token)
-    } catch (error) {
-      return errorResponse(
-        res,
-        `Invalid or expired token. Error: ${error}`,
-        401
-      )
-    }
 
     const swarm = await Swarm.findByPk(id)
 
@@ -263,9 +190,8 @@ export const deleteSwarm = async (req, res, next) => {
       return errorResponse(res, 'Swarm not found', 404)
     }
 
-    // Check if user is the owner of the swarm (using actual response structure)
-    const userId = userInfo.id
-    if (swarm.requesterId !== userId) {
+    // Check ownership or permissions
+    if (rol !== 'Owner' && swarm.requesterId !== userId) {
       return errorResponse(
         res,
         'You are not authorized to delete this swarm',
@@ -280,7 +206,7 @@ export const deleteSwarm = async (req, res, next) => {
 
     await swarm.destroy()
 
-    logger.info(`Swarm deleted: ${id} by user: ${userId}`)
+    logger.info(`Swarm deleted: ${id} by user: ${userId} (${email})`)
 
     return successResponse(res, null, 'Swarm deleted successfully')
   } catch (error) {
@@ -294,28 +220,17 @@ export const deleteSwarm = async (req, res, next) => {
 // @access  Private (requires Bearer token)
 export const assignSwarm = async (req, res, next) => {
   try {
+    const { userId, email, rol } = req.user
     const { id } = req.params
     const { clusterManagerId } = req.body
-
-    // Extract token from Authorization header
-    const token = extractTokenFromHeaders(req)
-    if (!token) {
-      return errorResponse(res, 'Authorization token is required', 401)
-    }
 
     if (!clusterManagerId) {
       return errorResponse(res, 'clusterManagerId is required', 400)
     }
 
-    // Verify token (for admin/cluster manager permissions)
-    try {
-      await getUserInfo(token)
-    } catch (error) {
-      return errorResponse(
-        res,
-        `Invalid or expired token. Error: ${error.message}`,
-        401
-      )
+    // Check permissions
+    if (rol === 'User') {
+      return errorResponse(res, 'Insufficient permissions to assign swarms', 403)
     }
 
     const swarm = await Swarm.findByPk(id)
@@ -334,7 +249,7 @@ export const assignSwarm = async (req, res, next) => {
 
     await swarm.assignToClusterManager(clusterManagerId)
 
-    logger.info(`Swarm ${id} assigned to cluster manager: ${clusterManagerId}`)
+    logger.info(`Swarm ${id} assigned to cluster manager: ${clusterManagerId} by ${email}`)
 
     return successResponse(res, { swarm }, 'Swarm assigned successfully')
   } catch (error) {
@@ -348,23 +263,12 @@ export const assignSwarm = async (req, res, next) => {
 // @access  Private (requires Bearer token)
 export const activateSwarm = async (req, res, next) => {
   try {
+    const { userId, email, rol } = req.user
     const { id } = req.params
 
-    // Extract token from Authorization header
-    const token = extractTokenFromHeaders(req)
-    if (!token) {
-      return errorResponse(res, 'Authorization token is required', 401)
-    }
-
-    // Verify token
-    try {
-      await getUserInfo(token)
-    } catch (error) {
-      return errorResponse(
-        res,
-        `Invalid or expired token. Error: ${error}`,
-        401
-      )
+    // Check permissions
+    if (rol === 'User') {
+      return errorResponse(res, 'Insufficient permissions to activate swarms', 403)
     }
 
     const swarm = await Swarm.findByPk(id)
@@ -383,7 +287,7 @@ export const activateSwarm = async (req, res, next) => {
 
     await swarm.activate()
 
-    logger.info(`Swarm activated: ${id}`)
+    logger.info(`Swarm activated: ${id} by ${email}`)
 
     return successResponse(res, { swarm }, 'Swarm activated successfully')
   } catch (error) {
@@ -397,24 +301,8 @@ export const activateSwarm = async (req, res, next) => {
 // @access  Private (requires Bearer token)
 export const pauseSwarm = async (req, res, next) => {
   try {
+    const { userId, email, rol } = req.user
     const { id } = req.params
-
-    // Extract token from Authorization header
-    const token = extractTokenFromHeaders(req)
-    if (!token) {
-      return errorResponse(res, 'Authorization token is required', 401)
-    }
-
-    // Verify token
-    try {
-      await getUserInfo(token)
-    } catch (error) {
-      return errorResponse(
-        res,
-        `Invalid or expired token. Error: ${error}`,
-        401
-      )
-    }
 
     const swarm = await Swarm.findByPk(id)
 
@@ -428,7 +316,7 @@ export const pauseSwarm = async (req, res, next) => {
 
     await swarm.pause()
 
-    logger.info(`Swarm paused: ${id}`)
+    logger.info(`Swarm paused: ${id} by ${email}`)
 
     return successResponse(res, { swarm }, 'Swarm paused successfully')
   } catch (error) {
@@ -442,24 +330,8 @@ export const pauseSwarm = async (req, res, next) => {
 // @access  Private (requires Bearer token)
 export const completeSwarm = async (req, res, next) => {
   try {
+    const { userId, email, rol } = req.user
     const { id } = req.params
-
-    // Extract token from Authorization header
-    const token = extractTokenFromHeaders(req)
-    if (!token) {
-      return errorResponse(res, 'Authorization token is required', 401)
-    }
-
-    // Verify token
-    try {
-      await getUserInfo(token)
-    } catch (error) {
-      return errorResponse(
-        res,
-        `Invalid or expired token. Error: ${error.message}`,
-        401
-      )
-    }
 
     const swarm = await Swarm.findByPk(id)
 
@@ -477,7 +349,7 @@ export const completeSwarm = async (req, res, next) => {
 
     await swarm.complete()
 
-    logger.info(`Swarm completed: ${id}`)
+    logger.info(`Swarm completed: ${id} by ${email}`)
 
     return successResponse(res, { swarm }, 'Swarm completed successfully')
   } catch (error) {
@@ -491,23 +363,12 @@ export const completeSwarm = async (req, res, next) => {
 // @access  Private (requires Bearer token)
 export const rejectSwarm = async (req, res, next) => {
   try {
+    const { userId, email, rol } = req.user
     const { id } = req.params
 
-    // Extract token from Authorization header
-    const token = extractTokenFromHeaders(req)
-    if (!token) {
-      return errorResponse(res, 'Authorization token is required', 401)
-    }
-
-    // Verify token
-    try {
-      await getUserInfo(token)
-    } catch (error) {
-      return errorResponse(
-        res,
-        `Invalid or expired token. Error: ${error.message || 'Unknown error'}`,
-        401
-      )
+    // Check permissions
+    if (rol === 'User') {
+      return errorResponse(res, 'Insufficient permissions to reject swarms', 403)
     }
 
     const swarm = await Swarm.findByPk(id)
@@ -526,7 +387,7 @@ export const rejectSwarm = async (req, res, next) => {
 
     await swarm.reject()
 
-    logger.info(`Swarm rejected: ${id}`)
+    logger.info(`Swarm rejected: ${id} by ${email}`)
 
     return successResponse(res, { swarm }, 'Swarm rejected')
   } catch (error) {
@@ -537,15 +398,22 @@ export const rejectSwarm = async (req, res, next) => {
 
 // @desc    Get swarm devices
 // @route   GET /swarms/:id/devices
-// @access  Public
+// @access  Private (requires Bearer token)
 export const getSwarmDevices = async (req, res, next) => {
   try {
+    const { userId, rol } = req.user
     const { id } = req.params
 
-    const swarm = await Swarm.findByPk(id)
+    // Check access permissions
+    let whereClause = { id }
+    if (rol !== 'Owner') {
+      whereClause.requesterId = userId
+    }
+
+    const swarm = await Swarm.findOne({ where: whereClause })
 
     if (!swarm) {
-      return errorResponse(res, 'Swarm not found', 404)
+      return errorResponse(res, 'Swarm not found or access denied', 404)
     }
 
     const devices = await SwarmDevice.findActiveBySwarm(id)
@@ -566,32 +434,13 @@ export const getSwarmDevices = async (req, res, next) => {
 // @access  Private (requires Bearer token)
 export const addDeviceToSwarm = async (req, res, next) => {
   try {
+    const { userId, email, rol } = req.user
     const { id } = req.params
     const { deviceId, role = 'sensor' } = req.body
-
-    // Extract token from Authorization header
-    const token = extractTokenFromHeaders(req)
-    if (!token) {
-      return errorResponse(res, 'Authorization token is required', 401)
-    }
 
     if (!deviceId) {
       return errorResponse(res, 'deviceId is required', 400)
     }
-
-    // Get user information from token
-    let userInfo
-    try {
-      userInfo = await getUserInfo(token)
-    } catch (error) {
-      return errorResponse(
-        res,
-        `Invalid or expired token. Error: ${error.message}`,
-        401
-      )
-    }
-
-    const assignedBy = userInfo.id
 
     const swarm = await Swarm.findByPk(id)
 
@@ -619,15 +468,14 @@ export const addDeviceToSwarm = async (req, res, next) => {
       return errorResponse(res, 'Device is already assigned to this swarm', 400)
     }
 
-    // Create assignment
     const swarmDevice = await SwarmDevice.create({
       swarmId: id,
       deviceId,
       role,
-      assignedBy,
+      assignedBy: userId,
     })
 
-    logger.info(`Device ${deviceId} added to swarm ${id} by user ${assignedBy}`)
+    logger.info(`Device ${deviceId} added to swarm ${id} by user ${userId} (${email})`)
 
     return successResponse(
       res,
@@ -646,24 +494,8 @@ export const addDeviceToSwarm = async (req, res, next) => {
 // @access  Private (requires Bearer token)
 export const removeDeviceFromSwarm = async (req, res, next) => {
   try {
+    const { userId, email, rol } = req.user
     const { id, deviceId } = req.params
-
-    // Extract token from Authorization header
-    const token = extractTokenFromHeaders(req)
-    if (!token) {
-      return errorResponse(res, 'Authorization token is required', 401)
-    }
-
-    // Verify token
-    try {
-      await getUserInfo(token)
-    } catch (error) {
-      return errorResponse(
-        res,
-        `Invalid or expired token. Error: ${error.message}`,
-        401
-      )
-    }
 
     const swarmDevice = await SwarmDevice.findOne({
       where: { swarmId: id, deviceId },
@@ -679,7 +511,7 @@ export const removeDeviceFromSwarm = async (req, res, next) => {
 
     await swarmDevice.remove()
 
-    logger.info(`Device ${deviceId} removed from swarm ${id}`)
+    logger.info(`Device ${deviceId} removed from swarm ${id} by ${email}`)
 
     return successResponse(res, null, 'Device removed from swarm successfully')
   } catch (error) {
@@ -690,15 +522,22 @@ export const removeDeviceFromSwarm = async (req, res, next) => {
 
 // @desc    Get swarm statistics
 // @route   GET /swarms/:id/stats
-// @access  Public
+// @access  Private (requires Bearer token)
 export const getSwarmStats = async (req, res, next) => {
   try {
+    const { userId, rol } = req.user
     const { id } = req.params
 
-    const swarm = await Swarm.findByPk(id)
+    // Check access permissions
+    let whereClause = { id }
+    if (rol !== 'Owner') {
+      whereClause.requesterId = userId
+    }
+
+    const swarm = await Swarm.findOne({ where: whereClause })
 
     if (!swarm) {
-      return errorResponse(res, 'Swarm not found', 404)
+      return errorResponse(res, 'Swarm not found or access denied', 404)
     }
 
     const devices = await SwarmDevice.findAll({

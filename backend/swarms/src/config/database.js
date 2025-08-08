@@ -53,10 +53,10 @@ if (DATABASE_URL) {
 sequelize
   .authenticate()
   .then(() => {
-    console.log('✅ Conexión a PostgreSQL establecida correctamente')
+    console.log('✅ Connection to PostgreSQL established successfully')
   })
   .catch((err) => {
-    console.error('❌ Error al conectar a PostgreSQL:', err)
+    console.error('❌ Error connecting to PostgreSQL:', err)
   })
 
 export default sequelize
