@@ -1,232 +1,400 @@
-# Swarm API Examples - All Routes
+# Swarms API - IoT Swarm Management System
 
-## 1. Basic CRUD
+RESTful API for managing IoT device swarms with authentication, role-based access control, and comprehensive device management.
 
-### POST /swarms - Create new swarm
+## Table of Contents
+- [Features](#features)
+- [Architecture](#architecture)
+- [Database Schema](#database-schema)
+- [Environment Variables](#environment-variables)
+- [Installation](#installation)
+- [Authentication](#authentication)
+- [API Endpoints](#api-endpoints)
+- [Usage Examples](#usage-examples)
+- [Error Handling](#error-handling)
+- [Development](#development)
+
+## Features
+
+### Core Functionality
+- ✅ **Swarm Management** - Create, update, delete, and monitor IoT swarms
+- ✅ **Device Assignment** - Assign/remove devices to/from swarms
+- ✅ **State Management** - Request → Assign → Activate → Pause/Complete workflow
+- ✅ **Statistics** - Real-time swarm and device analytics
+- ✅ **Role-based Access Control** - Owner, Leader, User permissions
+
+### Security & Infrastructure
+- 🔐 **JWT Authentication** - Bearer token validation
+- 🛡️ **Security Headers** - Automatic security middleware
+- 🚦 **Rate Limiting** - Configurable request limits
+- 🌐 **CORS Support** - Environment-based origin configuration
+- 📊 **Request Logging** - Morgan + Winston integration
+- ⚡ **Compression** - Automatic response compression
+
+## Architecture
+
+```
+┌─────────────────────┐    ┌─────────────────────┐    ┌─────────────────────┐
+│   Frontend          │    │   Auth Service      │    │   Swarms Service    │
+│   (React/Vue)       │    │   (Login/Register)  │    │   (This API)        │
+└──────────┬──────────┘    └──────────┬──────────┘    └──────────┬──────────┘
+           │                          │                          │
+           │ 1. Login                 │                          │
+           │ ────────────────────────▶│                         │
+           │                          │                          │
+           │ 2. JWT Token             │                          │
+           │ ◀────────────────────────│                         │
+           │                          │                          │
+           │ 3. API Requests + Token  │                          │
+           │ ──────────────────────────────────────────────────▶│
+           │                          │                          │
+           │                          │                    ┌─────┴─────┐
+           │                          │                    │ Call      │
+           │                          │                    │ Shared    │
+           │                          │                    │ Middleware│
+           │                          │                    └─────┬─────┘
+           │                          │                          │
+           │                          │                    ✅ Valid Token
+           │                          │                          ▼
+           │ 4. Swarm Data            │                  Process Request
+           │ ◀──────────────────────────────────────────────────│
+```
+
+## Database Schema
+
+### Swarms Table
+```sql
+CREATE TABLE swarms (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    max_devices INTEGER NOT NULL CHECK (max_devices > 0 AND max_devices <= 1000),
+    requester_id INTEGER NOT NULL,
+    project_id INTEGER NULL,
+    cluster_manager_id INTEGER NULL,
+    status VARCHAR(20) DEFAULT 'requested' CHECK (status IN ('requested', 'assigned', 'active', 'paused', 'completed', 'rejected')),
+    created_at TIMESTAMP DEFAULT NOW(),
+    assigned_at TIMESTAMP NULL,
+    activated_at TIMESTAMP NULL,
+    completed_at TIMESTAMP NULL,
+    updated_at TIMESTAMP DEFAULT NOW(),
+    last_activity TIMESTAMP NULL
+);
+```
+
+### Swarm Devices Table
+```sql
+CREATE TABLE swarm_devices (
+    swarm_id INTEGER REFERENCES swarms(id) ON DELETE CASCADE,
+    device_id INTEGER NOT NULL,
+    role VARCHAR(50) DEFAULT 'sensor',
+    assigned_at TIMESTAMP DEFAULT NOW(),
+    assigned_by INTEGER NOT NULL,
+    removed_at TIMESTAMP NULL,
+    status VARCHAR(20) DEFAULT 'assigned' CHECK (status IN ('assigned', 'active', 'inactive', 'removed')),
+    PRIMARY KEY (swarm_id, device_id)
+);
+```
+
+### Status Flow
+```
+Swarm Status: requested → assigned → active → paused/completed/rejected
+Device Status: assigned → active → inactive → removed
+```
+
+## Environment Variables
+
+Create a `.env` file in the root directory:
+
 ```bash
-curl -X POST http://IP_SERVER:DESIGNED_PORT
-/swarms \
+# Server Configuration
+PORT=SERVER_PORT
+NODE_ENV=production
+LOG_LEVEL=info
+
+# Database Configuration
+DATABASE_URL=postgresql://user:password@host:port/database
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=swarms_db
+DB_USERNAME=swarms_user
+DB_PASSWORD=your_password
+
+# Security Service
+SECURITY_URL=http://localhost:8000
+
+# JWT Configuration (Must match auth service)
+JWT_SECRET=your-super-secret-jwt-key-min-32-characters
+JWT_EXPIRES_IN=24h
+
+# CORS Configuration
+CORS_ORIGIN=http://localhost:3000,http://localhost:5173,https://your-frontend.com
+CORS_ORIGIN_DEV=http://localhost:3001,http://localhost:5174
+```
+
+### Environment Examples
+
+Configure your `.env` file based on your environment needs. All sensitive data should be properly secured and never committed to version control.
+
+## Installation
+
+### Prerequisites
+- Node.js 18+
+- PostgreSQL 12+
+- Shared middleware with dependencies installed (`npm ci` in shared middleware directory)
+
+### Setup
+```bash
+# Clone repository
+git clone https://github.com/IDGS10/mono-repo
+cd backend/swarms
+
+# Install dependencies
+npm ci
+
+# Database is already created and configured
+
+# Configure environment
+touch .env
+# Edit .env with your configuration (see Environment Variables section)
+
+# Start development server
+npm run dev
+
+# Start production server
+npm start
+```
+
+## Authentication
+
+### JWT Token Requirements
+All protected endpoints require a valid JWT token in the Authorization header:
+
+```bash
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+### User Roles & Permissions
+
+| Role | Permissions |
+|------|-------------|
+| **Owner** | Full access to all swarms and operations |
+| **Leader** | Can manage swarms, assign, activate, reject swarms |
+
+### Getting a Token
+Use the token obtained when logging into the system. This token will be automatically included in requests when using the frontend application.
+
+## API Endpoints
+
+### Public Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | API documentation |
+| GET | `/health` | Health check |
+
+### Protected Endpoints (Require Authentication)
+| Method | Endpoint | Description | Roles |
+|--------|----------|-------------|-------|
+| **CRUD Operations** |
+| POST | `/swarms` | Create new swarm | All |
+| GET | `/swarms` | Get all swarms | All |
+| GET | `/swarms/:id` | Get specific swarm | All |
+| PUT | `/swarms/:id` | Update swarm | Owner, Creator |
+| DELETE | `/swarms/:id` | Delete swarm | Owner, Creator |
+| **State Management** |
+| POST | `/swarms/:id/assign` | Assign to cluster manager | Owner, Leader |
+| POST | `/swarms/:id/activate` | Activate swarm | Owner, Leader |
+| POST | `/swarms/:id/pause` | Pause swarm | All |
+| POST | `/swarms/:id/complete` | Complete swarm | All |
+| POST | `/swarms/:id/reject` | Reject swarm | Owner, Leader |
+| **Device Management** |
+| GET | `/swarms/:id/devices` | Get swarm devices | All |
+| POST | `/swarms/:id/devices` | Add device to swarm | All |
+| DELETE | `/swarms/:id/devices/:deviceId` | Remove device | All |
+| **Analytics** |
+| GET | `/swarms/:id/stats` | Get swarm statistics | All |
+
+## Usage Examples
+
+### 1. Basic CRUD Operations
+
+#### Create New Swarm
+```bash
+curl -X POST http://localhost:3000/swarms \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-jwt-token" \
   -d '{
-    "name": "Urban Sensor Swarm",
-    "description": "Environmental data collection in downtown area",
+    "name": "Urban Sensor Network",
+    "description": "Environmental monitoring downtown",
     "maxDevices": 50,
-    "requesterId": "550e8400-e29b-41d4-a716-446655440000"
+    "projectId": 123
   }'
 ```
 
-**Expected Response:**
+**Response:**
 ```json
 {
   "success": true,
   "message": "Swarm created successfully",
   "data": {
     "swarm": {
-      "id": "123e4567-e89b-12d3-a456-426614174000",
-      "name": "Urban Sensor Swarm",
-      "description": "Environmental data collection in downtown area",
+      "id": 1,
+      "name": "Urban Sensor Network",
+      "description": "Environmental monitoring downtown",
       "maxDevices": 50,
-      "requesterId": "550e8400-e29b-41d4-a716-446655440000",
+      "requesterId": 456,
+      "projectId": 123,
       "status": "requested",
-      "createdAt": "2025-07-14T20:30:00.000Z"
+      "createdAt": "2025-08-07T15:30:00.000Z"
     }
   }
 }
 ```
 
-### GET /swarms - Get all swarms
+#### Get All Swarms (with filters)
 ```bash
-curl -X GET http://IP_SERVER:DESIGNED_PORT
-/swarms
+# Get all swarms
+curl -X GET http://localhost:3000/swarms \
+  -H "Authorization: Bearer your-jwt-token"
 
-**Expected Response:**
+# Filter by status
+curl -X GET "http://localhost:3000/swarms?status=active" \
+  -H "Authorization: Bearer your-jwt-token"
+
+# Filter by requester
+curl -X GET "http://localhost:3000/swarms?requesterId=456" \
+  -H "Authorization: Bearer your-jwt-token"
+
+# Filter by project
+curl -X GET "http://localhost:3000/swarms?projectId=123" \
+  -H "Authorization: Bearer your-jwt-token"
+
+# Filter by cluster manager
+curl -X GET "http://localhost:3000/swarms?clusterManagerId=789" \
+  -H "Authorization: Bearer your-jwt-token"
+
+# Multiple filters
+curl -X GET "http://localhost:3000/swarms?status=active&projectId=123" \
+  -H "Authorization: Bearer your-jwt-token"
+```
+
+**Available Query Parameters:**
+- `status` - Filter by status: `requested`, `assigned`, `active`, `paused`, `completed`, `rejected`
+- `requesterId` - Filter by requester user ID
+- `clusterManagerId` - Filter by assigned cluster manager ID
+- `projectId` - Filter by project ID
+
+**Response:**
 ```json
 {
   "success": true,
   "data": {
     "swarms": [
       {
-        "id": "123e4567-e89b-12d3-a456-426614174000",
-        "name": "Urban Sensor Swarm",
+        "id": 1,
+        "name": "Urban Sensor Network",
         "status": "active",
         "devices": [
           {
-            "deviceId": "device-001",
+            "deviceId": 101,
             "role": "sensor",
             "status": "active"
           }
         ]
       }
     ],
-    "count": 1
+    "count": 1,
+    "userContext": {
+      "userId": 456,
+      "rol": "Leader"
+    }
   }
 }
 ```
 
-### GET /swarms/:id - Get specific swarm
+#### Update Swarm
 ```bash
-curl -X GET http://IP_SERVER:DESIGNED_PORT
-/swarms/123e4567-e89b-12d3-a456-426614174000
-```
-
-### PUT /swarms/:id - Update swarm
-```bash
-curl -X PUT http://IP_SERVER:DESIGNED_PORT
-/swarms/123e4567-e89b-12d3-a456-426614174000 \
+curl -X PUT http://localhost:3000/swarms/1 \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-jwt-token" \
   -d '{
-    "name": "Urban Sensor Swarm - Updated",
-    "description": "Updated description",
+    "name": "Urban Sensor Network - Updated",
+    "description": "Updated environmental monitoring",
     "maxDevices": 75
   }'
 ```
 
-### DELETE /swarms/:id - Delete swarm
-```bash
-curl -X DELETE http://IP_SERVER:DESIGNED_PORT
-/swarms/123e4567-e89b-12d3-a456-426614174000
-```
+### 2. State Management Workflow
 
-## 2. State Management
-
-### POST /swarms/:id/assign - Assign to cluster manager
+#### Assign Swarm to Cluster Manager
 ```bash
-curl -X POST http://IP_SERVER:DESIGNED_PORT
-/swarms/123e4567-e89b-12d3-a456-426614174000/assign \
+curl -X POST http://localhost:3000/swarms/1/assign \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-jwt-token" \
   -d '{
-    "clusterManagerId": "cluster-mgr-001"
+    "clusterManagerId": 789
   }'
 ```
 
-**Expected Response:**
-```json
-{
-  "success": true,
-  "message": "Swarm assigned successfully",
-  "data": {
-    "swarm": {
-      "id": "123e4567-e89b-12d3-a456-426614174000",
-      "status": "assigned",
-      "clusterManagerId": "cluster-mgr-001",
-      "assignedAt": "2025-07-14T20:35:00.000Z"
-    }
-  }
-}
-```
-
-### POST /swarms/:id/activate - Activate swarm
+#### Activate Swarm
 ```bash
-curl -X POST http://IP_SERVER:DESIGNED_PORT
-/swarms/123e4567-e89b-12d3-a456-426614174000/activate
+curl -X POST http://localhost:3000/swarms/1/activate \
+  -H "Authorization: Bearer your-jwt-token"
 ```
 
-### POST /swarms/:id/pause - Pause swarm
+#### Pause Swarm
 ```bash
-curl -X POST http://IP_SERVER:DESIGNED_PORT
-/swarms/123e4567-e89b-12d3-a456-426614174000/pause
+curl -X POST http://localhost:3000/swarms/1/pause \
+  -H "Authorization: Bearer your-jwt-token"
 ```
 
-### POST /swarms/:id/complete - Complete swarm
+### 3. Device Management
+
+#### Add Device to Swarm
 ```bash
-curl -X POST http://IP_SERVER:DESIGNED_PORT
-/swarms/123e4567-e89b-12d3-a456-426614174000/complete
-```
-
-### POST /swarms/:id/reject - Reject swarm
-```bash
-curl -X POST http://IP_SERVER:DESIGNED_PORT
-/swarms/123e4567-e89b-12d3-a456-426614174000/reject
-```
-
-## 3. Device Management
-
-### GET /swarms/:id/devices - Get swarm devices
-```bash
-curl -X GET http://IP_SERVER:DESIGNED_PORT
-/swarms/123e4567-e89b-12d3-a456-426614174000/devices
-```
-
-**Expected Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "swarm": {
-      "id": "123e4567-e89b-12d3-a456-426614174000",
-      "name": "Urban Sensor Swarm"
-    },
-    "devices": [
-      {
-        "deviceId": "device-001",
-        "role": "sensor",
-        "status": "active",
-        "assignedAt": "2025-07-14T20:30:00.000Z"
-      },
-      {
-        "deviceId": "device-002",
-        "role": "actuator",
-        "status": "active",
-        "assignedAt": "2025-07-14T20:31:00.000Z"
-      }
-    ],
-    "count": 2
-  }
-}
-```
-
-### POST /swarms/:id/devices - Add device to swarm
-```bash
-curl -X POST http://IP_SERVER:DESIGNED_PORT
-/swarms/123e4567-e89b-12d3-a456-426614174000/devices \
+curl -X POST http://localhost:3000/swarms/1/devices \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-jwt-token" \
   -d '{
-    "deviceId": "device-003",
-    "role": "sensor",
-    "assignedBy": "cluster-mgr-001"
+    "deviceId": 101,
+    "role": "sensor"
   }'
 ```
 
-**Expected Response:**
-```json
-{
-  "success": true,
-  "message": "Device added to swarm successfully",
-  "data": {
-    "swarmDevice": {
-      "swarmId": "123e4567-e89b-12d3-a456-426614174000",
-      "deviceId": "device-003",
-      "role": "sensor",
-      "assignedBy": "cluster-mgr-001",
-      "status": "assigned",
-      "assignedAt": "2025-07-14T20:40:00.000Z"
-    }
-  }
-}
-```
+**Available Device Roles:**
+- `sensor` - Data collection device
+- `actuator` - Control/action device  
+- `gateway` - Communication hub
+- `controller` - Processing unit
 
-### DELETE /swarms/:id/devices/:deviceId - Remove device
+#### Get Swarm Devices
 ```bash
-curl -X DELETE http://IP_SERVER:DESIGNED_PORT
-/swarms/123e4567-e89b-12d3-a456-426614174000/devices/device-003
+curl -X GET http://localhost:3000/swarms/1/devices \
+  -H "Authorization: Bearer your-jwt-token"
 ```
 
-## 4. Statistics
-
-### GET /swarms/:id/stats - Get swarm statistics
+#### Remove Device from Swarm
 ```bash
-curl -X GET http://IP_SERVER:DESIGNED_PORT
-/swarms/123e4567-e89b-12d3-a456-426614174000/stats
+curl -X DELETE http://localhost:3000/swarms/1/devices/101 \
+  -H "Authorization: Bearer your-jwt-token"
 ```
 
-**Expected Response:**
+### 4. Analytics & Statistics
+
+#### Get Swarm Statistics
+```bash
+curl -X GET http://localhost:3000/swarms/1/stats \
+  -H "Authorization: Bearer your-jwt-token"
+```
+
+**Response:**
 ```json
 {
   "success": true,
   "data": {
     "swarm": {
-      "id": "123e4567-e89b-12d3-a456-426614174000",
-      "name": "Urban Sensor Swarm",
+      "id": 1,
+      "name": "Urban Sensor Network",
       "status": "active",
       "maxDevices": 50
     },
@@ -247,63 +415,104 @@ curl -X GET http://IP_SERVER:DESIGNED_PORT
 }
 ```
 
-## Typical Usage Flow
+## Error Handling
 
-### 1. Create a swarm
-```bash
-curl -X POST http://IP_SERVER:DESIGNED_PORT
-/swarms \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "My First Swarm",
-    "description": "Test swarm",
-    "maxDevices": 10,
-    "requesterId": "user-123"
-  }'
+### HTTP Status Codes
+- `200` - Success
+- `201` - Created
+- `400` - Bad Request (validation error)
+- `401` - Unauthorized (invalid/missing token)
+- `403` - Forbidden (insufficient permissions)
+- `404` - Not Found
+- `409` - Conflict (duplicate resource)
+- `429` - Too Many Requests (rate limit exceeded)
+- `500` - Internal Server Error
+
+### Error Response Format
+```json
+{
+  "success": false,
+  "message": "Error description",
+  "errors": ["Detailed error messages"],
+  "timestamp": "2025-08-07T15:30:00.000Z"
+}
 ```
 
-### 2. Assign to cluster manager
-```bash
-curl -X POST http://IP_SERVER:DESIGNED_PORT
-/swarms/SWARM_ID/assign \
-  -H "Content-Type: application/json" \
-  -d '{"clusterManagerId": "cluster-mgr-001"}'
+### Common Error Examples
+
+#### Authentication Error
+```json
+{
+  "success": false,
+  "message": "Invalid or expired token",
+  "timestamp": "2025-08-07T15:30:00.000Z"
+}
 ```
 
-### 3. Activate the swarm
-```bash
-curl -X POST http://IP_SERVER:DESIGNED_PORT
-/swarms/SWARM_ID/activate
+#### Validation Error
+```json
+{
+  "success": false,
+  "message": "Name, maxDevices and projectId are required",
+  "timestamp": "2025-08-07T15:30:00.000Z"
+}
 ```
 
-### 4. Add devices
-```bash
-curl -X POST http://IP_SERVER:DESIGNED_PORT
-/swarms/SWARM_ID/devices \
-  -H "Content-Type: application/json" \
-  -d '{
-    "deviceId": "device-001",
-    "role": "sensor",
-    "assignedBy": "cluster-mgr-001"
-  }'
+#### Permission Error
+```json
+{
+  "success": false,
+  "message": "Insufficient permissions to assign swarms",
+  "timestamp": "2025-08-07T15:30:00.000Z"
+}
 ```
 
-### 5. Monitor statistics
-```bash
-curl -X GET http://IP_SERVER:DESIGNED_PORT
-/swarms/SWARM_ID/stats
+## Development
+
+### Project Structure
+```
+backend/
+├── swarms/                  # This service
+│   ├── src/
+│   │   ├── config/
+│   │   │   ├── cors.js
+│   │   │   ├── database.js
+│   │   │   └── environment.js
+│   │   ├── controllers/
+│   │   │   └── swarmController.js
+│   │   ├── middlewares/
+│   │   │   └── errorHandler.js
+│   │   ├── models/
+│   │   │   ├── index.js
+│   │   │   ├── Swarm.js
+│   │   │   └── SwarmDevice.js
+│   │   ├── routes/
+│   │   │   ├── index.js
+│   │   │   └── swarmsRoutes.js
+│   │   ├── services/
+│   │   │   └── databaseService.js
+│   │   ├── utils/
+│   │   │   ├── banner.js
+│   │   │   ├── logger.js
+│   │   │   └── responses.js
+│   │   └── app.js
+│   ├── server.js
+│   ├── package.json
+│   ├── package-lock.json
+│   └── README.md
+├── shared/                  # Shared middleware (same level)
+│   └── middleware-package/
+└── security/               # Auth service (same level)
+    └── ...
 ```
 
-## Common Error Codes
+### Scripts
+```bash
+# Development
+npm run dev          # Start with nodemon
+npm start            # Start production server
+npm test             # Run basic tests
+```
 
-- **400**: Invalid data or missing required information
-- **404**: Swarm or device not found
-- **409**: Conflict (e.g., device already assigned)
-- **500**: Internal server error
-
-## Important Notes
-
-- Replace `SWARM_ID` with the actual swarm ID
-- All UUIDs must be valid
-- The `requesterId` must exist in your system
-- States follow a flow: `requested` → `assigned` → `active` → `paused`/`completed`
+### API Documentation
+Visit http://localhost:3000/ for interactive API documentation.

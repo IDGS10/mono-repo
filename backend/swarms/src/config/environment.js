@@ -21,4 +21,5 @@ export const {
   SECURITY_URL,
   
   CORS_ORIGIN,
+  CORS_ORIGIN_DEV,
 } = process.env

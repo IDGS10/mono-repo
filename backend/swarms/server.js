@@ -9,25 +9,26 @@ const server = app.listen(PORT, () => {
   if (NODE_ENV === 'development') {
     Banner.showBanner()
     Banner.showServerInfo(PORT, NODE_ENV)
-    logger.info(`🚀 Server running on port ${PORT}`)
-    logger.info(`📍 Environment: ${NODE_ENV}`)
-    logger.info(`🔗 Health check: http://localhost:${PORT}/health`)
+    logger.info(`Server running on port ${PORT}`)
+    logger.info(`Environment: ${NODE_ENV}`)
+    logger.info(`Health check: http://localhost:${PORT}/health`)
+    logger.info(`Protected routes: http://localhost:${PORT}/swarms (requires auth)`)
   }
 })
 
 // Graceful shutdown
 const gracefulShutdown = async (signal) => {
-  logger.info(`📡 Received ${signal}. Starting graceful shutdown...`)
+  logger.info(`Received ${signal}. Starting graceful shutdown...`)
 
   server.close(async () => {
-    logger.info('🔒 HTTP server closed')
+    logger.info('HTTP server closed')
 
     try {
       await DatabaseService.disconnect()
-      logger.info('👋 Graceful shutdown completed')
+      logger.info('Graceful shutdown completed')
       process.exit(0)
     } catch (error) {
-      logger.error('❌ Error during shutdown:', error)
+      logger.error('Error during shutdown:', error)
       process.exit(1)
     }
   })
@@ -38,7 +39,7 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'))
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
-  logger.error('🚨 Unhandled Rejection at:', promise, 'reason:', reason)
+  logger.error('Unhandled Rejection at:', promise, 'reason:', reason)
   process.exit(1)
 })
 
