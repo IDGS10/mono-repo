@@ -1,77 +1,88 @@
-# MQTT → Kafka → InfluxDB Integration System
+##  Device Manager API
+A RESTful API for managing IoT or networked devices — built with Node.js, Express, and PostgreSQL. It supports full CRUD operations for devices, organized by a clean architecture: controllers, services, and routing.
 
-## Description
+##  Features
+ GET /devices – Fetch all devices
 
-This system integrates messages coming from an MQTT broker, processes them through specific handlers, and publishes them to Kafka for further consumption and storage in InfluxDB for real-time analysis and monitoring.
+ GET /devices/:id – Fetch a single device
 
----
+ POST /devices – Register a new device
 
-## General Architecture
+ PUT /devices/:id – Update an existing device
 
-device-manager/
-└── src/
-    ├── config/          # Configuration files (env loaders, constants)
-    ├── influx/          # Kafka consumer → InfluxDB writer logic
-    ├── kafka/           # Kafka producer, topics config, Kafka clients
-    ├── mqtt/            # MQTT service and handler manager
-    ├── node_modules/    # Node dependencies (auto-managed)
-    ├── ota/             # OTA update logic or modules (optional)
-    ├── utils/           # Helper functions and shared utilities
-    ├── .env             # Environment variable definitions
-    ├── package.json     # Project metadata and dependencies
-    └── package-lock.json# Lock file for dependency versions
+ (DELETE not yet implemented — you rebel, feel free to add it)
 
----
+##  API Endpoints
+GET /api/devices
+Returns all devices.
 
-## Main Components
+GET /api/devices/:id
+Returns a specific device by ID.
 
-### 1. MQTT Service (`MqttService`)
+POST /api/devices
+Registers a new device. Requires full device payload.
 
-- Connects and maintains the session with the MQTT broker.
-- Subscribes to global MQTT topics (`/#`) to receive messages.
-- Uses a `HandlerManager` to delegate message processing based on the topic.
-- Implements reconnection logic with a retry limit.
-- Handles connection events and errors.
+PUT /api/devices/:id
+Updates a device.
 
-### 2. Handler Manager (`HandlerManager`)
+##  Powered by
+Express.js – Web framework
 
-- Dynamically loads handlers from `.ts`/`.js` files in structured folders.
-- Each handler is associated with a specific topic (based on path and filename).
-- Supports MQTT patterns (`+`, `#`) for flexible matching.
-- Processes messages and calls the corresponding handler.
-- Allows adding metadata for documentation and control.
+PostgreSQL – Relational database
 
-### 3. Kafka Producer (`KafkaProducerService`)
+pg – Node.js PostgreSQL client
 
-- Singleton pattern to maintain a single Kafka producer instance.
-- Configurable via environment variables (`KAFKA_CLIENT_ID`, `KAFKA_BROKERS`).
-- Automatically enriches messages with metadata (timestamp, ID, source).
-- Supports retries and handles connection/disconnection events.
-- Exposes asynchronous methods for connection and sending.
+dotenv – Environment variable management
 
-### 4. Specific Handlers
+## How it Works
 
-- Example: A handler that receives MQTT messages, parses and enriches them, and sends them to Kafka using topics based on the original MQTT topic.
-- Allows flexibility for other flows or processing needs.
+### Request Flow
+Client → API Route
 
-### 5. Kafka Consumer for InfluxDB
+The request starts when a client sends an HTTP request to a route (e.g., GET /api/devices).
 
-- Subscribes to Kafka topics configured in `ALLOWED_TOPICS`.
-- Processes each message, extracts data, and writes points to InfluxDB.
-- Uses the official `@influxdata/influxdb-client` library.
-- Handles disconnection and graceful shutdown.
+API Route → Controller
 
----
+The routes/deviceRoutes.js maps the URL to a controller function.
 
-## Environment Variables
+#### Example:
+ router.get('/devices', deviceController.getDevices);
 
-```env
-MQTT_BROKER_URL=mqtts://l46d1e5e.ala.us-east-1.emqxsl.com:8883
-MQTT_USERNAME=big-data-001
-MQTT_PASSWORD=1Q2W3E4R5T6Y
-KAFKA_CLIENT_ID=mqtt-to-kafka-bridge
-KAFKA_BROKERS=localhost:9092
-INFLUX_URL=https://172.20.10.4:8086
-INFLUX_ORG=my-org
-INFLUX_BUCKET=iot-bucket
-ALLOWED_TOPICS=IDGS10-Pruebas-Sensores
+### Controller → Service
+
+The controller receives the request and delegates the logic to the appropriate service.
+
+#### Example: 
+const devices = await deviceService.getAllDevices();
+res.json(devices);
+
+### Service → (Model/DB/Logic)
+
+Services contain business logic and, if used, DB access through models.
+
+### Response → Client
+
+The data is returned back to the controller, which formats the response (usually JSON), and sends it back to the client.
+
+
+## Practical Example
+
+###  Example Request
+
+#### Paste in terminal:
+curl http://localhost:5056/api/devices
+
+
+#### Returns: 
+
+[
+  {
+    "id": 1,
+    "name": "Device 1",
+    "description": "Mi primer dispositivo"
+  }
+]
+7
+
+## 👨‍💻 Author
+Built by the Devices Team
