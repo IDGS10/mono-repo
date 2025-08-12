@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  mqtt-client:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5057:5057" 
+    networks:
+      - kafka_default
+
+networks:
+  kafka_default:
+    external: true

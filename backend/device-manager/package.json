@@ -1,0 +1,27 @@
+{
+  "name": "device-manager",
+  "version": "1.0.0",
+  "description": "This system integrates messages coming from an MQTT broker, processes them through specific handlers, and publishes them to Kafka for further consumption and storage in InfluxDB for real-time analysis and monitoring.",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev:multi": "concurrently \"node server.js\" \"npx ts-node --esm src/mqtt/client.ts\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "concurrently": "^9.2.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.0",
+    "express": "^5.1.0",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.14",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
+  }
+}
