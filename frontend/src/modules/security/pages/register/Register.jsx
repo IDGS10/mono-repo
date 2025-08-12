@@ -105,13 +105,7 @@ export default function Register() {
       }
     }
 
-    // ID Number validation (optional but if provided, validate format)
-    if (registrationData.idNumber && registrationData.idNumber.trim()) {
-      const cleanIdNumber = registrationData.idNumber.replace(/\D/g, '');
-      if (cleanIdNumber.length < 6 || cleanIdNumber.length > 20) {
-        errors.idNumber = `Número de identificación debe tener entre 6 y 20 dígitos (actualmente tiene ${cleanIdNumber.length})`;
-      }
-    }
+    
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -225,51 +219,50 @@ export default function Register() {
   };
 
   return (
-    <AuthLayout className="bg-gray-50">
-      <div className="min-h-screen py-8 px-4">
-        <div className="max-w-2xl mx-auto">
-          <div className="text-center mb-8">
-            <div
-              className="inline-flex p-4 rounded-full mb-4"
-              style={{ backgroundColor: "#f0f8f7" }}
-            >
-              <FaUser className="w-8 h-8" style={{ color: "#54a8a0" }} />
-            </div>
-            <h2 className="text-3xl font-bold" style={{ color: "#3e5866" }}>
-              Registro de Usuario
-            </h2>
-            <p className="text-gray-600 mt-2">
-              Complete sus datos personales para crear su cuenta
-            </p>
-          </div>
+<AuthLayout className="bg-[#eaf9df]">
+  <div className="min-h-screen bg-gradient-to-br from-[#cbe552] to-[#edf7f5] py-8 px-4">
+    <div className="max-w-2xl mx-auto">
+      <div className="text-center mb-8">
+        <div
+          className="inline-flex p-4 rounded-full mb-4"
+          style={{ backgroundColor: "#3e5586" }}
+        >
+          <FaUser className="w-8 h-8 text-white" />
+        </div>
+        <h2 className="text-3xl font-bold text-[#3e5586]">Registro de Usuario</h2>
+        <p className="text-[#607123] mt-2">
+          Complete sus datos personales para crear su cuenta
+        </p>
+      </div>
 
-          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Nombre */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nombre <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative flex items-center">
-                    <input
-                      type="text"
-                      value={registrationData.firstName}
-                      onChange={(e) =>
-                        handleInputChange("firstName", e.target.value)
-                      }
-                      onBlur={() =>
-                        setTouched((prev) => ({ ...prev, firstName: true }))
-                      }
-                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${formErrors.firstName
-                        ? "border-red-500 bg-red-50"
-                        : touched.firstName &&
-                          registrationData.firstName &&
-                          !formErrors.firstName
-                          ? "border-green-400 bg-green-50"
-                          : "border-gray-300 hover:border-gray-400"
-                        }`}
-                      placeholder="Juan"
+      <div className="bg-white rounded-2xl shadow-xl border border-[#95b54c] p-8">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Nombre */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Nombre <span className="text-red-500">*</span>
+              </label>
+              <div className="relative flex items-center">
+                <input
+                  type="text"
+                  value={registrationData.firstName}
+                  onChange={(e) =>
+                    handleInputChange("firstName", e.target.value)
+                  }
+                  onBlur={() =>
+                    setTouched((prev) => ({ ...prev, firstName: true }))
+                  }
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 hover:border-[#95b54c] focus:border-transparent transition-colors ${
+                    formErrors.firstName
+                      ? "border-red-500 bg-red-50"
+                      : touched.firstName &&
+                        registrationData.firstName &&
+                        !formErrors.firstName
+                      ? "border-green-400 bg-green-50"
+                      : "border-gray-300 hover:border-[#95b54c]"
+                  }`}
+                  placeholder="Juan"
                       ref={
                         formErrors.firstName && !firstInvalidRef.current
                           ? firstInvalidRef
@@ -300,14 +293,15 @@ export default function Register() {
                       onBlur={() =>
                         setTouched((prev) => ({ ...prev, lastName: true }))
                       }
-                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${formErrors.lastName
-                        ? "border-red-500 bg-red-50"
-                        : touched.lastName &&
-                          registrationData.lastName &&
-                          !formErrors.lastName
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 hover:border-[#95b54c] focus:border-transparent transition-colors ${
+                        formErrors.lastName
+                          ? "border-red-500 bg-red-50"
+                          : touched.lastName &&
+                            registrationData.lastName &&
+                            !formErrors.lastName
                           ? "border-green-400 bg-green-50"
-                          : "border-gray-300 hover:border-gray-400"
-                        }`}
+                          : "border-gray-300 hover:border-[#95b54c]"
+                      }`}
                       placeholder="Pérez"
                       ref={
                         formErrors.lastName && !firstInvalidRef.current
@@ -339,14 +333,15 @@ export default function Register() {
                     onBlur={() =>
                       setTouched((prev) => ({ ...prev, email: true }))
                     }
-                    className={`pl-10 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${formErrors.email
-                      ? "border-red-500 bg-red-50"
-                      : touched.email &&
-                        registrationData.email &&
-                        !formErrors.email
+                    className={`pl-10 w-full px-4 py-3 border rounded-lg focus:ring-2 hover:border-[#95b54c] focus:border-transparent transition-colors ${
+                      formErrors.email
+                        ? "border-red-500 bg-red-50"
+                        : touched.email &&
+                          registrationData.email &&
+                          !formErrors.email
                         ? "border-green-400 bg-green-50"
-                        : "border-gray-300 hover:border-gray-400"
-                      }`}
+                        : "border-gray-300 hover:border-[#95b54c]"
+                    }`}
                     placeholder="juan.perez@ejemplo.com"
                     ref={
                       formErrors.email && !firstInvalidRef.current
@@ -386,14 +381,15 @@ export default function Register() {
                       onBlur={() =>
                         setTouched((prev) => ({ ...prev, password: true }))
                       }
-                      className={`pl-10 pr-10 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${formErrors.password
-                        ? "border-red-500 bg-red-50"
-                        : touched.password &&
-                          registrationData.password &&
-                          !formErrors.password
+                      className={`pl-10 pr-10 w-full px-4 py-3 border rounded-lg focus:ring-2 hover:border-[#95b54c] focus:border-transparent transition-colors ${
+                        formErrors.password
+                          ? "border-red-500 bg-red-50"
+                          : touched.password &&
+                            registrationData.password &&
+                            !formErrors.password
                           ? "border-green-400 bg-green-50"
-                          : "border-gray-300 hover:border-gray-400"
-                        }`}
+                          : "border-gray-300 hover:border-[#95b54c]"
+                      }`}
                       placeholder="••••••••"
                       ref={
                         formErrors.password && !firstInvalidRef.current
@@ -468,14 +464,15 @@ export default function Register() {
                           confirmPassword: true,
                         }))
                       }
-                      className={`pl-10 pr-10 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${formErrors.confirmPassword
-                        ? "border-red-500 bg-red-50"
-                        : touched.confirmPassword &&
-                          registrationData.confirmPassword &&
-                          !formErrors.confirmPassword
+                      className={`pl-10 pr-10 w-full px-4 py-3 border rounded-lg focus:ring-2 hover:border-[#95b54c] focus:border-transparent transition-colors ${
+                        formErrors.confirmPassword
+                          ? "border-red-500 bg-red-50"
+                          : touched.confirmPassword &&
+                            registrationData.confirmPassword &&
+                            !formErrors.confirmPassword
                           ? "border-green-400 bg-green-50"
-                          : "border-gray-300 hover:border-gray-400"
-                        }`}
+                          : "border-gray-300 hover:border-[#95b54c]"
+                      }`}
                       placeholder="••••••••"
                       ref={
                         formErrors.confirmPassword && !firstInvalidRef.current
@@ -523,14 +520,15 @@ export default function Register() {
                       onBlur={() =>
                         setTouched((prev) => ({ ...prev, phone: true }))
                       }
-                      className={`pl-10 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${formErrors.phone
-                        ? "border-red-500 bg-red-50"
-                        : touched.phone &&
-                          registrationData.phone &&
-                          !formErrors.phone
+                      className={`pl-10 w-full px-4 py-3 border rounded-lg focus:ring-2 hover:border-[#95b54c] focus:border-transparent transition-colors ${
+                        formErrors.phone
+                          ? "border-red-500 bg-red-50"
+                          : touched.phone &&
+                            registrationData.phone &&
+                            !formErrors.phone
                           ? "border-green-400 bg-green-50"
-                          : "border-gray-300 hover:border-gray-400"
-                        }`}
+                          : "border-gray-300 hover:border-[#95b54c]"
+                      }`}
                       placeholder="3001234567"
                       ref={
                         formErrors.phone && !firstInvalidRef.current
@@ -550,57 +548,14 @@ export default function Register() {
                     </p>
                   )}
                 </div>
-
-                {/* Cédula */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Número de Identificación{" "}
-                    <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative flex items-center">
-                    <FaIdCard className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                    <input
-                      type="text"
-                      value={registrationData.idNumber}
-                      onChange={(e) =>
-                        handleInputChange("idNumber", e.target.value)
-                      }
-                      onBlur={() =>
-                        setTouched((prev) => ({ ...prev, idNumber: true }))
-                      }
-                      className={`pl-10 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${formErrors.idNumber
-                        ? "border-red-500 bg-red-50"
-                        : touched.idNumber &&
-                          registrationData.idNumber &&
-                          !formErrors.idNumber
-                          ? "border-green-400 bg-green-50"
-                          : "border-gray-300 hover:border-gray-400"
-                        }`}
-                      placeholder="12345678"
-                      ref={
-                        formErrors.idNumber && !firstInvalidRef.current
-                          ? firstInvalidRef
-                          : undefined
-                      }
-                    />
-                    {getValidationIcon("idNumber")}
-                  </div>
-                  {formErrors.idNumber && (
-                    <p
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="text-red-500 text-sm mt-1"
-                    >
-                      {formErrors.idNumber}
-                    </p>
-                  )}
-                </div>
               </div>
 
               {/* Botón de envío */}
               <div className="flex flex-col sm:flex-row gap-4 pt-6">
                 {/* Botón principal de registro (profesional y consistente) */}
-                <button className="bg-blue-600/90 text-white font-semibold rounded-2xl shadow-md hover:bg-blue-700 transition-all duration-200 px-8 py-4 flex items-center justify-center space-x-3 w-full disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-4 focus:ring-blue-200">
+                <button
+  className="bg-[#3e5586] text-white font-semibold rounded-2xl shadow-md hover:bg-[#5da8a0] transition-all duration-200 px-8 py-4 flex items-center justify-center space-x-3 w-full disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-4 focus:ring-[#5da8a0]"
+>
                   {isLoading ? (
                     <>
                       <FaSpinner className="w-5 h-5 animate-spin" />
@@ -620,14 +575,14 @@ export default function Register() {
                   Al registrarse, acepta nuestros{" "}
                   <button
                     type="button"
-                    className="text-blue-600 hover:text-blue-800 underline"
+                    className="text-[#3e5586] hover:text-[#607123] underline"
                   >
                     Términos y Condiciones
                   </button>{" "}
                   y{" "}
                   <button
                     type="button"
-                    className="text-blue-600 hover:text-blue-800 underline"
+                    className="text-[#3e5586] hover:text-[#607123] underline"
                   >
                     Política de Privacidad
                   </button>
