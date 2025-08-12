@@ -1,25 +1,31 @@
-const nodemailer = require('nodemailer');
-const config = require('../config/config');
+const nodemailer = require("nodemailer");
+const config = require("../config/config");
 
 class EmailService {
-  
   constructor() {
-
-
     this.transporter = nodemailer.createTransport({
       host: config.email.host,
       port: config.email.port,
       secure: config.email.port === 465,
       auth: {
         user: config.email.user,
-        pass: config.email.password
-      }
+        pass: config.email.password,
+      },
     });
   }
 
-  async sendInvitation({ to, invitedName, organizationName, invitationToken, inviterName }) {
-    const invitationUrl = `${config.invitation.baseUrl}/invitations/accept/${invitationToken}`;
-    
+  async sendInvitation({
+    to,
+    invitedName,
+    organizationName,
+    invitationToken,
+    inviterName,
+  }) {
+    const invitationUrl = new URL(
+      `/organizations/components/acceptinvitation/${invitationToken}`,
+      config.invitation.baseUrl
+    ).toString();
+
     const mailOptions = {
       from: config.email.from,
       to,
@@ -53,23 +59,29 @@ class EmailService {
           
           
         </div>
-      `
+      `,
     };
 
     try {
       const result = await this.transporter.sendMail(mailOptions);
-      console.log('Email de invitación enviado:', result.messageId);
+      console.log("Email de invitación enviado:", result.messageId);
       return result;
     } catch (error) {
-      console.error('Error enviando email de invitación:', error);
+      console.error("Error enviando email de invitación:", error);
       throw error;
     }
   }
 
-  async sendProjectNotification({ to, organizationName, projectName, status, reviewNotes }) {
-    const statusText = status === 'approved' ? 'aprobado' : 'rechazado';
-    const statusColor = status === 'approved' ? '#28a745' : '#dc3545';
-    
+  async sendProjectNotification({
+    to,
+    organizationName,
+    projectName,
+    status,
+    reviewNotes,
+  }) {
+    const statusText = status === "approved" ? "aprobado" : "rechazado";
+    const statusColor = status === "approved" ? "#28a745" : "#dc3545";
+
     const mailOptions = {
       from: config.email.from,
       to,
@@ -84,27 +96,31 @@ class EmailService {
             <p><strong>Estado:</strong> <span style="color: ${statusColor};">${statusText.toUpperCase()}</span></p>
           </div>
           
-          ${reviewNotes ? `
+          ${
+            reviewNotes
+              ? `
             <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0;">
               <p><strong>Comentarios:</strong></p>
               <p>${reviewNotes}</p>
             </div>
-          ` : ''}
+          `
+              : ""
+          }
           
           <p>Puedes ver más detalles en tu dashboard de proyectos.</p>
           
           <hr style="margin: 30px 0;">
           <p><small>Este es un correo automático del sistema de Ecosistema IoT para Monitoreo Ambiental.</small></p>
         </div>
-      `
+      `,
     };
 
     try {
       const result = await this.transporter.sendMail(mailOptions);
-      console.log('Email de notificación enviado:', result.messageId);
+      console.log("Email de notificación enviado:", result.messageId);
       return result;
     } catch (error) {
-      console.error('Error enviando email de notificación:', error);
+      console.error("Error enviando email de notificación:", error);
       throw error;
     }
   }
