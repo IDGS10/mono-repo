@@ -1,0 +1,16 @@
+{
+  "name": "iotdevicescripts",
+  "version": "1.0.0",
+  "main": "IoTESP.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "description": "",
+  "dependencies": {
+    "@influxdata/influxdb-client": "^1.35.0"
+  }
+}
