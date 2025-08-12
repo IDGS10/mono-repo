@@ -553,6 +553,8 @@ const PendingOrganization = () => {
         </div>
       </div>
 
+     //this work was made for Moon
+     
       <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
