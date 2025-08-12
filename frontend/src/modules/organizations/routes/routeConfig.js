@@ -3,6 +3,8 @@ import { lazy } from 'react';
 
 // Lazy loading de componentes
 const Dashboard = lazy(() => import('../pages/Dashboard.jsx'));
+const CreateOrganization = lazy(() => import('../pages/CreateOrganization.jsx'));
+const EditOrganization = lazy(() => import('../pages/EditOrganization.jsx'));
 const OrganizationList = lazy(() => import('../pages/OrganizationList.jsx'));
 const OrganizationDetail = lazy(() => import('../pages/OrganizationDetail.jsx'));
 const Members = lazy(() => import('../pages/Members.jsx'));
@@ -26,6 +28,22 @@ export const ROUTE_DEFINITIONS = [
     isDefault: true,
     requiresAuth: true,
     permissions: ['organizations.read']
+  },
+  {
+    path: '/create',
+    component: CreateOrganization,
+    name: 'Create Organization',
+    showInMenu: false, // No mostrar en menú - es una acción
+    requiresAuth: true,
+    permissions: ['organizations.create', 'organizations.owner']
+  },
+  {
+    path: '/:id/edit',
+    component: EditOrganization,
+    name: 'Edit Organization',
+    showInMenu: false, // No mostrar en menú - es una acción
+    requiresAuth: true,
+    permissions: ['organizations.update', 'organizations.owner']
   },
   {
     path: '/list',

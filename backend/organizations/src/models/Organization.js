@@ -21,11 +21,16 @@ class Organization {
       RETURNING *
     `;
 
-    const values = [
-      name, description, organization_type_id, organization_email,
-      phone_number, logo_url, owner_id, created_by_id
-    ];
-
+const values = [
+  name, 
+  description, 
+  organization_type_id, 
+  organization_email,
+  phone_number, 
+  logo_url || null, 
+  owner_id, 
+  created_by_id
+];
     const result = await db.query(query, values);
     return result.rows[0];
   }
@@ -65,41 +70,44 @@ class Organization {
     return result.rows[0];
   }
 
-  static async update(id, data, modifiedById) {
-    const fields = [];
-    const values = [];
-    let valueIndex = 1;
+static async update(id, data, modifiedById) {
+  const fields = [];
+  const values = [];
+  let valueIndex = 1;
 
-    Object.keys(data).forEach(key => {
-      if (data[key] !== undefined) {
-        fields.push(`${key} = $${valueIndex}`);
-        values.push(data[key]);
-        valueIndex++;
+  Object.keys(data).forEach(key => {
+    if (data[key] !== undefined) {
+      let value = data[key];
+      if (key === 'logo_url' && value === '') {
+        value = null;
       }
-    });
-
-    if (fields.length === 0) {
-      throw new Error('No hay campos para actualizar');
+      
+      fields.push(`${key} = $${valueIndex}`);
+      values.push(value);
+      valueIndex++;
     }
+  });
 
-    fields.push(`modified_by_id = $${valueIndex}`);
-    values.push(modifiedById);
-    valueIndex++;
-
-    fields.push(`update_at = CURRENT_TIMESTAMP`);
-
-    values.push(id);
-
-    const query = `
-      UPDATE organizations 
-      SET ${fields.join(', ')}
-      WHERE id_organization = $${valueIndex}
-      RETURNING *
-    `;
-
-    const result = await db.query(query, values);
-    return result.rows[0];
+  if (fields.length === 0) {
+    throw new Error('No hay campos para actualizar');
   }
+
+  fields.push(`modified_by_id = $${valueIndex}`);
+  values.push(modifiedById);
+  valueIndex++;
+
+  values.push(id);
+
+  const query = `
+    UPDATE organizations 
+    SET ${fields.join(', ')}, update_at = CURRENT_TIMESTAMP
+    WHERE id_organization = $${valueIndex}
+    RETURNING *
+  `;
+
+  const result = await db.query(query, values);
+  return result.rows[0];
+}
 
   static async updateStatus(id, isActive, modifiedById) {
     const query = `
