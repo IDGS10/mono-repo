@@ -21,8 +21,9 @@ const orderOptions = [
 
 const API_BASE = "http://localhost:5052";
 
+// Solo traer swarms con status 'assigned'
 const fetchSwarms = async () => {
-  const res = await fetch(`${API_BASE}/swarms`);
+  const res = await fetch(`${API_BASE}/swarms?status=assigned`);
   if (!res.ok) throw new Error("Error al obtener swarms");
   const json = await res.json();
   return (
@@ -241,7 +242,7 @@ export default function MySwarmCatalog() {
         {filteredSwarms.map((swarm) => (
           <div
             key={swarm.id}
-            className="relative bg-white dark:bg-gray-800 rounded-lg shadow-sm p-5 flex flex-col gap-2 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-gray-900/20 transition-shadow"
+            className="relative bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 flex flex-col gap-2 transition-shadow"
           >
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
