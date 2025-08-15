@@ -17,9 +17,10 @@ RESTful API for managing IoT device swarms with authentication, role-based acces
 ## Features
 
 ### Core Functionality
-- ✅ **Swarm Management** - Create, update, delete, and monitor IoT swarms
-- ✅ **Device Assignment** - Assign/remove devices to/from swarms
+- ✅ **Swarm Management** - Create, update, delete, and monitor IoT device swarms
+- ✅ **Device Management** - Direct device registration and assignment to swarms
 - ✅ **State Management** - Request → Assign → Activate → Pause/Complete workflow
+- ✅ **Real-time Monitoring** - Device online/offline status and battery tracking
 - ✅ **Statistics** - Real-time swarm and device analytics
 - ✅ **Role-based Access Control** - Owner, Leader, User permissions
 
@@ -62,44 +63,52 @@ RESTful API for managing IoT device swarms with authentication, role-based acces
 
 ## Database Schema
 
-### Swarms Table
+### Device Swarms Table
 ```sql
-CREATE TABLE swarms (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    description TEXT,
-    max_devices INTEGER NOT NULL CHECK (max_devices > 0 AND max_devices <= 1000),
-    requester_id INTEGER NOT NULL,
-    project_id INTEGER NULL,
-    cluster_manager_id INTEGER NULL,
-    status VARCHAR(20) DEFAULT 'requested' CHECK (status IN ('requested', 'assigned', 'active', 'paused', 'completed', 'rejected')),
-    created_at TIMESTAMP DEFAULT NOW(),
-    assigned_at TIMESTAMP NULL,
-    activated_at TIMESTAMP NULL,
-    completed_at TIMESTAMP NULL,
-    updated_at TIMESTAMP DEFAULT NOW(),
-    last_activity TIMESTAMP NULL
+CREATE TABLE device_swarms (
+    swarm_id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    swarm_name varchar(100),
+    description text,
+    max_devices integer,
+    requester_id integer,
+    project_id integer,
+    cluster_manager_id integer,
+    status varchar(20) DEFAULT 'requested',
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    assigned_at timestamp without time zone,
+    activated_at timestamp without time zone,
+    completed_at timestamp without time zone,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    last_activity timestamp without time zone,
+    location varchar(200),
+    is_active boolean DEFAULT true
 );
 ```
 
-### Swarm Devices Table
+### ESP32 Devices Table
 ```sql
-CREATE TABLE swarm_devices (
-    swarm_id INTEGER REFERENCES swarms(id) ON DELETE CASCADE,
-    device_id INTEGER NOT NULL,
-    role VARCHAR(50) DEFAULT 'sensor',
-    assigned_at TIMESTAMP DEFAULT NOW(),
-    assigned_by INTEGER NOT NULL,
-    removed_at TIMESTAMP NULL,
-    status VARCHAR(20) DEFAULT 'assigned' CHECK (status IN ('assigned', 'active', 'inactive', 'removed')),
-    PRIMARY KEY (swarm_id, device_id)
+CREATE TABLE esp32_devices (
+    device_id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    swarm_id uuid REFERENCES device_swarms(swarm_id),
+    device_name varchar(100),
+    mac_address varchar(17),
+    firmware_version varchar(50),
+    last_ip_address inet,
+    device_type varchar(50) DEFAULT 'ESP32',
+    location varchar(200),
+    installation_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    last_seen timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    is_online boolean DEFAULT false,
+    battery_level numeric(5,2),
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
 ### Status Flow
 ```
 Swarm Status: requested → assigned → active → paused/completed/rejected
-Device Status: assigned → active → inactive → removed
+Device Status: Directly managed (online/offline, assigned to swarm or not)
 ```
 
 ## Environment Variables
@@ -140,7 +149,7 @@ Configure your `.env` file based on your environment needs. All sensitive data s
 
 ### Prerequisites
 - Node.js 18+
-- PostgreSQL 12+
+- PostgreSQL 12+ with UUID extension
 - Shared middleware with dependencies installed (`npm ci` in shared middleware directory)
 
 ### Setup
@@ -152,7 +161,8 @@ cd backend/swarms
 # Install dependencies
 npm ci
 
-# Database is already created and configured
+# Enable UUID extension in PostgreSQL
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 # Configure environment
 touch .env
@@ -209,8 +219,8 @@ Use the token obtained when logging into the system. This token will be automati
 | POST | `/swarms/:id/reject` | Reject swarm | Owner, Leader |
 | **Device Management** |
 | GET | `/swarms/:id/devices` | Get swarm devices | All |
-| POST | `/swarms/:id/devices` | Add device to swarm | All |
-| DELETE | `/swarms/:id/devices/:deviceId` | Remove device | All |
+| POST | `/swarms/:id/devices` | Assign existing device to swarm | All |
+| DELETE | `/swarms/:id/devices/:deviceId` | Remove device from swarm | All |
 | **Analytics** |
 | GET | `/swarms/:id/stats` | Get swarm statistics | All |
 
@@ -227,7 +237,8 @@ curl -X POST http://localhost:3000/swarms \
     "name": "Urban Sensor Network",
     "description": "Environmental monitoring downtown",
     "maxDevices": 50,
-    "projectId": 123
+    "projectId": 123,
+    "location": "Downtown Area"
   }'
 ```
 
@@ -238,13 +249,15 @@ curl -X POST http://localhost:3000/swarms \
   "message": "Swarm created successfully",
   "data": {
     "swarm": {
-      "id": 1,
-      "name": "Urban Sensor Network",
+      "swarmId": "550e8400-e29b-41d4-a716-446655440000",
+      "swarmName": "Urban Sensor Network",
       "description": "Environmental monitoring downtown",
       "maxDevices": 50,
       "requesterId": 456,
       "projectId": 123,
+      "location": "Downtown Area",
       "status": "requested",
+      "isActive": true,
       "createdAt": "2025-08-07T15:30:00.000Z"
     }
   }
@@ -261,16 +274,8 @@ curl -X GET http://localhost:3000/swarms \
 curl -X GET "http://localhost:3000/swarms?status=active" \
   -H "Authorization: Bearer your-jwt-token"
 
-# Filter by requester
-curl -X GET "http://localhost:3000/swarms?requesterId=456" \
-  -H "Authorization: Bearer your-jwt-token"
-
-# Filter by project
-curl -X GET "http://localhost:3000/swarms?projectId=123" \
-  -H "Authorization: Bearer your-jwt-token"
-
-# Filter by cluster manager
-curl -X GET "http://localhost:3000/swarms?clusterManagerId=789" \
+# Filter by location
+curl -X GET "http://localhost:3000/swarms?location=downtown" \
   -H "Authorization: Bearer your-jwt-token"
 
 # Multiple filters
@@ -283,6 +288,7 @@ curl -X GET "http://localhost:3000/swarms?status=active&projectId=123" \
 - `requesterId` - Filter by requester user ID
 - `clusterManagerId` - Filter by assigned cluster manager ID
 - `projectId` - Filter by project ID
+- `location` - Filter by location (partial match)
 
 **Response:**
 ```json
@@ -291,14 +297,17 @@ curl -X GET "http://localhost:3000/swarms?status=active&projectId=123" \
   "data": {
     "swarms": [
       {
-        "id": 1,
-        "name": "Urban Sensor Network",
+        "swarmId": "550e8400-e29b-41d4-a716-446655440000",
+        "swarmName": "Urban Sensor Network",
         "status": "active",
+        "location": "Downtown Area",
         "devices": [
           {
-            "deviceId": 101,
-            "role": "sensor",
-            "status": "active"
+            "deviceId": "660e8400-e29b-41d4-a716-446655440001",
+            "deviceName": "Temperature Sensor 01",
+            "deviceType": "ESP32",
+            "isOnline": true,
+            "batteryLevel": 85.5
           }
         ]
       }
@@ -314,13 +323,14 @@ curl -X GET "http://localhost:3000/swarms?status=active&projectId=123" \
 
 #### Update Swarm
 ```bash
-curl -X PUT http://localhost:3000/swarms/1 \
+curl -X PUT http://localhost:3000/swarms/550e8400-e29b-41d4-a716-446655440000 \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer your-jwt-token" \
   -d '{
     "name": "Urban Sensor Network - Updated",
     "description": "Updated environmental monitoring",
-    "maxDevices": 75
+    "maxDevices": 75,
+    "location": "Extended Downtown Area"
   }'
 ```
 
@@ -328,7 +338,7 @@ curl -X PUT http://localhost:3000/swarms/1 \
 
 #### Assign Swarm to Cluster Manager
 ```bash
-curl -X POST http://localhost:3000/swarms/1/assign \
+curl -X POST http://localhost:3000/swarms/550e8400-e29b-41d4-a716-446655440000/assign \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer your-jwt-token" \
   -d '{
@@ -338,52 +348,51 @@ curl -X POST http://localhost:3000/swarms/1/assign \
 
 #### Activate Swarm
 ```bash
-curl -X POST http://localhost:3000/swarms/1/activate \
+curl -X POST http://localhost:3000/swarms/550e8400-e29b-41d4-a716-446655440000/activate \
   -H "Authorization: Bearer your-jwt-token"
 ```
 
 #### Pause Swarm
 ```bash
-curl -X POST http://localhost:3000/swarms/1/pause \
+curl -X POST http://localhost:3000/swarms/550e8400-e29b-41d4-a716-446655440000/pause \
   -H "Authorization: Bearer your-jwt-token"
 ```
 
 ### 3. Device Management
 
-#### Add Device to Swarm
+#### Assign Existing Device to Swarm
 ```bash
-curl -X POST http://localhost:3000/swarms/1/devices \
+curl -X POST http://localhost:3000/swarms/550e8400-e29b-41d4-a716-446655440000/devices \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer your-jwt-token" \
   -d '{
-    "deviceId": 101,
-    "role": "sensor"
+    "deviceId": "660e8400-e29b-41d4-a716-446655440001"
   }'
 ```
 
-**Available Device Roles:**
-- `sensor` - Data collection device
-- `actuator` - Control/action device  
-- `gateway` - Communication hub
-- `controller` - Processing unit
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Device added to swarm successfully",
+  "data": {
+    "device": {
+      "deviceId": "660e8400-e29b-41d4-a716-446655440001",
+      "swarmId": "550e8400-e29b-41d4-a716-446655440000",
+      "deviceName": "Temperature Sensor 01",
+      "deviceType": "ESP32",
+      "macAddress": "AA:BB:CC:DD:EE:FF",
+      "isOnline": true,
+      "batteryLevel": 85.5,
+      "location": "Corner of Main St"
+    }
+  }
+}
+```
 
 #### Get Swarm Devices
 ```bash
-curl -X GET http://localhost:3000/swarms/1/devices \
-  -H "Authorization: Bearer your-jwt-token"
-```
-
-#### Remove Device from Swarm
-```bash
-curl -X DELETE http://localhost:3000/swarms/1/devices/101 \
-  -H "Authorization: Bearer your-jwt-token"
-```
-
-### 4. Analytics & Statistics
-
-#### Get Swarm Statistics
-```bash
-curl -X GET http://localhost:3000/swarms/1/stats \
+curl -X GET http://localhost:3000/swarms/550e8400-e29b-41d4-a716-446655440000/devices \
   -H "Authorization: Bearer your-jwt-token"
 ```
 
@@ -393,22 +402,68 @@ curl -X GET http://localhost:3000/swarms/1/stats \
   "success": true,
   "data": {
     "swarm": {
-      "id": 1,
-      "name": "Urban Sensor Network",
+      "swarmId": "550e8400-e29b-41d4-a716-446655440000",
+      "swarmName": "Urban Sensor Network",
+      "status": "active"
+    },
+    "devices": [
+      {
+        "deviceId": "660e8400-e29b-41d4-a716-446655440001",
+        "deviceName": "Temperature Sensor 01",
+        "deviceType": "ESP32",
+        "macAddress": "AA:BB:CC:DD:EE:FF",
+        "firmwareVersion": "v1.2.3",
+        "lastIpAddress": "192.168.1.100",
+        "location": "Corner of Main St",
+        "isOnline": true,
+        "batteryLevel": 85.5,
+        "lastSeen": "2025-08-07T15:25:00.000Z",
+        "swarm": {
+          "swarmId": "550e8400-e29b-41d4-a716-446655440000",
+          "swarmName": "Urban Sensor Network"
+        }
+      }
+    ],
+    "count": 1
+  }
+}
+```
+
+#### Remove Device from Swarm
+```bash
+curl -X DELETE http://localhost:3000/swarms/550e8400-e29b-41d4-a716-446655440000/devices/660e8400-e29b-41d4-a716-446655440001 \
+  -H "Authorization: Bearer your-jwt-token"
+```
+
+### 4. Analytics & Statistics
+
+#### Get Swarm Statistics
+```bash
+curl -X GET http://localhost:3000/swarms/550e8400-e29b-41d4-a716-446655440000/stats \
+  -H "Authorization: Bearer your-jwt-token"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "swarm": {
+      "swarmId": "550e8400-e29b-41d4-a716-446655440000",
+      "swarmName": "Urban Sensor Network",
       "status": "active",
       "maxDevices": 50
     },
     "stats": {
       "totalDevices": 15,
-      "activeDevices": 12,
-      "assignedDevices": 2,
-      "inactiveDevices": 1,
-      "removedDevices": 0,
-      "devicesByRole": {
-        "sensor": 10,
-        "actuator": 3,
-        "gateway": 2
+      "onlineDevices": 12,
+      "offlineDevices": 3,
+      "devicesByType": {
+        "ESP32": 12,
+        "Arduino": 3
       },
+      "averageBatteryLevel": 73,
+      "lowBatteryDevices": 2,
       "utilizationPercentage": 30
     }
   }
@@ -458,11 +513,20 @@ curl -X GET http://localhost:3000/swarms/1/stats \
 }
 ```
 
-#### Permission Error
+#### Device Already Assigned Error
 ```json
 {
   "success": false,
-  "message": "Insufficient permissions to assign swarms",
+  "message": "Device is already assigned to another swarm",
+  "timestamp": "2025-08-07T15:30:00.000Z"
+}
+```
+
+#### Swarm Capacity Error
+```json
+{
+  "success": false,
+  "message": "Swarm has reached its limit of 50 devices",
   "timestamp": "2025-08-07T15:30:00.000Z"
 }
 ```
@@ -484,8 +548,8 @@ backend/
 │   │   │   └── errorHandler.js
 │   │   ├── models/
 │   │   │   ├── index.js
-│   │   │   ├── Swarm.js
-│   │   │   └── SwarmDevice.js
+│   │   │   ├── Swarm.js        # Maps to device_swarms table
+│   │   │   └── Device.js       # Maps to esp32_devices table
 │   │   ├── routes/
 │   │   │   ├── index.js
 │   │   │   └── swarmsRoutes.js
@@ -505,6 +569,13 @@ backend/
 └── security/               # Auth service (same level)
     └── ...
 ```
+
+### Key Changes from Previous Version
+- **UUID Primary Keys**: All entities now use UUID instead of integer IDs
+- **Direct Device-Swarm Relationship**: Simplified many-to-many relationship removed
+- **Enhanced Device Properties**: Added MAC address, IP address, battery level, online status
+- **Location Support**: Both swarms and devices can have location information
+- **Real-time Monitoring**: Device online/offline status and last seen timestamps
 
 ### Scripts
 ```bash

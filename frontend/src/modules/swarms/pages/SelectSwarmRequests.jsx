@@ -4,26 +4,7 @@ import ErrorMessage from "../components/ErrorMessage";
 import ConfirmationModal from "../components/ConfirmationModal";
 import SuccessToast from "../components/SuccessToast";
 
-const fakeRequests = [
-  {
-    id: 1,
-    name: "Gamma Swarm",
-    description: "Monitor forest fire risk zones",
-    requestedBy: "UserA",
-    requestedAt: "2024-06-25",
-    maxDevices: 15,
-    taken: false,
-  },
-  {
-    id: 2,
-    name: "Delta Swarm",
-    description: "Smart farming monitoring system",
-    requestedBy: "UserB",
-    requestedAt: "2024-06-28",
-    maxDevices: 12,
-    taken: true,
-  },
-];
+const API_BASE = "http://localhost:5052";
 
 export default function SelectSwarmRequests() {
   const [requests, setRequests] = useState([]);
@@ -38,10 +19,20 @@ export default function SelectSwarmRequests() {
   useEffect(() => {
     setLoading(true);
     setError(false);
-    setTimeout(() => {
-      setRequests(fakeRequests); // Replace with real fetch
-      setLoading(false);
-    }, 1000);
+
+    fetch(`${API_BASE}/swarms?status=requested`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Error al cargar solicitudes");
+        return res.json();
+      })
+      .then((data) => {
+        setRequests(Array.isArray(data?.data?.swarms) ? data.data.swarms : []);
+        setLoading(false);
+      })
+      .catch(() => {
+        setError(true);
+        setLoading(false);
+      });
   }, []);
 
   const filteredRequests = requests.filter(
@@ -101,7 +92,9 @@ export default function SelectSwarmRequests() {
 
       {/* Empty state */}
       {filteredRequests.length === 0 ? (
-        <p className="text-gray-500 dark:text-gray-400 text-lg">No pending requests found</p>
+        <p className="text-gray-500 dark:text-gray-400 text-lg">
+          No pending requests found
+        </p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredRequests.map((req) => (
@@ -119,13 +112,22 @@ export default function SelectSwarmRequests() {
                   {req.description}
                 </p>
                 <p className="text-sm text-gray-500 dark:text-gray-500">
-                  Requested by: <strong className="text-gray-700 dark:text-gray-300">{req.requestedBy}</strong>
+                  Requested by:{" "}
+                  <strong className="text-gray-700 dark:text-gray-300">
+                    {req.requestedBy}
+                  </strong>
                 </p>
                 <p className="text-sm text-gray-500 dark:text-gray-500">
-                  Request date: <span className="text-gray-700 dark:text-gray-300">{req.requestedAt}</span>
+                  Request date:{" "}
+                  <span className="text-gray-700 dark:text-gray-300">
+                    {req.requestedAt}
+                  </span>
                 </p>
                 <p className="text-sm text-gray-500 dark:text-gray-500">
-                  Max devices: <span className="text-gray-700 dark:text-gray-300">{req.maxDevices}</span>
+                  Max devices:{" "}
+                  <span className="text-gray-700 dark:text-gray-300">
+                    {req.maxDevices}
+                  </span>
                 </p>
               </div>
               <button
