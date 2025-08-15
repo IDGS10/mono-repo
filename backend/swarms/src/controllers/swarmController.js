@@ -1,22 +1,24 @@
 import models from '../models/index.js'
 import { successResponse, errorResponse } from '../utils/responses.js'
 import logger from '../utils/logger.js'
-// import { v4 as uuidv4 } from 'uuid'
 
 const { Swarm, SwarmDevice } = models
 
 // @desc    Create new swarm
 // @route   POST /swarms
-// @access  Public (temporary - add auth later)
+// @access  Private (requires Bearer token)
 export const createSwarm = async (req, res, next) => {
   try {
-    const { name, description, maxDevices, requesterId } = req.body
+    const { userId, email, rol } = req.user
+    const { name, description, maxDevices, projectId } = req.body
+
+    logger.info(`User ${email} (${rol}) creating swarm: ${name}`)
 
     // Basic validations
-    if (!name || !maxDevices || !requesterId) {
+    if (!name || !maxDevices || !projectId) {
       return errorResponse(
         res,
-        'Name, maxDevices and requesterId are required',
+        'Name, maxDevices and projectId are required',
         400
       )
     }
@@ -25,22 +27,20 @@ export const createSwarm = async (req, res, next) => {
       return errorResponse(res, 'maxDevices must be between 1 and 1000', 400)
     }
 
-    // Create swarm
     const swarm = await Swarm.create({
       name,
       description,
       maxDevices,
-      requesterId,
+      requesterId: userId,
+      projectId,
       status: 'requested',
     })
 
-    logger.info(`New swarm created: ${swarm.id} by user: ${requesterId}`)
+    logger.info(`New swarm created: ${swarm.id} by user: ${userId}`)
 
     return successResponse(
       res,
-      {
-        swarm,
-      },
+      { swarm },
       'Swarm created successfully',
       201
     )
@@ -52,16 +52,23 @@ export const createSwarm = async (req, res, next) => {
 
 // @desc    Get all swarms
 // @route   GET /swarms
-// @access  Public
+// @access  Private (requires Bearer token)
 export const getSwarms = async (req, res, next) => {
   try {
-    const { status, requesterId, clusterManagerId } = req.query
+    const { userId, rol } = req.user
+    const { status, requesterId, clusterManagerId, projectId } = req.query
 
     // Build filters
     const where = {}
     if (status) where.status = status
     if (requesterId) where.requesterId = requesterId
     if (clusterManagerId) where.clusterManagerId = clusterManagerId
+    if (projectId) where.projectId = projectId
+
+    // Apply role-based filters
+    if (rol === 'User') {
+      where.requesterId = userId
+    }
 
     const swarms = await Swarm.findAll({
       where,
@@ -78,6 +85,7 @@ export const getSwarms = async (req, res, next) => {
     return successResponse(res, {
       swarms,
       count: swarms.length,
+      userContext: { userId, rol }
     })
   } catch (error) {
     logger.error('Error getting swarms:', error)
@@ -87,12 +95,20 @@ export const getSwarms = async (req, res, next) => {
 
 // @desc    Get swarm by ID
 // @route   GET /swarms/:id
-// @access  Public
+// @access  Private (requires Bearer token)
 export const getSwarm = async (req, res, next) => {
   try {
+    const { userId, rol } = req.user
     const { id } = req.params
 
-    const swarm = await Swarm.findByPk(id, {
+    // Check access permissions
+    let whereClause = { id }
+    if (rol !== 'Owner') {
+      whereClause.requesterId = userId
+    }
+
+    const swarm = await Swarm.findOne({
+      where: whereClause,
       include: [
         {
           model: SwarmDevice,
@@ -102,7 +118,7 @@ export const getSwarm = async (req, res, next) => {
     })
 
     if (!swarm) {
-      return errorResponse(res, 'Swarm not found', 404)
+      return errorResponse(res, 'Swarm not found or access denied', 404)
     }
 
     return successResponse(res, { swarm })
@@ -114,9 +130,10 @@ export const getSwarm = async (req, res, next) => {
 
 // @desc    Update swarm
 // @route   PUT /swarms/:id
-// @access  Public
+// @access  Private (requires Bearer token)
 export const updateSwarm = async (req, res, next) => {
   try {
+    const { userId, email, rol } = req.user
     const { id } = req.params
     const { name, description, maxDevices } = req.body
 
@@ -126,7 +143,16 @@ export const updateSwarm = async (req, res, next) => {
       return errorResponse(res, 'Swarm not found', 404)
     }
 
-    // Only allow updating certain fields based on status
+    // Check ownership or permissions
+    if (rol !== 'Owner' && swarm.requesterId !== userId) {
+      return errorResponse(
+        res,
+        'You are not authorized to update this swarm',
+        403
+      )
+    }
+
+    // Build allowed updates
     const allowedUpdates = {}
     if (name) allowedUpdates.name = name
     if (description) allowedUpdates.description = description
@@ -141,7 +167,7 @@ export const updateSwarm = async (req, res, next) => {
 
     await swarm.update(allowedUpdates)
 
-    logger.info(`Swarm updated: ${id}`)
+    logger.info(`Swarm updated: ${id} by user: ${userId} (${email})`)
 
     return successResponse(res, { swarm }, 'Swarm updated successfully')
   } catch (error) {
@@ -152,15 +178,25 @@ export const updateSwarm = async (req, res, next) => {
 
 // @desc    Delete swarm
 // @route   DELETE /swarms/:id
-// @access  Public
+// @access  Private (requires Bearer token)
 export const deleteSwarm = async (req, res, next) => {
   try {
+    const { userId, email, rol } = req.user
     const { id } = req.params
 
     const swarm = await Swarm.findByPk(id)
 
     if (!swarm) {
       return errorResponse(res, 'Swarm not found', 404)
+    }
+
+    // Check ownership or permissions
+    if (rol !== 'Owner' && swarm.requesterId !== userId) {
+      return errorResponse(
+        res,
+        'You are not authorized to delete this swarm',
+        403
+      )
     }
 
     // Only allow deletion if not active
@@ -170,7 +206,7 @@ export const deleteSwarm = async (req, res, next) => {
 
     await swarm.destroy()
 
-    logger.info(`Swarm deleted: ${id}`)
+    logger.info(`Swarm deleted: ${id} by user: ${userId} (${email})`)
 
     return successResponse(res, null, 'Swarm deleted successfully')
   } catch (error) {
@@ -181,14 +217,20 @@ export const deleteSwarm = async (req, res, next) => {
 
 // @desc    Assign swarm to cluster manager
 // @route   POST /swarms/:id/assign
-// @access  Public
+// @access  Private (requires Bearer token)
 export const assignSwarm = async (req, res, next) => {
   try {
+    const { userId, email, rol } = req.user
     const { id } = req.params
     const { clusterManagerId } = req.body
 
     if (!clusterManagerId) {
       return errorResponse(res, 'clusterManagerId is required', 400)
+    }
+
+    // Check permissions
+    if (rol === 'User') {
+      return errorResponse(res, 'Insufficient permissions to assign swarms', 403)
     }
 
     const swarm = await Swarm.findByPk(id)
@@ -207,7 +249,7 @@ export const assignSwarm = async (req, res, next) => {
 
     await swarm.assignToClusterManager(clusterManagerId)
 
-    logger.info(`Swarm ${id} assigned to cluster manager: ${clusterManagerId}`)
+    logger.info(`Swarm ${id} assigned to cluster manager: ${clusterManagerId} by ${email}`)
 
     return successResponse(res, { swarm }, 'Swarm assigned successfully')
   } catch (error) {
@@ -218,10 +260,16 @@ export const assignSwarm = async (req, res, next) => {
 
 // @desc    Activate swarm
 // @route   POST /swarms/:id/activate
-// @access  Public
+// @access  Private (requires Bearer token)
 export const activateSwarm = async (req, res, next) => {
   try {
+    const { userId, email, rol } = req.user
     const { id } = req.params
+
+    // Check permissions
+    if (rol === 'User') {
+      return errorResponse(res, 'Insufficient permissions to activate swarms', 403)
+    }
 
     const swarm = await Swarm.findByPk(id)
 
@@ -239,7 +287,7 @@ export const activateSwarm = async (req, res, next) => {
 
     await swarm.activate()
 
-    logger.info(`Swarm activated: ${id}`)
+    logger.info(`Swarm activated: ${id} by ${email}`)
 
     return successResponse(res, { swarm }, 'Swarm activated successfully')
   } catch (error) {
@@ -250,9 +298,10 @@ export const activateSwarm = async (req, res, next) => {
 
 // @desc    Pause swarm
 // @route   POST /swarms/:id/pause
-// @access  Public
+// @access  Private (requires Bearer token)
 export const pauseSwarm = async (req, res, next) => {
   try {
+    const { userId, email, rol } = req.user
     const { id } = req.params
 
     const swarm = await Swarm.findByPk(id)
@@ -267,7 +316,7 @@ export const pauseSwarm = async (req, res, next) => {
 
     await swarm.pause()
 
-    logger.info(`Swarm paused: ${id}`)
+    logger.info(`Swarm paused: ${id} by ${email}`)
 
     return successResponse(res, { swarm }, 'Swarm paused successfully')
   } catch (error) {
@@ -278,9 +327,10 @@ export const pauseSwarm = async (req, res, next) => {
 
 // @desc    Complete swarm
 // @route   POST /swarms/:id/complete
-// @access  Public
+// @access  Private (requires Bearer token)
 export const completeSwarm = async (req, res, next) => {
   try {
+    const { userId, email, rol } = req.user
     const { id } = req.params
 
     const swarm = await Swarm.findByPk(id)
@@ -299,7 +349,7 @@ export const completeSwarm = async (req, res, next) => {
 
     await swarm.complete()
 
-    logger.info(`Swarm completed: ${id}`)
+    logger.info(`Swarm completed: ${id} by ${email}`)
 
     return successResponse(res, { swarm }, 'Swarm completed successfully')
   } catch (error) {
@@ -310,10 +360,16 @@ export const completeSwarm = async (req, res, next) => {
 
 // @desc    Reject swarm
 // @route   POST /swarms/:id/reject
-// @access  Public
+// @access  Private (requires Bearer token)
 export const rejectSwarm = async (req, res, next) => {
   try {
+    const { userId, email, rol } = req.user
     const { id } = req.params
+
+    // Check permissions
+    if (rol === 'User') {
+      return errorResponse(res, 'Insufficient permissions to reject swarms', 403)
+    }
 
     const swarm = await Swarm.findByPk(id)
 
@@ -331,7 +387,7 @@ export const rejectSwarm = async (req, res, next) => {
 
     await swarm.reject()
 
-    logger.info(`Swarm rejected: ${id}`)
+    logger.info(`Swarm rejected: ${id} by ${email}`)
 
     return successResponse(res, { swarm }, 'Swarm rejected')
   } catch (error) {
@@ -342,15 +398,22 @@ export const rejectSwarm = async (req, res, next) => {
 
 // @desc    Get swarm devices
 // @route   GET /swarms/:id/devices
-// @access  Public
+// @access  Private (requires Bearer token)
 export const getSwarmDevices = async (req, res, next) => {
   try {
+    const { userId, rol } = req.user
     const { id } = req.params
 
-    const swarm = await Swarm.findByPk(id)
+    // Check access permissions
+    let whereClause = { id }
+    if (rol !== 'Owner') {
+      whereClause.requesterId = userId
+    }
+
+    const swarm = await Swarm.findOne({ where: whereClause })
 
     if (!swarm) {
-      return errorResponse(res, 'Swarm not found', 404)
+      return errorResponse(res, 'Swarm not found or access denied', 404)
     }
 
     const devices = await SwarmDevice.findActiveBySwarm(id)
@@ -368,14 +431,15 @@ export const getSwarmDevices = async (req, res, next) => {
 
 // @desc    Add device to swarm
 // @route   POST /swarms/:id/devices
-// @access  Public
+// @access  Private (requires Bearer token)
 export const addDeviceToSwarm = async (req, res, next) => {
   try {
+    const { userId, email, rol } = req.user
     const { id } = req.params
-    const { deviceId, role = 'sensor', assignedBy } = req.body
+    const { deviceId, role = 'sensor' } = req.body
 
-    if (!deviceId || !assignedBy) {
-      return errorResponse(res, 'deviceId and assignedBy are required', 400)
+    if (!deviceId) {
+      return errorResponse(res, 'deviceId is required', 400)
     }
 
     const swarm = await Swarm.findByPk(id)
@@ -404,15 +468,14 @@ export const addDeviceToSwarm = async (req, res, next) => {
       return errorResponse(res, 'Device is already assigned to this swarm', 400)
     }
 
-    // Create assignment
     const swarmDevice = await SwarmDevice.create({
       swarmId: id,
       deviceId,
       role,
-      assignedBy,
+      assignedBy: userId,
     })
 
-    logger.info(`Device ${deviceId} added to swarm ${id}`)
+    logger.info(`Device ${deviceId} added to swarm ${id} by user ${userId} (${email})`)
 
     return successResponse(
       res,
@@ -428,9 +491,10 @@ export const addDeviceToSwarm = async (req, res, next) => {
 
 // @desc    Remove device from swarm
 // @route   DELETE /swarms/:id/devices/:deviceId
-// @access  Public
+// @access  Private (requires Bearer token)
 export const removeDeviceFromSwarm = async (req, res, next) => {
   try {
+    const { userId, email, rol } = req.user
     const { id, deviceId } = req.params
 
     const swarmDevice = await SwarmDevice.findOne({
@@ -447,7 +511,7 @@ export const removeDeviceFromSwarm = async (req, res, next) => {
 
     await swarmDevice.remove()
 
-    logger.info(`Device ${deviceId} removed from swarm ${id}`)
+    logger.info(`Device ${deviceId} removed from swarm ${id} by ${email}`)
 
     return successResponse(res, null, 'Device removed from swarm successfully')
   } catch (error) {
@@ -458,15 +522,22 @@ export const removeDeviceFromSwarm = async (req, res, next) => {
 
 // @desc    Get swarm statistics
 // @route   GET /swarms/:id/stats
-// @access  Public
+// @access  Private (requires Bearer token)
 export const getSwarmStats = async (req, res, next) => {
   try {
+    const { userId, rol } = req.user
     const { id } = req.params
 
-    const swarm = await Swarm.findByPk(id)
+    // Check access permissions
+    let whereClause = { id }
+    if (rol !== 'Owner') {
+      whereClause.requesterId = userId
+    }
+
+    const swarm = await Swarm.findOne({ where: whereClause })
 
     if (!swarm) {
-      return errorResponse(res, 'Swarm not found', 404)
+      return errorResponse(res, 'Swarm not found or access denied', 404)
     }
 
     const devices = await SwarmDevice.findAll({

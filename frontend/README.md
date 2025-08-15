@@ -576,4 +576,252 @@ This project is private property of IDGS10. All rights reserved.
 
 Welcome to the most ambitious IoT ERP development team in the market!
 
-## ola
+---
+
+## API Integration with Axios
+
+### Overview
+
+The frontend uses a centralized API configuration system with individual Axios instances for each microservice. This approach provides:
+
+- **Service Isolation**: Each microservice has its own API instance
+- **Consistent Authentication**: Automatic token handling across all services
+- **Error Management**: Centralized error handling and authentication flows
+- **Development Flexibility**: Easy switching between development and production URLs
+
+### Architecture
+
+```
+Frontend Modules          API Instances          Backend Services
+├── analytics     ←→      AnalyticsApi    ←→     analytics-service
+├── devices       ←→      DevicesApi      ←→     device-service  
+├── organizations ←→      OrganizationsApi ←→    org-service
+├── projects      ←→      ProjectsApi     ←→     project-service
+├── security      ←→      SecurityApi     ←→     auth-service
+└── swarms        ←→      SwarmsApi       ←→     swarm-service
+```
+
+### Central API Configuration (`src/Api.jsx`)
+
+The main API configuration file provides:
+
+```javascript
+import axios from "axios";
+
+// Centralized token management
+const getToken = () => {
+  const userData = JSON.parse(localStorage.getItem("monoRepoUserData"));
+  return userData ? userData.token : null;
+};
+
+// Example: Security API instance
+export const SecurityApi = axios.create({
+  baseURL: "http://localhost:8000",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  timeout: 10000,
+  withCredentials: false,
+});
+
+// Centralized interceptor setup
+const setupInterceptors = (apiInstance) => {
+  // Automatic token injection
+  apiInstance.interceptors.request.use(
+    (config) => {
+      const token = getToken();
+      if (token) {
+        config.headers["Authorization"] = `Bearer ${token}`;
+      }
+      return config;
+    },
+    (error) => Promise.reject(error)
+  );
+
+  // Automatic authentication error handling
+  apiInstance.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      if (error.response?.status === 401 && 
+          !error.config.url.includes("/api/login")) {
+        localStorage.removeItem("monoRepoUserData");
+        localStorage.removeItem("isLoggedIn");
+        window.location.href = "/";
+      }
+      return Promise.reject(error);
+    }
+  );
+};
+
+setupInterceptors(SecurityApi);
+```
+
+### How to Create API Instances for Your Microservice
+
+#### Step 1: Add Your API Instance
+
+Add your microservice API instance to `src/Api.jsx`:
+
+```javascript
+// Add after existing instances
+export const YourServiceApi = axios.create({
+  baseURL: "http://localhost:YOUR_PORT", // Replace with your service port
+  headers: {
+    "Content-Type": "application/json",
+  },
+  timeout: 10000,
+  withCredentials: false,
+});
+
+// Setup interceptors (add after other setupInterceptors calls)
+setupInterceptors(YourServiceApi);
+```
+
+#### Step 2: Port Configuration by Service
+
+Each microservice runs on a different port:
+
+| Service | Port | Base URL |
+|---------|------|----------|
+| **Security** | `8000` | `http://localhost:8000` |
+| **Organizations** | `3001` | `http://localhost:3001` |
+| **Analytics** | `3002` | `http://localhost:3002` |
+| **Devices** | `3003` | `http://localhost:3003` |
+| **Projects** | `3004` | `http://localhost:3004` |
+| **Swarms** | `3005` | `http://localhost:3005` |
+
+#### Step 3: Using API Instances in Components
+
+```javascript
+// In your module components
+import { YourServiceApi } from '../../../Api';
+
+const YourComponent = () => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError('');
+        
+        const response = await YourServiceApi.get('/api/your-endpoint');
+        
+        if (response.data && response.data.success) {
+          setData(response.data.data);
+        } else {
+          setError('Failed to fetch data');
+        }
+      } catch (err) {
+        console.error('API Error:', err);
+        setError(`Connection error: ${err.message}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  return (
+    <div>
+      {loading && <div>Loading...</div>}
+      {error && <div className="error">{error}</div>}
+      {data && <div>{/* Render your data */}</div>}
+    </div>
+  );
+};
+```
+
+### API Service Pattern (Recommended)
+
+For better organization, create service files for each module:
+
+#### Example: Analytics Service (`src/modules/analytics/services/analyticsService.js`)
+
+```javascript
+import { AnalyticsApi } from '../../../Api';
+
+export class AnalyticsService {
+  // Dashboard data
+  static async getDashboardStats() {
+    try {
+      const response = await AnalyticsApi.get('/api/dashboard/stats');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+      throw error;
+    }
+  }
+
+  // Device metrics
+  static async getDeviceMetrics(deviceId, timeRange = '24h') {
+    try {
+      const response = await AnalyticsApi.get(`/api/devices/${deviceId}/metrics`, {
+        params: { range: timeRange }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching device metrics:', error);
+      throw error;
+    }
+  }
+
+  // Reports
+  static async generateReport(reportConfig) {
+    try {
+      const response = await AnalyticsApi.post('/api/reports/generate', reportConfig);
+      return response.data;
+    } catch (error) {
+      console.error('Error generating report:', error);
+      throw error;
+    }
+  }
+}
+
+// Usage in components
+import { AnalyticsService } from '../services/analyticsService';
+
+const Dashboard = () => {
+  const [stats, setStats] = useState(null);
+
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const data = await AnalyticsService.getDashboardStats();
+        setStats(data.stats);
+      } catch (error) {
+        console.error('Failed to load stats:', error);
+      }
+    };
+    loadStats();
+  }, []);
+};
+```
+
+### Authentication Flow
+
+The API system includes automatic authentication handling:
+
+#### 1. Token Storage
+```javascript
+// After successful login
+const userData = {
+  token: response.token,
+  user: response.user
+};
+localStorage.setItem("monoRepoUserData", JSON.stringify(userData));
+localStorage.setItem("isLoggedIn", "true");
+```
+
+#### 2. Automatic Token Injection
+- All API requests automatically include `Authorization: Bearer <token>`
+- Token is retrieved from localStorage on each request
+- No manual token management required
+
+#### 3. Automatic Logout on 401
+- 401 responses automatically clear localStorage
+- User is redirected to login page
+- Exceptions for login/register endpoints

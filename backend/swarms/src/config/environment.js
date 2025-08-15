@@ -17,6 +17,9 @@ export const {
 
   JWT_SECRET,
   JWT_EXPIRES_IN,
+
+  SECURITY_URL,
   
   CORS_ORIGIN,
+  CORS_ORIGIN_DEV,
 } = process.env
