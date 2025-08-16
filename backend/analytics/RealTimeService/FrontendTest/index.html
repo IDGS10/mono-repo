@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SSE Temperature Monitor</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .connected { background-color: #d4edda; color: #155724; }
+        .disconnected { background-color: #f8d7da; color: #721c24; }
+        .error { background-color: #fff3cd; color: #856404; }
+        .data { margin: 10px 0; padding: 10px; border: 1px solid #ddd; }
+        .temp { font-size: 24px; font-weight: bold; color: #007bff; }
+        .timestamp { font-size: 12px; color: #666; }
+        .debug { background-color: #f8f9fa; padding: 10px; margin: 10px 0; font-family: monospace; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h1>Temperature Monitor</h1>
+    <div id="status" class="status disconnected">Disconnected</div>
+    <div id="data"></div>
+    <div id="logs"></div>
+    <div id="debug" class="debug"></div>
+
+    <script>
+        let eventSource;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+        const reconnectDelay = 5000; // 5 seconds
+
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `<div class="${type}">[${timestamp}] ${message}</div>`;
+            logs.innerHTML += logEntry;
+            logs.scrollTop = logs.scrollHeight;
+            console.log(`[${type}] ${message}`);
+        }
+
+        function debugLog(message) {
+            const debug = document.getElementById('debug');
+            const timestamp = new Date().toLocaleTimeString();
+            debug.innerHTML += `[${timestamp}] ${message}<br>`;
+            debug.scrollTop = debug.scrollHeight;
+        }
+
+        function updateStatus(status, className) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = status;
+            statusDiv.className = `status ${className}`;
+        }
+
+        function displayTemperatureData(data) {
+            const dataDiv = document.getElementById('data');
+            
+            debugLog(`Processing data: ${JSON.stringify(data)}`);
+            
+            if (data.temperatures && data.temperatures.length > 0) {
+                let html = '<h3>Latest Temperatures:</h3>';
+                data.temperatures.forEach(temp => {
+                    html += `
+                        <div class="data">
+                            <div class="temp">${temp.temperature.toFixed(2)}°C</div>
+                            <div>Host: ${temp.host}</div>
+                            <div class="timestamp">${temp.timestamp}</div>
+                        </div>
+                    `;
+                });
+                dataDiv.innerHTML = html;
+            } else {
+                dataDiv.innerHTML = '<div class="data">No temperature data available</div>';
+            }
+        }
+
+        function checkEventSourceSupport() {
+            if (typeof(EventSource) === "undefined") {
+                log('EventSource not supported by this browser', 'error');
+                updateStatus('Browser Not Supported', 'error');
+                return false;
+            }
+            return true;
+        }
+
+        function connectSSE() {
+            if (!checkEventSourceSupport()) {
+                return;
+            }
+
+            if (eventSource) {
+                log('Closing existing connection...');
+                eventSource.close();
+                eventSource = null;
+            }
+
+            log('Connecting to SSE...');
+            updateStatus('Connecting...', 'disconnected');
+
+            // URL absoluta para máquina virtual
+            const sseUrl = 'http://192.168.100.76/api-lua/sse';
+            debugLog(`Connecting to: ${sseUrl}`);
+
+            try {
+                eventSource = new EventSource(sseUrl);
+                debugLog(`EventSource created, readyState: ${eventSource.readyState}`);
+            } catch (error) {
+                log(`Failed to create EventSource: ${error.message}`, 'error');
+                debugLog(`EventSource creation error: ${error}`);
+                return;
+            }
+
+            eventSource.onopen = function(event) {
+                log('SSE connection opened');
+                updateStatus('Connected', 'connected');
+                reconnectAttempts = 0;
+                debugLog(`onopen - readyState: ${eventSource.readyState}`);
+            };
+
+            eventSource.onmessage = function(event) {
+                debugLog(`Raw message received: ${event.data}`);
+                try {
+                    const data = JSON.parse(event.data);
+                    log(`Received data: ${data.count} temperatures`);
+                    displayTemperatureData(data);
+                } catch (e) {
+                    log(`Error parsing JSON: ${e.message}`, 'error');
+                    debugLog(`JSON parse error: ${e}, Raw data: ${event.data}`);
+                }
+            };
+
+            // Custom event listeners
+            eventSource.addEventListener('connected', function(event) {
+                log('SSE connection established');
+                updateStatus('Connected', 'connected');
+                debugLog(`Connected event data: ${event.data}`);
+            });
+
+            eventSource.addEventListener('ping', function(event) {
+                log('Received ping');
+                debugLog(`Ping event data: ${event.data}`);
+            });
+
+            eventSource.addEventListener('error', function(event) {
+                log(`SSE error event: ${event.data || 'No data'}`, 'error');
+                updateStatus('Error', 'error');
+                debugLog(`Error event: ${JSON.stringify(event)}`);
+            });
+
+            eventSource.addEventListener('empty', function(event) {
+                log('No data available from InfluxDB');
+                updateStatus('Connected (No Data)', 'error');
+                debugLog(`Empty event data: ${event.data}`);
+            });
+
+            eventSource.onerror = function(event) {
+                const readyState = eventSource ? eventSource.readyState : 'unknown';
+                debugLog(`onerror - readyState: ${readyState}, event: ${JSON.stringify(event)}`);
+                
+                log(`SSE connection error (readyState: ${readyState})`, 'error');
+                updateStatus('Connection Error', 'disconnected');
+                
+                // Check the ready state to determine the error type
+                if (eventSource.readyState === EventSource.CONNECTING) {
+                    log('Connection failed to establish', 'error');
+                } else if (eventSource.readyState === EventSource.CLOSED) {
+                    log('Connection was closed', 'error');
+                }
+                
+                if (reconnectAttempts < maxReconnectAttempts) {
+                    reconnectAttempts++;
+                    log(`Attempting to reconnect in ${reconnectDelay/1000} seconds (attempt ${reconnectAttempts}/${maxReconnectAttempts})`);
+                    setTimeout(connectSSE, reconnectDelay);
+                } else {
+                    log('Max reconnection attempts reached', 'error');
+                    updateStatus('Connection Failed', 'disconnected');
+                }
+            };
+        }
+
+        // Test server connectivity first
+        function testServerConnection() {
+            debugLog('Testing server connection...');
+            fetch('http://192.168.100.76/api-lua/sse', { 
+                method: 'HEAD',
+                mode: 'cors' 
+            })
+                .then(response => {
+                    debugLog(`Server test response: ${response.status}`);
+                    if (response.ok) {
+                        log('Server is reachable, starting SSE connection');
+                        connectSSE();
+                    } else {
+                        log(`Server returned ${response.status}`, 'error');
+                        updateStatus('Server Error', 'error');
+                    }
+                })
+                .catch(error => {
+                    debugLog(`Server test error: ${error.message}`);
+                    log(`Cannot reach server: ${error.message}`, 'error');
+                    updateStatus('Server Unreachable', 'error');
+                    // Try connecting anyway in case HEAD requests aren't supported
+                    setTimeout(connectSSE, 2000);
+                });
+        }
+
+        // Start connection after page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add manual reconnect button
+            const button = document.createElement('button');
+            button.textContent = 'Reconnect';
+            button.onclick = function() {
+                reconnectAttempts = 0;
+                connectSSE();
+            };
+            document.body.insertBefore(button, document.getElementById('status'));
+
+            // Add clear logs button
+            const clearButton = document.createElement('button');
+            clearButton.textContent = 'Clear Logs';
+            clearButton.onclick = function() {
+                document.getElementById('logs').innerHTML = '';
+                document.getElementById('debug').innerHTML = '';
+            };
+            document.body.insertBefore(clearButton, document.getElementById('status'));
+
+            // Test connection and start
+            testServerConnection();
+        });
+
+        // Handle page unload
+        window.addEventListener('beforeunload', function() {
+            if (eventSource) {
+                eventSource.close();
+            }
+        });
+    </script>
+</body>
+</html>
