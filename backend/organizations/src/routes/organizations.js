@@ -5,7 +5,7 @@ const { authenticateToken, checkOwnerRole, checkOrganizationAccess } = require('
 const { validateOrganization } = require('../middleware/validation');
 const upload = require('../utils/fileUpload');
 
-// Routes for projects or anyone using the organization ID
+// ROUTES FOR ALL MODULES FOR ORGANIZATION ID
 router.get('/:id/basic', OrganizationController.getBasicInfo);
 router.get('/active', OrganizationController.getActiveOrganizations);
 
@@ -14,7 +14,7 @@ router.post('/auth/test-token', (req, res) => {
     const jwt = require('jsonwebtoken');
     const config = require('../config/config');
     
-    // Generate my test token
+    // GENERATE TOKEN TEST - DELETE TO FINISH
     const testUser = {
       id: 1,
       name: 'Usuario de prueba',
@@ -22,7 +22,6 @@ router.post('/auth/test-token', (req, res) => {
       role: 'propietario'
     };
     
-   // Generate my test token
     const token = jwt.sign(testUser, config.jwt.secret, { 
       expiresIn: config.jwt.expiresIn 
     });

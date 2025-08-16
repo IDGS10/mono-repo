@@ -3,7 +3,7 @@ const router = express.Router();
 const ProjectController = require('../controllers/projectController');
 const { authenticateToken } = require('../middleware/auth');
 
-// Ruta para el modulo de proyectos (Mariana)
+// ROUTE FOR MODULE PROJECTS  ¡¡ MARIANA !!
 router.post('/approval-request', ProjectController.createApprovalRequest);
 
 router.use(authenticateToken);

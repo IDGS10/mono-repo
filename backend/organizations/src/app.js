@@ -8,12 +8,13 @@ const errorHandler = require('./middleware/errorHandler');
 const organizationRoutes = require('./routes/organizations');
 const invitationRoutes = require('./routes/invitations');
 const projectRoutes = require('./routes/projects');
+const projectApprovalRoutes = require('./routes/projectApprovalRoutes');
 
 const app = express();
 
 app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true
 }));
 
@@ -33,6 +34,7 @@ app.get('/health', (req, res) => {
 app.use('/api/organizations', organizationRoutes);
 app.use('/api/invitations', invitationRoutes);
 app.use('/api/projects', projectRoutes);
+app.use('/api/project-approvals', projectApprovalRoutes);
 
 app.use('*', (req, res) => {
   res.status(404).json({ 
