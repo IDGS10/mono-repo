@@ -1,0 +1,107 @@
+services:
+  # Security Service
+  security:
+    build:
+      context: .
+      dockerfile: ./security/Dockerfile
+      target: production
+      # Add build context for shared middleware
+      args:
+        - NODE_ENV=production
+    container_name: security
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - NODE_ENV=production
+      - PORT=8000
+    env_file:
+      - ./security/.env
+    volumes:
+      - ./security/config/.ssl:/app/config/.ssl:ro
+      - ./security/logs:/app/logs
+      - ./shared:/shared:ro  # Mount shared middleware
+    networks:
+      - backend-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "const http = require('http'); const req = http.request({host: 'localhost', port: 8000, path: '/api/health', timeout: 5000}, (res) => process.exit(res.statusCode === 200 ? 0 : 1)); req.on('error', () => process.exit(1)); req.end();"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+
+# Device Manager Service
+  device-manager:
+    build:
+      context: ./device-manager
+      dockerfile: Dockerfile   
+      args:
+        - NODE_ENV=production
+    container_name: device-manager
+    restart: unless-stopped
+    ports:
+      - "5057:5057"
+    environment:
+      - NODE_ENV=production
+      - PORT=5057
+    env_file:
+      - ./device-manager/config/.env            
+    volumes:
+      - ./device-manager/config:/app/config:ro
+      - ./device-manager/logs:/app/logs
+      - ./shared:/shared:ro
+    networks:
+      - backend-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "const http = require('http'); const req = http.request({host: 'localhost', port: 5057, path: '/api/health', timeout: 5000}, (res) => process.exit(res.statusCode === 200 ? 0 : 1)); req.on('error', () => process.exit(1)); req.end();"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+
+ # MQTT Client Service
+  mqtt-client:
+    build:
+      context: ./device-manager/src
+      dockerfile: Dockerfile
+    container_name: mqtt-client
+    restart: unless-stopped
+    networks:
+      - backend-network
+    ports:
+      - "5056:5056"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('./mqtt/client')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Add other backend services here
+  # face-recognition-api:
+  #   build:
+  #     context: ./face-recognition
+  #     dockerfile: Dockerfile
+  #   container_name: face-recognition-api
+  #   ports:
+  #     - "8001:8001"
+  #   env_file:
+  #     - ./face-recognition/.env
+  #   volumes:
+  #     - ./shared:/shared:ro  # Mount shared middleware
+  #   networks:
+  #     - backend-network
+
+networks:
+  backend-network:
+    driver: bridge
