@@ -32,8 +32,8 @@ const dbConfig = {
   },
   
   // Additional options for better connection handling
-  query_timeout: 60000, // 60 seconds
-  statement_timeout: 60000, // 60 seconds
+query_timeout: 60000, 
+statement_timeout: 60000, // 60 seconds
   keepAlive: true,
   keepAliveInitialDelayMillis: 10000
 }
