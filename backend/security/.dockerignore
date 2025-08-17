@@ -1,0 +1,95 @@
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files (keep .env for Docker but exclude others)
+.env.local
+.env.development
+.env.test
+.env.production
+config.env
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+README.md
+*.md
+
+# Test files
+tests/
+coverage/
+.nyc_output/
+.mocharc.json
+run-tests.sh
+
+# Development tools
+postman/
+.vscode/
+.idea/
+
+# Logs
+logs/
+*.log
+
+# SSL example folder (keep actual .ssl folder)
+config/.example.ssl/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Build outputs
+dist/
+build/
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+postman/
+.vscode/
+.idea/
+
+# Logs
+logs/
+*.log
+
+# SSL example folder (keep actual .ssl folder)
+config/.example.ssl/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Build outputs
+dist/
+build/
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore

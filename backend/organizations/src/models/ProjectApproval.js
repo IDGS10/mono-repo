@@ -1,9 +1,9 @@
 const db = require('../config/database');
 
 class ProjectApproval {
-  static async create(organizationId, temporalProjectId, projectData) {
+  static async create(organizationId, temporalProjectId, projectData) { //CREATE PROJECT APPROVAL HERE JSON RECEIVED - ´RPJECTS MOPULE
     const query = `
-      INSERT INTO project_approvals (organization_id, temporal_project_id, project_data)
+      INSERT INTO project_approvals (organization_id, temporal_project_id, project_data)   
       VALUES ($1, $2, $3)
       RETURNING *
     `;
@@ -12,7 +12,7 @@ class ProjectApproval {
     return result.rows[0];
   }
 
-  static async findPendingByOrganization(organizationId) {
+  static async findPendingByOrganization(organizationId) { // FIND PENDING PROJECTS
     const query = `
       SELECT 
         temporal_id,
