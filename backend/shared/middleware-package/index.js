@@ -21,6 +21,16 @@ function createMiddleware(options = {}) {
     authenticateToken: (allowedTypes = []) => 
       authentication.authenticateToken(serviceConfig.auth, allowedTypes),
     
+    // Role-based authentication helpers (configurados)
+    requireAuth: () => 
+      authentication.requireAuth(serviceConfig.auth),
+    requireRoles: (allowedRoles = []) => 
+      authentication.requireRoles(serviceConfig.auth, allowedRoles),
+    requireAdmin: () => 
+      authentication.requireAdmin(serviceConfig.auth),
+    requireOwner: () => 
+      authentication.requireOwner(serviceConfig.auth),
+    
     // Validation middleware (configurados)
     validateInput: (validationFunction) => 
       validation.validateInput(validationFunction, serviceConfig.serviceName),
@@ -83,8 +93,11 @@ module.exports = {
   
   // Funciones individuales sin configurar
   authenticateToken: authentication.authenticateToken,
+  requireAuth: authentication.requireAuth,
+  requireRoles: authentication.requireRoles,
+  requireAdmin: authentication.requireAdmin,
+  requireOwner: authentication.requireOwner,
   checkUserActive: authentication.checkUserActive,
-  updateLastActivity: authentication.updateLastActivity,
   validateInput: validation.validateInput,
   validatePagination: validation.validatePagination,
   sanitizeInput: validation.sanitizeInput,

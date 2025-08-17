@@ -1,19 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Building2, ArrowLeft, Save, Upload, X } from "lucide-react";
-import { API_CONFIG } from '../../../config/api.js';
-
-
-const API_BASE = API_CONFIG.BASE_API || "http://localhost:3001/api";
-
-
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('authToken');
-  return {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json'
-  };
-};
+import OrganizationService from "../services/organizationService";
 
 const CreateOrganization = () => {
   const navigate = useNavigate();
@@ -33,13 +21,8 @@ const CreateOrganization = () => {
   useEffect(() => {
     const fetchTypes = async () => {
       try {
-        const response = await fetch(`${API_BASE}/organizations/types`, {
-          headers: getAuthHeaders()
-        });
-        if (response.ok) {
-          const types = await response.json();
-          setOrganizationTypes(types);
-        }
+        const types = await OrganizationService.getTypes();
+        setOrganizationTypes(types);
       } catch (err) {
         console.error('Error loading organization types:', err);
       }
@@ -104,25 +87,19 @@ const CreateOrganization = () => {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/organizations`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(formData)
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        navigate('/organizations');
-      } else {
-        const errorData = await response.json();
-        if (response.status === 409) {
-          setErrors({ organization_email: 'El email institucional ya está registrado' });
-        } else {
-          setErrors({ submit: errorData.error || 'Error al crear la organización' });
-        }
-      }
+      const result = await OrganizationService.create(formData);
+      navigate('/organizations');
     } catch (err) {
-      setErrors({ submit: 'Error de conexión. Intenta nuevamente.' });
+      console.error('Error creating organization:', err);
+      
+      // Handle different types of errors
+      if (err.response?.status === 409) {
+        setErrors({ organization_email: 'El email institucional ya está registrado' });
+      } else if (err.response?.data?.error) {
+        setErrors({ submit: err.response.data.error });
+      } else {
+        setErrors({ submit: 'Error de conexión. Intenta nuevamente.' });
+      }
     } finally {
       setLoading(false);
     }

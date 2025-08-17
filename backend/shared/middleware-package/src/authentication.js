@@ -49,8 +49,12 @@ const authenticateToken = (config, allowedTypes = []) => {
 
       // Check if user is active (if DB pool is provided)
       if (authConfig.databasePool && decoded.userId) {
-        const isActive = await checkUserActive(decoded.userId, authConfig.databasePool);
-        if (!isActive) {
+        console.log(`[${authConfig.serviceName}] Checking user in DB for userId: ${decoded.userId}`);
+        const userInfo = await getUserInfo(decoded.userId, authConfig.databasePool);
+        console.log(`[${authConfig.serviceName}] User info from DB:`, userInfo);
+        
+        if (!userInfo || !userInfo.is_active) {
+          console.log(`[${authConfig.serviceName}] User is inactive or not found`);
           return res.status(401).json({
             success: false,
             message: "Usuario inactivo",
@@ -60,32 +64,58 @@ const authenticateToken = (config, allowedTypes = []) => {
           });
         }
 
-        // Update last activity
-        await updateLastActivity(decoded.userId, authConfig.databasePool);
+        // Add user information to request including role
+        req.user = {
+          id: decoded.userId,
+          userId: decoded.userId,
+          email: decoded.email,
+          role: userInfo.rol,
+          sessionId: decoded.sessionId,
+          iat: decoded.iat,
+          exp: decoded.exp
+        };
+        console.log(`[${authConfig.serviceName}] User authenticated with role:`, userInfo.rol);
+      } else {
+        console.log(`[${authConfig.serviceName}] No DB pool or userId, using token data only`);
+        // Add basic user information without DB validation
+        req.user = {
+          id: decoded.userId,
+          userId: decoded.userId,
+          email: decoded.email,
+          role: decoded.role, // From token if available
+          sessionId: decoded.sessionId,
+          iat: decoded.iat,
+          exp: decoded.exp
+        };
+        console.log(`[${authConfig.serviceName}] User authenticated with token role:`, decoded.role);
       }
 
-      // Verificar permisos si se especifican tipos permitidos
-      if (allowedTypes.length > 0 && authConfig.databasePool) {
-        const hasPermission = await checkUserPermissions(decoded.userId, allowedTypes, authConfig.databasePool);
-        if (!hasPermission) {
-          return res.status(403).json({
+      // Check role permissions if allowedTypes is provided
+      if (allowedTypes.length > 0) {
+        if (!req.user.role) {
+          return res.status(401).json({
             success: false,
-            message: "Acceso denegado - Permisos insuficientes",
-            code: "INSUFFICIENT_PERMISSIONS",
+            message: "Usuario sin rol asignado",
+            code: "NO_USER_ROLE",
             timestamp: new Date().toISOString(),
             service: authConfig.serviceName
           });
         }
-      }
 
-      // Add user information to request
-      req.user = {
-        userId: decoded.userId,
-        email: decoded.email,
-        sessionId: decoded.sessionId,
-        iat: decoded.iat,
-        exp: decoded.exp
-      };
+        if (!allowedTypes.includes(req.user.role)) {
+          return res.status(403).json({
+            success: false,
+            message: `Acceso denegado. Rol requerido: ${allowedTypes.join(', ')}. Rol actual: ${req.user.role}`,
+            code: "FORBIDDEN_ROLE",
+            allowedRoles: allowedTypes,
+            userRole: req.user.role,
+            timestamp: new Date().toISOString(),
+            service: authConfig.serviceName
+          });
+        }
+
+        console.log(`[${authConfig.serviceName}] Role validation passed: ${req.user.role} in [${allowedTypes.join(', ')}]`);
+      }
 
       next();
     } catch (error) {
@@ -149,33 +179,32 @@ function handleJWTError(res, jwtError, serviceName) {
 }
 
 /**
- * Check if user is active
+ * Get user information including role and status
  */
-async function checkUserActive(userId, pool) {
+async function getUserInfo(userId, pool) {
   try {
     const result = await pool.query(
-      'SELECT is_active FROM users WHERE id = $1',
+      'SELECT is_active, rol FROM users WHERE id = $1',
       [userId]
     );
     
-    return result.rows.length > 0 && result.rows[0].is_active;
+    return result.rows.length > 0 ? result.rows[0] : null;
   } catch (error) {
-    console.error('Error checking user active status:', error);
-    return false;
+    console.error('Error getting user info:', error);
+    return null;
   }
 }
 
 /**
- * Update user's last activity
+ * Check if user is active (legacy function for compatibility)
  */
-async function updateLastActivity(userId, pool) {
+async function checkUserActive(userId, pool) {
   try {
-    await pool.query(
-      'UPDATE users SET last_activity = NOW() WHERE id = $1',
-      [userId]
-    );
+    const userInfo = await getUserInfo(userId, pool);
+    return userInfo && userInfo.is_active;
   } catch (error) {
-    console.error('Error updating last activity:', error);
+    console.error('Error checking user active status:', error);
+    return false;
   }
 }
 
@@ -199,9 +228,50 @@ async function checkUserPermissions(userId, allowedTypes, pool) {
   }
 }
 
+/**
+ * Helper function to create middleware with specific roles
+ * @param {Object} config - Configuration object
+ * @param {Array} allowedRoles - Array of allowed roles
+ * @returns {Function} - Express middleware
+ */
+const requireRoles = (config, allowedRoles = []) => {
+  return authenticateToken(config, allowedRoles);
+};
+
+/**
+ * Helper function to create admin-only middleware
+ * @param {Object} config - Configuration object
+ * @returns {Function} - Express middleware
+ */
+const requireAdmin = (config) => {
+  return authenticateToken(config, ['Organization', 'Manager', 'Cluster manager']);
+};
+
+/**
+ * Helper function to create owner-only middleware
+ * @param {Object} config - Configuration object
+ * @returns {Function} - Express middleware
+ */
+const requireOwner = (config) => {
+  return authenticateToken(config, ['Organization', 'Cluster manager']);
+};
+
+/**
+ * Helper function to create basic auth middleware (no role restriction)
+ * @param {Object} config - Configuration object
+ * @returns {Function} - Express middleware
+ */
+const requireAuth = (config) => {
+  return authenticateToken(config, []);
+};
+
 module.exports = {
   authenticateToken,
   checkUserActive,
-  updateLastActivity,
-  AuthConfig
+  getUserInfo,
+  AuthConfig,
+  requireRoles,
+  requireAdmin,
+  requireOwner,
+  requireAuth
 };

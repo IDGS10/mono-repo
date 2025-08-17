@@ -14,6 +14,24 @@ export const SecurityApi = axios.create({
   withCredentials: false,
 });
 
+export const OrganizationsApi = axios.create({
+  baseURL: "http://localhost:3001/api",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  timeout: 10000,
+  withCredentials: false,
+});
+
+export const ProjectsApi = axios.create({
+  baseURL: "http://localhost:3002/api",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  timeout: 10000,
+  withCredentials: false,
+});
+
 
 const setupInterceptors = (apiInstance) => {
   //Request interceptor - Add token to every request
@@ -52,5 +70,7 @@ const setupInterceptors = (apiInstance) => {
   );
 };
 
-//Setup interceptors for SecurityApi
+//Setup interceptors for all APIs
 setupInterceptors(SecurityApi);
+setupInterceptors(OrganizationsApi);
+setupInterceptors(ProjectsApi);

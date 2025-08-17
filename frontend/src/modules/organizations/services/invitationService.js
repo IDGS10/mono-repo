@@ -1,94 +1,100 @@
-import { API_CONFIG } from '../../../config/api.js';
+import { OrganizationsApi } from '../../../Api.jsx';
 
-
-const API_BASE = API_CONFIG.BASE_API || "http://localhost:3001/api";
-
-
-// Utility function to get auth headers
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('authToken');
-  return {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json'
-  };
-};
-
-// Handle API response
-const handleResponse = async (response) => {
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-  }
-  return await response.json();
-};
-
+// Invitations API Service using configured Axios instance
 class InvitationService {
   // Get invitations by organization
   static async getByOrganization(organizationId) {
-    const response = await fetch(`${API_BASE}/invitations/organization/${organizationId}`, {
-      headers: getAuthHeaders()
-    });
-    return handleResponse(response);
+    try {
+      const response = await OrganizationsApi.get(`/invitations/organization/${organizationId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching invitations:', error);
+      throw error;
+    }
   }
 
   // Create new invitation
   static async create(invitationData) {
-    const response = await fetch(`${API_BASE}/invitations`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(invitationData)
-    });
-    return handleResponse(response);
+    try {
+      const response = await OrganizationsApi.post('/invitations', invitationData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating invitation:', error);
+      throw error;
+    }
   }
 
   // Resend invitation
   static async resend(invitationId) {
-    const response = await fetch(`${API_BASE}/invitations/${invitationId}/resend`, {
-      method: 'POST',
-      headers: getAuthHeaders()
-    });
-    return handleResponse(response);
+    try {
+      const response = await OrganizationsApi.post(`/invitations/${invitationId}/resend`);
+      return response.data;
+    } catch (error) {
+      console.error('Error resending invitation:', error);
+      throw error;
+    }
   }
 
   // Revoke invitation
   static async revoke(invitationId) {
-    const response = await fetch(`${API_BASE}/invitations/${invitationId}/revoke`, {
-      method: 'PATCH',
-      headers: getAuthHeaders()
-    });
-    return handleResponse(response);
+    try {
+      const response = await OrganizationsApi.patch(`/invitations/${invitationId}/revoke`);
+      return response.data;
+    } catch (error) {
+      console.error('Error revoking invitation:', error);
+      throw error;
+    }
   }
 
   // Delete invitation
   static async delete(invitationId) {
-    const response = await fetch(`${API_BASE}/invitations/${invitationId}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders()
-    });
-    return handleResponse(response);
+    try {
+      const response = await OrganizationsApi.delete(`/invitations/${invitationId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting invitation:', error);
+      throw error;
+    }
   }
 
-  // Get invitation by token (for accepting invitations - future use)
-/*   static async getByToken(token) {
-    const response = await fetch(`${API_BASE}/invitations/token/${token}`, {
-      headers: getAuthHeaders()
-    });
-    return handleResponse(response);
-  } */
+  // Get invitation by ID
+  static async getById(invitationId) {
+    try {
+      const response = await OrganizationsApi.get(`/invitations/${invitationId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching invitation:', error);
+      throw error;
+    }
+  }
 
-  // Accept invitation (future use)
-  static async accept(token) {
-    const response = await fetch(`${API_BASE}/invitations/accept/${token}`, {
-      method: 'POST',
-      headers: getAuthHeaders()
-    });
-    return handleResponse(response);
+  // Verify invitation token (public route)
+  static async verifyToken(token) {
+    try {
+      const response = await OrganizationsApi.get(`/invitations/verify/${token}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error verifying invitation token:', error);
+      throw error;
+    }
+  }
+
+  // Accept invitation (public route)
+  static async accept(token, userData) {
+    try {
+      const response = await OrganizationsApi.post(`/invitations/accept/${token}`, userData);
+      return response.data;
+    } catch (error) {
+      console.error('Error accepting invitation:', error);
+      throw error;
+    }
   }
 
   // Utility methods
   static isExpired(invitation) {
     return new Date(invitation.expires_at) < new Date();
   }
+  
 
   static canResend(invitation) {
     return invitation.status === 'pending' && !this.isExpired(invitation);

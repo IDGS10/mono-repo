@@ -16,18 +16,21 @@ import {
   ArrowLeft
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { API_CONFIG } from '../../../config/api.js';
+import { OrganizationsApi } from '../../../Api.jsx';
 
+// Roles válidos según el backend
+const VALID_ROLES = [
+  { value: 'Propietario', label: 'Propietario', description: 'Propietario de la organización' },
+  { value: 'Manager', label: 'Manager', description: 'Gestión general del sistema' },
+  { value: 'Project manager', label: 'Project Manager', description: 'Gestión de proyectos' },
+  { value: 'Organization', label: 'Organization', description: 'Administración de organización' },
+  { value: 'Cluster manager', label: 'Cluster Manager', description: 'Gestión de clusters' }
+];
 
-const API_BASE = API_CONFIG.BASE_API || "http://localhost:3001/api";
-
-
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('authToken');
-  return {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json'
-  };
+// Helper function para obtener el label del rol
+const getRoleLabel = (roleValue) => {
+  const role = VALID_ROLES.find(r => r.value === roleValue);
+  return role ? role.label : roleValue;
 };
 
 // Status badge component
@@ -62,7 +65,7 @@ const InvitationModal = ({ isOpen, onClose, onSubmit, loading }) => {
   const [formData, setFormData] = useState({
     invited_name: '',
     invited_email: '',
-    invited_role: 'encargado'
+    invited_role: VALID_ROLES[0].value // Usar el primer rol válido
   });
   const [errors, setErrors] = useState({});
 
@@ -109,7 +112,7 @@ const InvitationModal = ({ isOpen, onClose, onSubmit, loading }) => {
       setFormData({
         invited_name: '',
         invited_email: '',
-        invited_role: 'encargado'
+        invited_role: VALID_ROLES[0].value
       });
       setErrors({});
     }
@@ -186,14 +189,17 @@ const InvitationModal = ({ isOpen, onClose, onSubmit, loading }) => {
                   : 'border-gray-300 dark:border-gray-600'
               } focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
             >
-              <option value="encargado">Encargado</option>
-              <option value="líder">Líder</option>
+              {VALID_ROLES.map(role => (
+                <option key={role.value} value={role.value}>
+                  {role.label}
+                </option>
+              ))}
             </select>
             {errors.invited_role && (
               <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.invited_role}</p>
             )}
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Los líderes tienen más permisos que los encargados
+              Selecciona el rol que tendrá el usuario en la organización
             </p>
           </div>
 
@@ -268,7 +274,7 @@ const InvitationItem = ({ invitation, onAction }) => {
           </div>
           
           <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-            <span>Rol: {invitation.invited_role}</span>
+            <span>Rol: {getRoleLabel(invitation.invited_role)}</span>
             <span>•</span>
             <span>Enviada: {new Date(invitation.created_at).toLocaleDateString()}</span>
             <span>•</span>
@@ -354,33 +360,30 @@ const Members = () => {
       setLoading(true);
       
       // Get organization dashboard to get basic info
-      const dashboardResponse = await fetch(`${API_BASE}/organizations/dashboard`, {
-        headers: getAuthHeaders()
-      });
+      const dashboardResponse = await OrganizationsApi.get('/organizations/dashboard');
       
-      if (dashboardResponse.ok) {
-        const dashboardData = await dashboardResponse.json();
-        if (dashboardData.hasOrganization) {
-          setOrganization(dashboardData.organization.organization);
-          
-          // Fetch invitations for this organization
-          const invitationsResponse = await fetch(
-            `${API_BASE}/invitations/organization/${dashboardData.organization.organization.id_organization}`,
-            { headers: getAuthHeaders() }
-          );
-          
-          if (invitationsResponse.ok) {
-            const invitationsData = await invitationsResponse.json();
-            setInvitations(invitationsData.invitations || []);
-          }
-        } else {
-          navigate('/organizations');
-        }
+      if (dashboardResponse.data && dashboardResponse.data.hasOrganization) {
+        const organization = dashboardResponse.data.organization.organization;
+        setOrganization(organization);
+        
+        // Fetch invitations for this organization
+        const invitationsResponse = await OrganizationsApi.get(
+          `/invitations/organization/${organization.id_organization}`
+        );
+        
+        setInvitations(invitationsResponse.data.invitations || []);
       } else {
-        throw new Error('Error al cargar los datos');
+        navigate('/organizations');
       }
     } catch (err) {
-      setError(err.message);
+      console.error('Error al cargar los datos:', err);
+      setError(err.response?.data?.message || 'Error al cargar los datos');
+      
+      // Si hay error de autenticación, el interceptor ya manejará el redirect
+      if (err.response?.status !== 401) {
+        // Solo mostramos error si no es problema de autenticación
+        setError(err.response?.data?.message || 'Error al cargar los datos');
+      }
     } finally {
       setLoading(false);
     }
@@ -417,24 +420,34 @@ const Members = () => {
 
     setInviteLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/invitations`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          ...formData,
-          organization_id: organization.id_organization
-        })
-      });
+      console.log('=== SENDING INVITATION ===');
+      console.log('Organization:', organization);
+      console.log('Form data:', formData);
+      
+      const requestData = {
+        ...formData,
+        organization_id: organization.id_organization
+      };
+      console.log('Request data:', requestData);
 
-      if (response.ok) {
-        setShowInviteModal(false);
-        fetchData(); // Refresh data
-      } else {
-        const errorData = await response.json();
-        alert(errorData.error || 'Error al enviar la invitación');
-      }
+      const response = await OrganizationsApi.post('/invitations', requestData);
+      console.log('Response:', response);
+
+      setShowInviteModal(false);
+      fetchData(); // Refresh data
+      
+      // Show success message
+      alert('Invitación enviada exitosamente');
     } catch (err) {
-      alert('Error de conexión. Intenta nuevamente.');
+      console.error('=== ERROR SENDING INVITATION ===');
+      console.error('Error object:', err);
+      console.error('Response:', err.response);
+      console.error('Response data:', err.response?.data);
+      console.error('Response status:', err.response?.status);
+      console.error('Response headers:', err.response?.headers);
+      
+      const errorMessage = err.response?.data?.message || err.response?.data?.error || 'Error al enviar la invitación';
+      alert(`Error: ${errorMessage}`);
     } finally {
       setInviteLoading(false);
     }
@@ -442,39 +455,24 @@ const Members = () => {
 
   const handleInvitationAction = async (invitationId, action) => {
     try {
-      let response;
-      
       switch (action) {
         case 'resend':
-          response = await fetch(`${API_BASE}/invitations/${invitationId}/resend`, {
-            method: 'POST',
-            headers: getAuthHeaders()
-          });
+          await OrganizationsApi.post(`/invitations/${invitationId}/resend`);
           break;
         case 'revoke':
-          response = await fetch(`${API_BASE}/invitations/${invitationId}/revoke`, {
-            method: 'PATCH',
-            headers: getAuthHeaders()
-          });
+          await OrganizationsApi.patch(`/invitations/${invitationId}/revoke`);
           break;
         case 'delete':
-          response = await fetch(`${API_BASE}/invitations/${invitationId}`, {
-            method: 'DELETE',
-            headers: getAuthHeaders()
-          });
+          await OrganizationsApi.delete(`/invitations/${invitationId}`);
           break;
         default:
           return;
       }
 
-      if (response.ok) {
-        fetchData(); // Refresh data
-      } else {
-        const errorData = await response.json();
-        alert(errorData.error || 'Error al realizar la acción');
-      }
+      fetchData(); // Refresh data
     } catch (err) {
-      alert('Error de conexión. Intenta nuevamente.');
+      console.error('Error al realizar la acción:', err);
+      alert(err.response?.data?.message || 'Error al realizar la acción');
     }
   };
 
@@ -595,8 +593,11 @@ const Members = () => {
             className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           >
             <option value="">Todos los roles</option>
-            <option value="líder">Líder</option>
-            <option value="encargado">Encargado</option>
+            {VALID_ROLES.map(role => (
+              <option key={role.value} value={role.value}>
+                {role.label}
+              </option>
+            ))}
           </select>
         </div>
       </div>

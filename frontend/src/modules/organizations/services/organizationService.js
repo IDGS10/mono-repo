@@ -1,95 +1,93 @@
-import { API_CONFIG } from '../../../config/api.js';
+import { OrganizationsApi } from '../../../Api.jsx';
 
-const API_BASE = API_CONFIG.BASE_API || "http://localhost:3001/api";
-
-
-// Utility function to get auth headers
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('authToken');
-  return {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json'
-  };
-};
-
-// Handle API response
-const handleResponse = async (response) => {
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-  }
-  return await response.json();
-};
-
+// Organizations API Service using configured Axios instance
 class OrganizationService {
   // Get dashboard data
   static async getDashboard() {
-    const response = await fetch(`${API_BASE}/organizations/dashboard`, {
-      headers: getAuthHeaders()
-    });
-    return handleResponse(response);
+    try {
+      const response = await OrganizationsApi.get('/organizations/dashboard');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching dashboard:', error);
+      throw error;
+    }
   }
 
   // Get organization types
   static async getTypes() {
-    const response = await fetch(`${API_BASE}/organizations/types`, {
-      headers: getAuthHeaders()
-    });
-    return handleResponse(response);
+    try {
+      const response = await OrganizationsApi.get('/organizations/types');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching organization types:', error);
+      throw error;
+    }
   }
 
   // Create new organization
   static async create(organizationData) {
-    const response = await fetch(`${API_BASE}/organizations`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(organizationData)
-    });
-    return handleResponse(response);
+    try {
+      const response = await OrganizationsApi.post('/organizations', organizationData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating organization:', error);
+      throw error;
+    }
   }
 
   // Get organization by ID
   static async getById(id) {
-    const response = await fetch(`${API_BASE}/organizations/${id}`, {
-      headers: getAuthHeaders()
-    });
-    return handleResponse(response);
+    try {
+      const response = await OrganizationsApi.get(`/organizations/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching organization:', error);
+      throw error;
+    }
   }
 
   // Update organization
   static async update(id, organizationData) {
-    const response = await fetch(`${API_BASE}/organizations/${id}`, {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(organizationData)
-    });
-    return handleResponse(response);
+    try {
+      const response = await OrganizationsApi.put(`/organizations/${id}`, organizationData);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating organization:', error);
+      throw error;
+    }
   }
 
   // Update organization status (active/inactive)
   static async updateStatus(id, isActive) {
-    const response = await fetch(`${API_BASE}/organizations/${id}/status`, {
-      method: 'PATCH',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ isActive })
-    });
-    return handleResponse(response);
+    try {
+      const response = await OrganizationsApi.patch(`/organizations/${id}/status`, { isActive });
+      return response.data;
+    } catch (error) {
+      console.error('Error updating organization status:', error);
+      throw error;
+    }
   }
 
   // Get basic organization info (for other modules)
   static async getBasicInfo(id) {
-    const response = await fetch(`${API_BASE}/organizations/${id}/basic`, {
-      headers: getAuthHeaders()
-    });
-    return handleResponse(response);
+    try {
+      const response = await OrganizationsApi.get(`/organizations/${id}/basic`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching basic organization info:', error);
+      throw error;
+    }
   }
 
   // Get active organizations (for other modules)
   static async getActiveOrganizations() {
-    const response = await fetch(`${API_BASE}/organizations/active`, {
-      headers: getAuthHeaders()
-    });
-    return handleResponse(response);
+    try {
+      const response = await OrganizationsApi.get('/organizations/active');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching active organizations:', error);
+      throw error;
+    }
   }
 
   // Utility method to check if user has organization
