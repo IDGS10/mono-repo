@@ -23,6 +23,9 @@ backend/
 ├── organizations/                  # Organizations team service
 ├── projects/                       # Projects team service
 ├── swarms/                         # Swarms team service
+│   ├── Dockerfile
+│   ├── .env
+│   ├── package.json
 └── analytics/                      # Analytics team service
 ```
 

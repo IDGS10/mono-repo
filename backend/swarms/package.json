@@ -1,9 +1,10 @@
 {
-  "name": "requisiciones-backend",
+  "name": "swarms-service",
   "version": "1.0.0",
-  "description": "API REST para sistema de gestión de solicitudes y compras",
+  "description": "API REST para gestión y coordinación de dispositivos IoT en swarms colaborativos",
   "main": "server.js",
   "type": "module",
+  "keywords": ["IoT", "swarms", "device-management", "collaborative-systems", "microservice"],
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
