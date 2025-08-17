@@ -85,13 +85,6 @@ var app = builder.Build();
 
 // Configure Swagger for all environments
 //app.UseSwagger();
-//app.UseSwaggerUI(c =>
-//{
-//    c.SwaggerEndpoint("/swagger/v1/swagger.json", "ESP32 Analytics API v1");
-//    c.RoutePrefix = string.Empty; // Root swagger
-//});
-
-// Configure Swagger
 app.UseSwagger(c =>
 {
     // Modificar el path base del documento swagger
@@ -99,23 +92,21 @@ app.UseSwagger(c =>
     c.PreSerializeFilters.Add((swaggerDoc, httpReq) =>
     {
         // Forzar el servidor base URL a incluir /analytics
-        var scheme = httpReq.Headers["X-Forwarded-Proto"].FirstOrDefault() ?? httpReq.Scheme;
-        var host = httpReq.Headers["X-Forwarded-Host"].FirstOrDefault() ?? httpReq.Host.Value;
+        //var scheme = httpReq.Headers["X-Forwarded-Proto"].FirstOrDefault() ?? httpReq.Scheme;
+        //var host = httpReq.Headers["X-Forwarded-Host"].FirstOrDefault() ?? httpReq.Host.Value;
 
-        var serverUrl = $"{scheme}://{host}/analytics";
+        var serverUrl = $"https://server-uteq.nrsoftware.online/analytics";
         swaggerDoc.Servers = new List<OpenApiServer>
         {
             new OpenApiServer { Url = serverUrl }
         };
     });
 });
-
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("https://server-uteq.nrsoftware.online/analytics/swagger/v1/swagger.json", "ESP32 Analytics API v1");
-    c.RoutePrefix = string.Empty;
+    c.RoutePrefix = "/analytics"; // Root swagger
 });
-
 
 app.UseCors("AllowAll");
 
