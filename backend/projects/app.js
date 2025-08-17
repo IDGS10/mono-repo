@@ -122,28 +122,50 @@ publicRoutes.get('/', (req, res) => {
 
 // Test token para desarrollo
 if (process.env.NODE_ENV === 'development') {
-  publicRoutes.get('/test-token', (req, res) => {
-    const { userId = 1, username = 'testuser', role = 'Owner' } = req.query
-    
-    // Usar el JWT secret del middleware compartido
-    const jwt = require('jsonwebtoken')
-    const testToken = jwt.sign({
-      userId,
-      username,
-      rol: role, // Nota: usar 'rol' como en tu BD
-      iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60)
-    }, middleware.config.auth.jwtSecret)
-    
-    middleware.ResponseUtils.success(res, 200, 'Test JWT generated', {
-      token: testToken,
-      user: { userId, username, rol: role },
-      usage: `Authorization: Bearer ${testToken}`,
-      warning: 'This endpoint is only available in development mode'
-    })
+  publicRoutes.get('/test-token', async (req, res) => {
+    try {
+      // CORRECCIÓN: Usar import dinámico en lugar de require
+      const jwt = await import('jsonwebtoken')
+      
+      const { 
+        userId = 1, 
+        username = 'testuser', 
+        role = 'Owner',
+        email = 'test@example.com'
+      } = req.query
+      
+      const payload = {
+        userId: parseInt(userId),
+        username,
+        email,
+        rol: role, // Nota: usar 'rol' como en tu BD
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 horas
+      }
+      
+      // Usar el JWT secret del middleware compartido
+      const testToken = jwt.default.sign(payload, middleware.config.auth.jwtSecret)
+      
+      middleware.ResponseUtils.success(res, 200, 'Test JWT generated successfully', {
+        token: testToken,
+        user: payload,
+        usage: {
+          header: `Authorization: Bearer ${testToken}`,
+          localStorage: `localStorage.setItem('userToken', '${testToken}')`,
+          curl: `curl -H "Authorization: Bearer ${testToken}" http://localhost:${PORT}/projects`
+        },
+        expires_in: '24 hours',
+        warning: 'This endpoint is only available in development mode'
+      })
+      
+    } catch (error) {
+      console.error('Error generating test token:', error)
+      middleware.ResponseUtils.error(res, 500, 'Failed to generate test token', error.message)
+    }
   })
   
   console.log('⚠️  Development mode: /test-token endpoint available')
+  console.log(`🔧 Test token URL: http://localhost:${PORT}/test-token`)
 }
 
 // PASO 4: Agregar rutas públicas
