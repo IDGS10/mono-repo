@@ -4,11 +4,6 @@ import { API} from '../config.js'
 const PROJECTS_API_URL = API.PROJECTS_API_URL
 const SWARMS_API_URL = API.SWARMS_API_URL
 
-// Comentar estas líneas temporalmente:
-// const PROJECTS_API_URL = import.meta.env.VITE_PROJECTS_API_URL 
-// const SWARMS_API_URL = import.meta.env.VITE_SWARMS_API_URL 
-// const ORGANIZATIONS_API_URL = import.meta.env.VITE_ORGANIZATIONS_API_URL 
-
 console.log('🔧 HARDCODED URLs - PROJECTS_API_URL:', PROJECTS_API_URL)
 console.log('🔧 HARDCODED URLs - SWARMS_API_URL:', SWARMS_API_URL)
 
@@ -31,7 +26,7 @@ const getUserFromToken = () => {
     return {
       userId: payload.userId,
       username: payload.username,
-      role: payload.role
+      role: payload.rol || payload.role // Soportar ambos campos
     }
   } catch (error) {
     console.error('Error parsing JWT token:', error)
@@ -79,7 +74,7 @@ const apiCall = async (url, options = {}, useSwarmAPI = false) => {
 
       if (response.status === 401) {
         console.log('❌ JWT Authorization failed - insufficient permissions')
-        throw new Error('Access denied. Insufficient permissions.')
+        throw new Error('Access denied. Please login again.')
       }
 
       if (response.status === 403) {
@@ -88,14 +83,15 @@ const apiCall = async (url, options = {}, useSwarmAPI = false) => {
       }
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        const errorText = await response.text()
+        throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`)
       }
 
       const data = await response.json()
       return data
 
     } catch (error) {
-      console.error(`API call failed, retrying... (${API_CONFIG.retryAttempts - attempt + 1} attempts left)`)
+      console.error(`Attempt ${attempt} failed:`, error.message)
       lastError = error
       
       if (attempt < API_CONFIG.retryAttempts) {
@@ -111,28 +107,65 @@ const apiCall = async (url, options = {}, useSwarmAPI = false) => {
 
 // ========== PROJECT FUNCTIONS ==========
 
+// Transform project data to ensure compatibility
+const transformProject = (project) => {
+  if (!project) return null
+  
+  return {
+    ...project,
+    // Asegurar que tanto id como id_project estén disponibles
+    id: project.id_project || project.id,
+    id_project: project.id_project || project.id,
+    // Transformar fechas si es necesario
+    createdAt: project.created_at || project.createdAt,
+    updatedAt: project.updated_at || project.updatedAt
+  }
+}
+
 // Get projects with pagination
 export const getProjects = async (filters = {}) => {
   try {
     console.log('🔍 Fetching projects from Projects API...')
     
+    const user = getUserFromToken()
     const params = new URLSearchParams({
       page: 1,
-      limit: 10,
-      owner_id: getUserFromToken()?.userId || 1,
-      id_org: 1,
+      limit: 20, // Aumentar límite para obtener más proyectos
+      ...(user?.userId && { owner_id: user.userId }),
+      id_org: 1, // Esto puede ser dinámico según tu necesidad
       ...filters
     })
 
     const response = await apiCall(`${PROJECTS_API_URL}/projects?${params}`)
     
-    console.log('✅ Projects fetched successfully:', response.data?.length || response.count || 0)
-    console.log('📊 Pagination:', response.pagination)
+    // CORRECCIÓN: Adaptar estructura de respuesta del backend
+    console.log('✅ Raw API Response:', response)
+
+    let projects = []
+    let pagination = null
+
+    if (response.success && response.data) {
+      // El backend retorna { success: true, data: { projects: [...], pagination: {...} } }
+      projects = response.data.projects || []
+      pagination = response.data.pagination || null
+    } else if (response.data && Array.isArray(response.data)) {
+      // Fallback si viene directamente como array
+      projects = response.data
+    } else if (Array.isArray(response)) {
+      // Otro posible formato
+      projects = response
+    }
+
+    // Transformar proyectos para compatibilidad
+    const transformedProjects = projects.map(transformProject)
+
+    console.log('✅ Projects processed:', transformedProjects.length)
+    console.log('📊 Pagination:', pagination)
 
     return {
-      projects: response.data || [],
-      pagination: response.pagination,
-      count: response.count || 0
+      projects: transformedProjects,
+      pagination: pagination,
+      count: transformedProjects.length
     }
   } catch (error) {
     console.error('❌ Error fetching projects:', error.message)
@@ -146,8 +179,21 @@ export const getProject = async (id) => {
     console.log(`🔍 Fetching project ${id}...`)
     const response = await apiCall(`${PROJECTS_API_URL}/projects/${id}`)
     
-    console.log(`✅ Project ${id} fetched successfully`)
-    return response.data
+    console.log('✅ Raw project response:', response)
+
+    let project = null
+    if (response.success && response.data) {
+      project = response.data
+    } else if (response.data) {
+      project = response.data
+    } else {
+      project = response
+    }
+
+    const transformedProject = transformProject(project)
+    console.log(`✅ Project ${id} processed:`, transformedProject)
+    
+    return transformedProject
   } catch (error) {
     console.error(`❌ Error fetching project ${id}:`, error.message)
     throw new Error('Failed to fetch project details. Please try again.')
@@ -160,21 +206,43 @@ export const createProject = async (projectData) => {
     console.log('🔍 Creating new project...')
     
     const user = getUserFromToken()
+    if (!user) {
+      throw new Error('User not authenticated. Please login again.')
+    }
+
     const payload = {
-      ...projectData,
-      created_by: user?.userId || 1,
-      owner_id: user?.userId || 1,
-      id_org: projectData.id_org || 1,
+      name: projectData.name,
+      description: projectData.description || '',
+      location: projectData.location || '',
+      created_by: user.userId,
+      owner_id: user.userId,
+      id_org: 1, // Esto puede ser dinámico
       status: 'pending_approval'
     }
+
+    console.log('🔐 Create project payload:', payload)
 
     const response = await apiCall(`${PROJECTS_API_URL}/projects`, {
       method: 'POST',
       body: JSON.stringify(payload)
     })
     
-    console.log('✅ Project created successfully:', response.data?.id_project)
-    return response.data
+    console.log('✅ Raw create response:', response)
+
+    let createdProject = null
+    if (response.success && response.data) {
+      createdProject = response.data
+    } else {
+      createdProject = response
+    }
+
+    const transformedProject = transformProject(createdProject)
+    console.log('✅ Project created successfully:', transformedProject?.id_project)
+    
+    return {
+      success: true,
+      data: transformedProject
+    }
   } catch (error) {
     console.error('❌ Error creating project:', error.message)
     throw new Error('Failed to create project. Please try again.')
@@ -197,8 +265,17 @@ export const updateProject = async (id, updates) => {
       body: JSON.stringify(payload)
     })
     
+    let updatedProject = null
+    if (response.success && response.data) {
+      updatedProject = response.data
+    } else {
+      updatedProject = response
+    }
+
+    const transformedProject = transformProject(updatedProject)
     console.log(`✅ Project ${id} updated successfully`)
-    return response.data
+    
+    return transformedProject
   } catch (error) {
     console.error(`❌ Error updating project ${id}:`, error.message)
     throw new Error('Failed to update project. Please try again.')
@@ -213,8 +290,15 @@ export const deleteProject = async (id) => {
       method: 'DELETE'
     })
     
+    let deletedProject = null
+    if (response.success && response.data) {
+      deletedProject = response.data
+    } else {
+      deletedProject = response
+    }
+
     console.log(`✅ Project ${id} deleted successfully`)
-    return response.data
+    return transformedProject(deletedProject)
   } catch (error) {
     console.error(`❌ Error deleting project ${id}:`, error.message)
     throw new Error('Failed to delete project. Please try again.')
@@ -222,24 +306,25 @@ export const deleteProject = async (id) => {
 }
 
 // ========== SWARM FUNCTIONS ==========
-// En tu projectService.js, agregar al final:
 
-// Función requestSwarm (alias para createSwarm)
+// Request swarm for project (integración con Swarms API)
 export const requestSwarm = async (projectId, swarmData) => {
   try {
     console.log(`🔍 Requesting swarm for project ${projectId}...`)
     
     const user = getUserFromToken()
     if (!user) {
-      throw new Error('User not authenticated')
+      throw new Error('User not authenticated. Please login again.')
     }
 
+    // CORRECCIÓN: Mapear campos del frontend al formato esperado por Swarms API
     const payload = {
-      name: swarmData.name,
-      description: swarmData.description,
-      maxDevices: parseInt(swarmData.maxDevices) || 100,
-      requesterId: user.userId, // ID del usuario JWT
-      projectId: parseInt(projectId) // ID del proyecto
+      name: swarmData.swarmName, // Frontend envía 'swarmName'
+      description: swarmData.description || '',
+      maxDevices: parseInt(swarmData.deviceCount) || 10, // Frontend envía 'deviceCount'
+      requesterId: user.userId,
+      projectId: parseInt(projectId),
+      status: 'requested'
     }
 
     console.log('🔐 Swarm request payload:', payload)
@@ -249,24 +334,15 @@ export const requestSwarm = async (projectId, swarmData) => {
       body: JSON.stringify(payload)
     }, true)
     
-    console.log(`✅ Swarm requested successfully for project ${projectId}:`, response.data?.id)
-    return response.data
+    console.log(`✅ Swarm requested successfully:`, response)
+    
+    return {
+      success: true,
+      data: response.data || response
+    }
   } catch (error) {
     console.error(`❌ Error requesting swarm for project ${projectId}:`, error.message)
     throw new Error('Failed to request swarm. Please try again.')
-  }
-}
-// Get all swarms
-export const getSwarms = async () => {
-  try {
-    console.log('🔍 Fetching swarms from Swarms API...')
-    const response = await apiCall(`${SWARMS_API_URL}/swarms`, {}, true)
-    
-    console.log('✅ Swarms fetched successfully:', response.data?.swarms?.length || 0)
-    return response.data?.swarms || []
-  } catch (error) {
-    console.error('❌ Error fetching swarms:', error.message)
-    throw new Error('Failed to fetch swarms. Please check your connection and try again.')
   }
 }
 
@@ -274,82 +350,47 @@ export const getSwarms = async () => {
 export const getProjectSwarms = async (projectId) => {
   try {
     console.log(`🔍 Fetching swarms for project ${projectId}...`)
+    
+    // OPCIÓN 1: Si tu API de Swarms soporta filtrar por projectId
     const response = await apiCall(`${SWARMS_API_URL}/swarms?projectId=${projectId}`, {}, true)
     
-    console.log(`✅ Project swarms fetched successfully for project ${projectId}:`, response.data?.swarms?.length || 0)
-    return response.data?.swarms || []
+    let swarms = []
+    if (response.success && response.data) {
+      swarms = response.data.swarms || response.data || []
+    } else if (Array.isArray(response)) {
+      swarms = response
+    }
+
+    console.log(`✅ Project swarms fetched:`, swarms.length)
+    return swarms
+    
   } catch (error) {
     console.error(`❌ Error fetching swarms for project ${projectId}:`, error.message)
-    throw new Error('Failed to fetch project swarms. Please try again.')
+    
+    // FALLBACK: Retornar array vacío en lugar de fallar
+    console.log('📝 Returning empty swarms array as fallback')
+    return []
   }
 }
 
-// Create new swarm for a project
-export const createSwarm = async (projectId, swarmData) => {
+// Get all swarms
+export const getSwarms = async () => {
   try {
-    console.log(`🔍 Creating swarm for project ${projectId}...`)
+    console.log('🔍 Fetching swarms from Swarms API...')
+    const response = await apiCall(`${SWARMS_API_URL}/swarms`, {}, true)
     
-    const user = getUserFromToken()
-    if (!user) {
-      throw new Error('User not authenticated')
+    let swarms = []
+    if (response.success && response.data) {
+      swarms = response.data.swarms || response.data || []
+    } else if (Array.isArray(response)) {
+      swarms = response
     }
 
-    const payload = {
-      name: swarmData.name,
-      description: swarmData.description,
-      maxDevices: parseInt(swarmData.maxDevices) || 100,
-      requesterId: user.userId, // ID del usuario JWT
-      projectId: parseInt(projectId), // ID del proyecto
-      status: 'requested'
-    }
-
-    console.log('🔐 Swarm payload:', payload)
-
-    const response = await apiCall(`${SWARMS_API_URL}/swarms`, {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    }, true)
-    
-    console.log(`✅ Swarm created successfully for project ${projectId}:`, response.data?.id)
-    return response.data
+    console.log('✅ Swarms fetched successfully:', swarms.length)
+    return swarms
   } catch (error) {
-    console.error(`❌ Error creating swarm for project ${projectId}:`, error.message)
-    throw new Error('Failed to create swarm. Please try again.')
-  }
-}
-
-// Update swarm
-export const updateSwarm = async (swarmId, updates) => {
-  try {
-    console.log(`🔍 Updating swarm ${swarmId}...`)
-    
-    const response = await apiCall(`${SWARMS_API_URL}/swarms/${swarmId}`, {
-      method: 'PUT',
-      body: JSON.stringify(updates)
-    }, true)
-    
-    console.log(`✅ Swarm ${swarmId} updated successfully`)
-    return response.data
-  } catch (error) {
-    console.error(`❌ Error updating swarm ${swarmId}:`, error.message)
-    throw new Error('Failed to update swarm. Please try again.')
-  }
-}
-
-// Delete swarm
-export const deleteSwarm = async (swarmId) => {
-  try {
-    console.log(`🔍 Deleting swarm ${swarmId}...`)
-    
-    const response = await apiCall(`${SWARMS_API_URL}/swarms/${swarmId}`, {
-      method: 'DELETE'
-    }, true)
-    
-    console.log(`✅ Swarm ${swarmId} deleted successfully`)
-    return response.data
-  } catch (error) {
-    console.error(`❌ Error deleting swarm ${swarmId}:`, error.message)
-    throw new Error('Failed to delete swarm. Please try again.')
+    console.error('❌ Error fetching swarms:', error.message)
+    return [] // Fallback
   }
 }
 
@@ -361,14 +402,21 @@ export const getProjectStats = async () => {
     console.log('🔍 Fetching project statistics...')
     const user = getUserFromToken()
     const params = new URLSearchParams({
-      owner_id: user?.userId || 1,
+      ...(user?.userId && { owner_id: user.userId }),
       id_org: 1
     })
 
     const response = await apiCall(`${PROJECTS_API_URL}/projects/stats?${params}`)
     
+    let stats = {}
+    if (response.success && response.data) {
+      stats = response.data
+    } else {
+      stats = response
+    }
+
     console.log('✅ Project statistics fetched successfully')
-    return response.data
+    return stats
   } catch (error) {
     console.error('❌ Error fetching project statistics:', error.message)
     throw new Error('Failed to fetch project statistics. Please try again.')
@@ -381,17 +429,29 @@ export const searchProjects = async (searchParams) => {
     console.log('🔍 Searching projects...')
     const params = new URLSearchParams({
       page: 1,
-      limit: 10,
+      limit: 20,
       ...searchParams
     })
 
     const response = await apiCall(`${PROJECTS_API_URL}/projects/search?${params}`)
     
-    console.log('✅ Project search completed:', response.data?.length || 0, 'results')
+    let projects = []
+    let pagination = null
+
+    if (response.success && response.data) {
+      projects = response.data.projects || response.data || []
+      pagination = response.data.pagination
+    } else if (Array.isArray(response)) {
+      projects = response
+    }
+
+    const transformedProjects = projects.map(transformProject)
+
+    console.log('✅ Project search completed:', transformedProjects.length, 'results')
     return {
-      projects: response.data || [],
-      pagination: response.pagination,
-      count: response.count || 0
+      projects: transformedProjects,
+      pagination: pagination,
+      count: transformedProjects.length
     }
   } catch (error) {
     console.error('❌ Error searching projects:', error.message)

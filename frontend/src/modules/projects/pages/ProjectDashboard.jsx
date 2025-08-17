@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { getProjects } from '../services/projectService';
 import ProjectCard from '../components/ProjectCard';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -7,33 +7,55 @@ import ErrorMessage from '../components/ErrorMessage';
 
 const ProjectDashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [projects, setProjects] = useState([]);
   const [pagination, setPagination] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [successMessage, setSuccessMessage] = useState(null);
+
+  // CORRECCIÓN: Mostrar mensaje de éxito si viene del state de navegación
+  useEffect(() => {
+    if (location.state?.successMessage) {
+      setSuccessMessage(location.state.successMessage);
+      // Limpiar el mensaje después de 5 segundos
+      setTimeout(() => setSuccessMessage(null), 5000);
+      
+      // Limpiar el state para evitar que se muestre al refrescar
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     const fetchProjects = async () => {
       try {
         setLoading(true);
+        setError(null);
+        
+        console.log('🔍 Dashboard: Fetching projects...');
         const response = await getProjects();
         
+        console.log('✅ Dashboard: Raw response:', response);
 
-        // Security policy: getProjects now returns object with pagination
-        if (response.projects) {
-          setProjects(response.projects); // Array of projects
-          setPagination(response.pagination); // Pagination info
+        // CORRECCIÓN: Manejar diferentes estructuras de respuesta
+        if (response && response.projects) {
+          setProjects(response.projects);
+          setPagination(response.pagination);
+          console.log('✅ Dashboard: Projects set:', response.projects.length);
+        } else if (Array.isArray(response)) {
+          setProjects(response);
+          console.log('✅ Dashboard: Projects set (array):', response.length);
         } else {
-          // Fallback for compatibility
-          setProjects(Array.isArray(response) ? response : []);
+          console.warn('⚠️ Dashboard: Unexpected response structure:', response);
+          setProjects([]);
         }
         
-        setError(null);
       } catch (err) {
+        console.error('❌ Dashboard: Error fetching projects:', err);
         setError('Failed to load projects. Please try again.');
-        console.error(err);
+        setProjects([]); // Asegurar que projects sea un array
       } finally {
         setLoading(false);
       }
@@ -42,24 +64,62 @@ const ProjectDashboard = () => {
     fetchProjects();
   }, []);
 
-  // Filter projects based on search and status
-  const filteredProjects = Array.isArray(projects) ? projects.filter(project => {
-    const matchesSearch = project.name.toLowerCase().includes(search.toLowerCase()) ||
-                         (project.description && project.description.toLowerCase().includes(search.toLowerCase()));
-    const matchesStatus = !statusFilter || project.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  }) : [];
+  // CORRECCIÓN: Filtrado seguro de proyectos
+  const filteredProjects = React.useMemo(() => {
+    if (!Array.isArray(projects)) {
+      console.warn('⚠️ Projects is not an array:', projects);
+      return [];
+    }
+
+    return projects.filter(project => {
+      if (!project) return false;
+      
+      const matchesSearch = !search || 
+        (project.name && project.name.toLowerCase().includes(search.toLowerCase())) ||
+        (project.description && project.description.toLowerCase().includes(search.toLowerCase()));
+        
+      const matchesStatus = !statusFilter || project.status === statusFilter;
+      
+      return matchesSearch && matchesStatus;
+    });
+  }, [projects, search, statusFilter]);
+
+  // Retry function
+  const handleRetry = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      const response = await getProjects();
+      if (response && response.projects) {
+        setProjects(response.projects);
+        setPagination(response.pagination);
+      } else if (Array.isArray(response)) {
+        setProjects(response);
+      }
+    } catch (err) {
+      setError('Failed to load projects. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (loading) {
     return <LoadingSpinner message="Loading projects..." />;
   }
 
   if (error) {
-    return <ErrorMessage error={error} onRetry={() => window.location.reload()} />;
+    return <ErrorMessage error={error} onRetry={handleRetry} />;
   }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+      {/* Success Message */}
+      {successMessage && (
+        <div className="mb-6 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 p-4 rounded-lg">
+          <p className="font-medium">{successMessage}</p>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
         <div className="mb-4 lg:mb-0">
@@ -120,18 +180,33 @@ const ProjectDashboard = () => {
               : "No projects match your current filters."
             }
           </p>
-          <button
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-lg font-medium transition-colors"
-            onClick={() => navigate('/projects/create')}
-          >
-            Create New Project
-          </button>
+          {projects.length === 0 ? (
+            <button
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-lg font-medium transition-colors"
+              onClick={() => navigate('/projects/create')}
+            >
+              Create New Project
+            </button>
+          ) : (
+            <button
+              className="px-4 py-2 bg-gray-600 hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600 text-white rounded-lg font-medium transition-colors"
+              onClick={() => {
+                setSearch('');
+                setStatusFilter('');
+              }}
+            >
+              Clear Filters
+            </button>
+          )}
         </div>
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredProjects.map(project => (
-              <ProjectCard key={project.id} project={project} />
+              <ProjectCard 
+                key={project.id_project || project.id} 
+                project={project} 
+              />
             ))}
           </div>
           
@@ -144,7 +219,7 @@ const ProjectDashboard = () => {
               <div className="flex space-x-2">
                 <button
                   disabled={!pagination.hasPrev}
-                  className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded disabled:opacity-50"
+                  className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded disabled:opacity-50 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                 >
                   Previous
                 </button>
@@ -153,7 +228,7 @@ const ProjectDashboard = () => {
                 </span>
                 <button
                   disabled={!pagination.hasNext}
-                  className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded disabled:opacity-50"
+                  className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded disabled:opacity-50 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                 >
                   Next
                 </button>
@@ -161,6 +236,16 @@ const ProjectDashboard = () => {
             </div>
           )}
         </>
+      )}
+
+      {/* Debug info en desarrollo */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mt-8 bg-gray-100 dark:bg-gray-800 p-4 rounded-lg text-sm">
+          <h3 className="font-semibold mb-2">Debug Info:</h3>
+          <p>Total projects: {projects.length}</p>
+          <p>Filtered projects: {filteredProjects.length}</p>
+          <p>Has pagination: {pagination ? 'Yes' : 'No'}</p>
+        </div>
       )}
     </div>
   );
