@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import axios from 'axios';
 import LoadingSpinner from '../components/LoadingSpinner.jsx';
 import ErrorMessage from '../components/ErrorMessage.jsx';
 import DeviceModal from '../components/DeviceModal.jsx';
@@ -18,14 +19,11 @@ const Dashboard = () => {
   const fetchDevices = async () => {
     try {
       setLoading(true);
-      const dummyData = [
-        { id: 'esp01', name: 'Sensor Carlos', matricula: 'A00112233' },
-        { id: 'esp02', name: 'Sensor Danny', matricula: 'A00445566' },
-      ];
-      setDevices(dummyData);
+      const response = await axios.get('http://localhost:3000/api/devices');
+      setDevices(response.data);
       setLoading(false);
     } catch (err) {
-      setError('Error al cargar dispositivos');
+      setError('Error al cargar dispositivos',err);
       setLoading(false);
     }
   };
@@ -42,28 +40,36 @@ const Dashboard = () => {
     setModalOpen(true);
   };
 
-  const handleSubmit = () => {
-    if (editingId) {
-      setDevices(prev =>
-        prev.map(device =>
-          device.id === editingId ? { ...device, ...formData } : device
-        )
-      );
-      setEditingId(null);
-    } else {
-      setDevices(prev => [...prev, formData]);
+  const handleSubmit = async () => {
+    try {
+      if (editingId) {
+        await axios.put(`http://localhost:3000/api/devices/${editingId}`, formData);
+        setDevices(prev =>
+          prev.map(device =>
+            device.id === editingId ? { ...device, ...formData } : device
+          )
+        );
+        setEditingId(null);
+      } else {
+        const response = await axios.post('http://localhost:3000/api/devices', formData);
+        setDevices(prev => [...prev, response.data]);
+      }
+      setModalOpen(false);
+    } catch (err) {
+      setError('Error al guardar el dispositivo',err);
     }
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (confirm('¿Estás seguro de eliminar este dispositivo?')) {
-      setDevices(prev => prev.filter(device => device.id !== id));
+      try {
+        await axios.delete(`http://localhost:3000/api/devices/${id}`);
+        setDevices(prev => prev.filter(device => device.id !== id));
+      } catch (err) {
+        setError('Error al eliminar el dispositivo',err);
+      }
     }
   };
-
-  if (loading) return <LoadingSpinner message="Cargando dispositivos..." />;
-  if (error) return <ErrorMessage error={error} onRetry={fetchDevices} />;
-
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       {/* Header estilo analytics */}
@@ -94,46 +100,52 @@ const Dashboard = () => {
 
       {/* Tabla */}
       <div className="bg-white rounded-lg shadow-sm overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-100 text-gray-600 uppercase text-sm font-semibold">
-            <tr>
-              <th className="px-6 py-4 text-left">ID</th>
-              <th className="px-6 py-4 text-left">Nombre</th>
-              <th className="px-6 py-4 text-left">Matrícula</th>
-              <th className="px-6 py-4 text-left">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 text-gray-800">
-            {devices.map(device => (
-              <tr key={device.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4">{device.id}</td>
-                <td className="px-6 py-4">{device.name}</td>
-                <td className="px-6 py-4">{device.matricula}</td>
-                <td className="px-6 py-4 space-x-2">
-                  <button
-                    onClick={() => handleEdit(device)}
-                    className="px-3 py-1 text-sm bg-yellow-400 hover:bg-yellow-500 text-white rounded-lg"
-                  >
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => handleDelete(device.id)}
-                    className="px-3 py-1 text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg"
-                  >
-                    Eliminar
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {devices.length === 0 && (
+        {loading ? (
+          <LoadingSpinner message="Cargando dispositivos..." />
+        ) : error ? (
+          <ErrorMessage error={error} onRetry={fetchDevices} />
+        ) : (
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-100 text-gray-600 uppercase text-sm font-semibold">
               <tr>
-                <td colSpan="4" className="px-6 py-6 text-center text-gray-500">
-                  No hay dispositivos registrados
-                </td>
+                <th className="px-6 py-4 text-left">ID</th>
+                <th className="px-6 py-4 text-left">Nombre</th>
+                <th className="px-6 py-4 text-left">Matrícula</th>
+                <th className="px-6 py-4 text-left">Acciones</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-200 text-gray-800">
+              {devices.map(device => (
+                <tr key={device.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4">{device.id}</td>
+                  <td className="px-6 py-4">{device.name}</td>
+                  <td className="px-6 py-4">{device.matricula}</td>
+                  <td className="px-6 py-4 space-x-2">
+                    <button
+                      onClick={() => handleEdit(device)}
+                      className="px-3 py-1 text-sm bg-yellow-400 hover:bg-yellow-500 text-white rounded-lg"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => handleDelete(device.id)}
+                      className="px-3 py-1 text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg"
+                    >
+                      Eliminar
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {devices.length === 0 && (
+                <tr>
+                  <td colSpan="4" className="px-6 py-6 text-center text-gray-500">
+                    No hay dispositivos registrados
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
       </div>
 
       <DeviceModal

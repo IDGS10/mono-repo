@@ -1,0 +1,6 @@
+@AnalyticsPSQL_MasterApi_HostAddress = http://localhost:5138
+
+GET {{AnalyticsPSQL_MasterApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

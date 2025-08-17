@@ -1,0 +1,21 @@
+# Ignora dependencias
+node_modules/
+
+# Ignora archivos de entorno
+.env
+
+# Ignora lock file si no quieres versionarlo
+package-lock.json
+yarn.lock
+
+# Ignora archivos temporales
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Ignora cachés y archivos del sistema
+.DS_Store
+Thumbs.db
+
+

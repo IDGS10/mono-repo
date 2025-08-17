@@ -1,2 +1,6 @@
 # Real time service not following files
 RealTimeService/IoTDeviceScripts/node_modules
+AnalyticsMasterAPI/.vs
+AnalyticsMasterAPI/bin
+AnalyticsMasterAPI/obj
+AnalyticsMasterAPI/appsettings.prod.json

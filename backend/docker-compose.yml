@@ -1,0 +1,55 @@
+services:
+  # Security Service
+  security:
+    build:
+      context: .
+      dockerfile: ./security/Dockerfile
+      target: production
+      # Add build context for shared middleware
+      args:
+        - NODE_ENV=production
+    container_name: security
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - NODE_ENV=production
+      - PORT=8000
+    env_file:
+      - ./security/.env
+    volumes:
+      - ./security/config/.ssl:/app/config/.ssl:ro
+      - ./security/logs:/app/logs
+      - ./shared:/shared:ro  # Mount shared middleware
+    networks:
+      - backend-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "const http = require('http'); const req = http.request({host: 'localhost', port: 8000, path: '/api/health', timeout: 5000}, (res) => process.exit(res.statusCode === 200 ? 0 : 1)); req.on('error', () => process.exit(1)); req.end();"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+
+  # Add other backend services here
+  # face-recognition-api:
+  #   build:
+  #     context: ./face-recognition
+  #     dockerfile: Dockerfile
+  #   container_name: face-recognition-api
+  #   ports:
+  #     - "8001:8001"
+  #   env_file:
+  #     - ./face-recognition/.env
+  #   volumes:
+  #     - ./shared:/shared:ro  # Mount shared middleware
+  #   networks:
+  #     - backend-network
+
+networks:
+  backend-network:
+    driver: bridge
