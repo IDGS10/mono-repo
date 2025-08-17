@@ -1,8 +1,9 @@
 using AnalyticsPSQL_MasterApi.Data;
-using Microsoft.EntityFrameworkCore;
+using AnalyticsPSQL_MasterApi.Infrastructure;
 using AnalyticsPSQL_MasterApi.Services;
 using InfluxDB.Client;
-using AnalyticsPSQL_MasterApi.Infrastructure;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -83,12 +84,38 @@ var app = builder.Build();
 //}
 
 // Configure Swagger for all environments
-app.UseSwagger();
+//app.UseSwagger();
+//app.UseSwaggerUI(c =>
+//{
+//    c.SwaggerEndpoint("/swagger/v1/swagger.json", "ESP32 Analytics API v1");
+//    c.RoutePrefix = string.Empty; // Root swagger
+//});
+
+// Configure Swagger
+app.UseSwagger(c =>
+{
+    // Modificar el path base del documento swagger
+    c.RouteTemplate = "swagger/{documentName}/swagger.json";
+    c.PreSerializeFilters.Add((swaggerDoc, httpReq) =>
+    {
+        // Forzar el servidor base URL a incluir /analytics
+        var scheme = httpReq.Headers["X-Forwarded-Proto"].FirstOrDefault() ?? httpReq.Scheme;
+        var host = httpReq.Headers["X-Forwarded-Host"].FirstOrDefault() ?? httpReq.Host.Value;
+
+        var serverUrl = $"{scheme}://{host}/analytics";
+        swaggerDoc.Servers = new List<OpenApiServer>
+        {
+            new OpenApiServer { Url = serverUrl }
+        };
+    });
+});
+
 app.UseSwaggerUI(c =>
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "ESP32 Analytics API v1");
-    c.RoutePrefix = string.Empty; // Root swagger
+    c.SwaggerEndpoint("https://server-uteq.nrsoftware.online/analytics/swagger/v1/swagger.json", "ESP32 Analytics API v1");
+    c.RoutePrefix = string.Empty;
 });
+
 
 app.UseCors("AllowAll");
 
