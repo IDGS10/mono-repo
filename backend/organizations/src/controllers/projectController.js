@@ -4,23 +4,29 @@ const Organization = require('../models/Organization');
 class ProjectController {
   // POST API APPROVAL PROJECT
   // PROJECT JSON RECEPTION - PROJECT MODULE
+
   static async createApprovalRequest(req, res, next) {
     try {
       const { organization_id, ...projectData } = req.body;
 
 // ORG_ID - OBLIGATORY
+
       if (!organization_id) {
         return res.status(400).json({
           error: 'organization_id es requerido'
         });
       }
+
 // ID TEMPORAL - OBLIGATORY
+
       if (!projectData.id) {
         return res.status(400).json({
           error: 'id del proyecto temporal es requerido'
         });
       }
+
 // NAME - OBLIGATORY
+
       if (!projectData.name) {
         return res.status(400).json({
           error: 'name del proyecto es requerido'
@@ -28,6 +34,7 @@ class ProjectController {
       }
 
       // VERIFY ORG
+
       const organization = await Organization.findById(organization_id);
       
       if (!organization) {
@@ -49,12 +56,14 @@ class ProjectController {
       }
 
       // CHECK PENDING APPROVAL FOR THIS PROJECT
+
       const exists = await ProjectApproval.exists(projectData.id);
       if (exists) {
         return res.status(409).json({
           error: 'Ya existe una solicitud de aprobación para este proyecto'
         });
       }
+
 
       // CREATE REQUEST
       const approval = await ProjectApproval.create(
@@ -81,7 +90,6 @@ class ProjectController {
     try {
       const { orgId } = req.params;
       const userId = req.user.id;
-
       const organization = await Organization.findById(orgId);
       if (!organization || organization.owner_id !== userId) {
         return res.status(403).json({
@@ -114,6 +122,7 @@ class ProjectController {
   }
 
   // GET PROJECT DETAILS
+
   static async getProjectDetails(req, res, next) {
     try {
       const { temporalId } = req.params;
@@ -150,6 +159,7 @@ class ProjectController {
   }
 
   // POST APROBATION PROJECT
+
   static async approveProject(req, res, next) {
     try {
       const { temporalId } = req.params;
@@ -183,6 +193,7 @@ class ProjectController {
       );
 
       // NOTIFY THE PROJECT MODULE - ¡¡¡¡ CHECK THIS EQUIPMENT!!!!
+
       try {
         const realProjectId = await ProjectController.notifyProjectApproval({
           temporal_project_id: approval.temporal_project_id,
@@ -193,6 +204,7 @@ class ProjectController {
         });
 
         //  CREATE REAL ID
+
         if (realProjectId) {
           await ProjectApproval.updateRealProjectId(temporalId, realProjectId);
         }
@@ -213,7 +225,6 @@ class ProjectController {
     }
   }
 
-  // POST REJECT PROYECT
   static async rejectProject(req, res, next) {
     try {
       const { temporalId } = req.params;
@@ -238,7 +249,6 @@ class ProjectController {
           error: 'Este proyecto ya fue revisado'
         });
       }
-
       const organization = await Organization.findById(approval.organization_id);
       if (!organization || organization.owner_id !== userId) {
         return res.status(403).json({
@@ -254,6 +264,7 @@ class ProjectController {
       );
 
        // NOTIFY REJECT THE PROJECT MODULE - ¡¡¡¡ CHECK THIS EQUIPMENT!!!!
+
       try {
         await ProjectController.notifyProjectRejection({
           temporal_project_id: approval.temporal_project_id,
@@ -279,6 +290,7 @@ class ProjectController {
   }
 
   // GET HISTORIAL APPROVAL
+
   static async getApprovalHistory(req, res, next) {
     try {
       const { orgId } = req.params;
@@ -312,8 +324,6 @@ class ProjectController {
       next(error);
     }
   }
-
-  // GET PROJECT BY ORG
   static async searchProjects(req, res, next) {
     try {
       const { orgId } = req.params;
@@ -349,7 +359,6 @@ class ProjectController {
       next(error);
     }
   }
-
   // NOTIFICATION METHODS
   static async notifyProjectApproval(approvalData) {
     const {
@@ -361,7 +370,7 @@ class ProjectController {
     } = approvalData;
 
     try {
-      
+
       // URL SERVER PROJECT MODULE
       const projectsServerUrl = process.env.PROJECTS_MODULE_URL || 'http://localhost:3002';
       
@@ -379,6 +388,7 @@ class ProjectController {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+
         },
         body: JSON.stringify(payload)
       });
@@ -395,7 +405,7 @@ class ProjectController {
       
     } catch (error) {
       console.error('Error notificando aprobación:', error.message);
-    
+
       throw error;
     }
   }
@@ -471,6 +481,7 @@ class ProjectController {
       throw error;
     }
   }
+
 }
 
 module.exports = ProjectController;

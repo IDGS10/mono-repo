@@ -9,25 +9,27 @@ class InvitationController {
       const { organization_id } = req.body;
 
       // FIND ORGANIZATION
+
       const organization = await Organization.findById(organization_id);
       if (!organization) {
         return res.status(404).json({
           error: 'Organización no encontrada'
         });
       }
+
       // PERMISSION - OWNER
+
       if (organization.owner_id !== userId) {
         return res.status(403).json({
           error: 'Solo el propietario puede enviar invitaciones'
         });
       }
-
       // VERIFICATION OF INVITATION SENT
+
       const emailExists = await UserInvitation.checkEmailExists(
         req.validatedData.invited_email,
         organization_id
       );
-
       if (emailExists) {
         return res.status(409).json({
           error: 'Este email ya tiene una invitación pendiente'
@@ -35,6 +37,7 @@ class InvitationController {
       }
 
       // CREATE INVITATION
+
       const invitationData = {
         ...req.validatedData,
         organization_id,
@@ -73,6 +76,7 @@ class InvitationController {
   }
 
   // GET API ORGNIZATION ID
+
   static async getByOrganization(req, res, next) {
     try {
       const { orgId } = req.params;
@@ -104,6 +108,7 @@ class InvitationController {
   }
 
   // GET API TOKEN
+
   static async verifyToken(req, res, next) {
     try {
       const { token } = req.params;
@@ -243,14 +248,12 @@ class InvitationController {
     try {
       const { id } = req.params;
       const userId = req.user.id;
-
       const invitation = await UserInvitation.findById(id);
       if (!invitation) {
         return res.status(404).json({
           error: 'Invitación no encontrada'
         });
       }
-
       const organization = await Organization.findById(invitation.organization_id);
       if (!organization || organization.owner_id !== userId) {
         return res.status(403).json({

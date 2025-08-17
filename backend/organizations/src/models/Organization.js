@@ -2,6 +2,7 @@ const db = require('../config/database');
 
 class Organization {
   static async create(data) { //ORGANIZATION DATA CREATION 
+
     const {
       name,
       description,
@@ -20,7 +21,6 @@ class Organization {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
       RETURNING *
     `;
-
 const values = [
   name, 
   description, 
@@ -31,11 +31,13 @@ const values = [
   owner_id, 
   created_by_id
 ];
+
     const result = await db.query(query, values);
     return result.rows[0];
   }
 
   static async findById(id) { //FIND ORG
+
     const query = `
       SELECT 
         o.*,
@@ -122,6 +124,7 @@ static async update(id, data, modifiedById) { //UPDATE
   }
 
   static async checkEmailExists(email, excludeId = null) {  //CKECK EMAIL EXIST
+
     let query = 'SELECT id_organization FROM organizations WHERE organization_email = $1';
     const values = [email];
 

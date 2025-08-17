@@ -6,6 +6,7 @@ const { validateOrganization } = require('../middleware/validation');
 const upload = require('../utils/fileUpload');
 
 // ROUTES FOR ALL MODULES FOR ORGANIZATION ID
+
 router.get('/:id/basic', OrganizationController.getBasicInfo);
 router.get('/active', OrganizationController.getActiveOrganizations);
 
@@ -13,7 +14,7 @@ router.post('/auth/test-token', (req, res) => {
   try {
     const jwt = require('jsonwebtoken');
     const config = require('../config/config');
-    
+
     // GENERATE TOKEN TEST - DELETE TO FINISH
     const testUser = {
       id: 1,

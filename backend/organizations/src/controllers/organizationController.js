@@ -8,6 +8,7 @@ class OrganizationController {
       const userId = req.user.id;
       const organization = await Organization.findByOwnerId(userId); 
       // ORGANIZATIONS CREATED BY OWNER ID
+
       if (!organization) {
         return res.json({
           hasOrganization: false,
@@ -55,6 +56,7 @@ class OrganizationController {
       };
 
       const organization = await Organization.create(organizationData); //CREATE ORGANIZATION
+
       res.status(201).json({
         message: 'Organización creada exitosamente',
         organization
@@ -64,6 +66,7 @@ class OrganizationController {
     }
   }
   static async getById(req, res, next) { //GET ORGANIZATION BY ID
+
     try {
       const { id } = req.params;
       
@@ -96,6 +99,7 @@ class OrganizationController {
       }
 
       const organization = await Organization.update(id, req.validatedData, userId); //UPDATE ORGANIZATION
+
       
       if (!organization) {
         return res.status(404).json({
@@ -139,7 +143,9 @@ class OrganizationController {
       next(error);
     }
   }
+
   static async getActiveOrganizations(req, res, next) { //CORREGIR ESTE METODO
+
     try {
       const query = `
         SELECT 

@@ -18,6 +18,7 @@ module.exports = {
     expiresIn: process.env.JWT_EXPIRES_IN
   },
 
+
  email: {
     host: process.env.EMAIL_HOST,
     port: process.env.EMAIL_PORT || 587,
@@ -35,6 +36,7 @@ module.exports = {
     expirationDays: 7,
     baseUrl: process.env.FRONTEND_URL || 'http://localhost:3000'
   }  
+
   
 
 };

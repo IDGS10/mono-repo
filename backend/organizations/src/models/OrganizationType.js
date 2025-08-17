@@ -2,6 +2,7 @@ const db = require('../config/database');
 
 class OrganizationType {
   static async getAll() { // ORG TYPE
+
     const query = `
       SELECT id_type, name, description
       FROM organization_types
@@ -14,6 +15,7 @@ class OrganizationType {
   }
 
   static async findById(id) { //FIND ID ORG TYPE
+
     const query = `
       SELECT id_type, name, description, status
       FROM organization_types

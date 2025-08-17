@@ -58,7 +58,6 @@ class UserInvitation {
     const result = await db.query(query, [id]);
     return result.rows[0];
   }
-
   static async findByOrganization(organizationId) {
     const query = `
       SELECT *
@@ -102,6 +101,7 @@ class UserInvitation {
         AND organization_id = $2
         AND status = 'pending'
         AND expires_at > CURRENT_TIMESTAMP
+
     `;
 
     const result = await db.query(query, [email, organizationId]);

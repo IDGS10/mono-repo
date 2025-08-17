@@ -18,7 +18,9 @@ const authenticateToken = (req, res, next) => {
     next();
   });
 };
+
 //CHECH OWNER ACCESS TO ORGANIZATION
+
 const checkOwnerRole = (req, res, next) => {
   if (req.user.role !== 'propietario') {
     return res.status(403).json({ 
