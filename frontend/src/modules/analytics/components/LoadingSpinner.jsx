@@ -1,38 +1,16 @@
-// modules/analytics/components/LoadingSpinner.jsx
-const LoadingSpinner = ({ message = 'Cargando...', size = 'medium' }) => {
-  const sizeClasses = {
-    small: 'w-4 h-4',
-    medium: 'w-8 h-8',
-    large: 'w-12 h-12'
-  };
+// components/LoadingSpinner.jsx
+import React from 'react';
 
-  const containerClasses = {
-    small: 'gap-2',
-    medium: 'gap-3',
-    large: 'gap-4'
-  };
-
-  const textClasses = {
-    small: 'text-sm',
-    medium: 'text-base',
-    large: 'text-lg'
-  };
-
+export const LoadingSpinner = ({ dateRange }) => {
   return (
-    <div className={`flex flex-col items-center justify-center ${containerClasses[size]}`}>
-      {/* Spinner */}
-      <div className={`${sizeClasses[size]} relative`}>
-        <div className={`${sizeClasses[size]} border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin`}></div>
-      </div>
-      
-      {/* Loading Message */}
-      {message && (
-        <p className={`text-gray-600 ${textClasses[size]} text-center font-medium`}>
-          {message}
-        </p>
+    <div className="flex flex-col items-center justify-center h-96 bg-gray-50 dark:bg-slate-900">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400"></div>
+      <span className="ml-3 text-lg text-gray-800 dark:text-white">Cargando datos de telemetría...</span>
+      {!dateRange.isRealtime && (
+        <span className="mt-2 text-sm text-gray-600 dark:text-slate-400">
+          Obteniendo datos del {dateRange.startDate} al {dateRange.endDate}
+        </span>
       )}
     </div>
   );
 };
-
-export default LoadingSpinner;

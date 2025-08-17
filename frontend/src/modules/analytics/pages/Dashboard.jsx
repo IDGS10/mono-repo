@@ -1,107 +1,175 @@
-import React, { useState, useEffect } from 'react';
-import { SecurityApi } from '../../../Api';
+// Dashboard.jsx - Componente Principal
+import React, { useEffect } from 'react';
+import { useTelemetryData } from '../hooks/useTelemetryData';
+import { KPICard } from '../components/KPICard';
+import { DateFilters } from '../components/DateFilters';
+import { LoadingSpinner } from '../components/LoadingSpinner';
+import { ChartContainer } from '../components/ChartContainer';
+import { TemperatureChart } from '../components/charts/TemperatureChart';
+import { HumidityChart } from '../components/charts/HumidityChart';
+import { DeviceComparisonChart } from '../components/charts/DeviceComparisonChart';
+import { FormatDistributionChart } from '../components/charts/FormatDistributionChart';
+import { CorrelationChart } from '../components/charts/CorrelationChart';
+import { StatisticsTable } from '../components/StatisticsTable';
 
 const Dashboard = () => {
-  const [securityMessage, setSecurityMessage] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const {
+    telemetryData,
+    realtimeData,
+    deviceStats,
+    loading,
+    error,
+    dateRange,
+    fetchTelemetryData,
+    handleDateRangeChange,
+    handleModeChange,
+    applyDateFilter
+  } = useTelemetryData();
 
   useEffect(() => {
-    const fetchSecurityMessage = async () => {
-      try {
-        setLoading(true);
-        setError('');
-        
-        const response = await SecurityApi.get('/api/hello');
-        
-        if (response.data && response.data.success) {
-          setSecurityMessage(response.data.message);
-        } else {
-          setError('No se pudo obtener el mensaje del servicio de seguridad');
-        }
-      } catch (err) {
-        console.error('Error fetching security message:', err);
-        setError(`Error de conexión: ${err.message}`);
-      } finally {
-        setLoading(false);
+    // Configurar fechas por defecto
+    const now = new Date();
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    handleDateRangeChange('startDate', yesterday.toISOString().split('T')[0]);
+    handleDateRangeChange('endDate', now.toISOString().split('T')[0]);
+
+    fetchTelemetryData();
+    
+    // Configurar variables CSS para tooltips según el tema
+    const updateThemeVariables = () => {
+      const isDark = document.documentElement.classList.contains('dark');
+      const root = document.documentElement;
+      
+      if (isDark) {
+        root.style.setProperty('--tooltip-bg', '#1e293b');
+        root.style.setProperty('--tooltip-border', '#475569');
+        root.style.setProperty('--tooltip-text', '#f1f5f9');
+      } else {
+        root.style.setProperty('--tooltip-bg', '#ffffff');
+        root.style.setProperty('--tooltip-border', '#d1d5db');
+        root.style.setProperty('--tooltip-text', '#374151');
       }
     };
 
-    fetchSecurityMessage();
-  }, []);
+    updateThemeVariables();
+    
+    const observer = new MutationObserver(updateThemeVariables);
+    observer.observe(document.documentElement, { 
+      attributes: true, 
+      attributeFilter: ['class'] 
+    });
+    
+    const interval = setInterval(() => {
+      if (dateRange.isRealtime && Math.random() > 0.7) {
+        fetchTelemetryData();
+      }
+    }, 5000);
+
+    return () => {
+      clearInterval(interval);
+      observer.disconnect();
+    };
+  }, [dateRange.isRealtime]);
+
+  // Datos para gráfico de sectores
+  const formatDistribution = telemetryData.reduce((acc, item) => {
+    const format = item.tags.format;
+    acc[format] = (acc[format] || 0) + 1;
+    return acc;
+  }, {});
+
+  const pieData = Object.entries(formatDistribution).map(([format, count]) => ({
+    name: format.toUpperCase(),
+    value: count,
+    percentage: ((count / telemetryData.length) * 100).toFixed(1)
+  }));
+
+  if (loading) {
+    return <LoadingSpinner dateRange={dateRange} />;
+  }
 
   return (
-    <div className="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">
-          Analytics Dashboard
-        </h1>
+    <div className="p-6 bg-gray-50 dark:bg-slate-900 min-h-screen">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">Dashboard IoT</h1>
+        <p className="text-gray-600 dark:text-slate-300">Monitoreo en tiempo real de dispositivos IoT</p>
         
-        {/* Security Service Integration */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-            Security Service Status
-          </h2>
-          
-          {loading && (
-            <div className="flex items-center space-x-2">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-              <span className="text-gray-600 dark:text-gray-400">
-                Conectando con el servicio de seguridad...
-              </span>
-            </div>
-          )}
-          
-          {error && (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800 dark:text-red-200">
-                    Error de conexión
-                  </h3>
-                  <div className="mt-2 text-sm text-red-700 dark:text-red-300">
-                    {error}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {securityMessage && !loading && !error && (
-            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md p-4">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-green-800 dark:text-green-200">
-                    Conexión exitosa
-                  </h3>
-                  <div className="mt-2 text-sm text-green-700 dark:text-green-300">
-                    <strong>{securityMessage}</strong>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+        <DateFilters 
+          dateRange={dateRange}
+          loading={loading}
+          error={error}
+          onDateRangeChange={handleDateRangeChange}
+          onModeChange={handleModeChange}
+          onApplyFilter={applyDateFilter}
+        />
+
+        {/* KPIs */}
+        <div className="flex gap-4 mt-4">
+          <KPICard 
+            title="Lecturas Totales" 
+            value={telemetryData.length} 
+            color="blue" 
+          />
+          <KPICard 
+            title="Dispositivos Activos" 
+            value={deviceStats.length} 
+            color="green" 
+          />
+          <KPICard 
+            title="Promedio Activación" 
+            value={`${Math.round(deviceStats.reduce((acc, device) => acc + parseInt(device.actuatorRate), 0) / deviceStats.length) || 0}%`} 
+            color="orange" 
+          />
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
+        <ChartContainer title="Temperatura en Tiempo Real">
+          <TemperatureChart data={realtimeData} />
+        </ChartContainer>
         
-        {/* Placeholder for future analytics content */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-            Analytics Content
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400">
-            Este es el contenido principal del dashboard de analytics.
+        <ChartContainer title="Humedad Relativa">
+          <HumidityChart data={realtimeData} />
+        </ChartContainer>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
+        <ChartContainer title="Comparación por Dispositivo" className="xl:col-span-2">
+          <DeviceComparisonChart data={deviceStats} />
+        </ChartContainer>
+        
+        <ChartContainer title="Formatos de Datos">
+          <FormatDistributionChart data={pieData} />
+        </ChartContainer>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <ChartContainer title="Correlación Temperatura vs Humedad">
+          <CorrelationChart data={realtimeData} />
+        </ChartContainer>
+        
+        <ChartContainer title="Estadísticas Detalladas">
+          <StatisticsTable data={deviceStats} />
+        </ChartContainer>
+      </div>
+
+      {/* Botón para refrescar datos */}
+      <div className="mt-6 text-center">
+        <button 
+          onClick={fetchTelemetryData}
+          className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white font-bold py-2 px-6 rounded-lg transition-colors shadow-lg border border-blue-500 dark:border-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={loading}
+        >
+          {loading ? 'Actualizando...' : dateRange.isRealtime ? 'Actualizar Datos' : 'Recargar Rango'}
+        </button>
+        
+        {!dateRange.isRealtime && (
+          <p className="mt-2 text-sm text-gray-600 dark:text-slate-400">
+            Mostrando datos del {new Date(dateRange.startDate).toLocaleDateString()} al {new Date(dateRange.endDate).toLocaleDateString()}
           </p>
-        </div>
+        )}
       </div>
     </div>
   );
