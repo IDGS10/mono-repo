@@ -1,9 +1,9 @@
 const { InfluxDB, Point } = require('@influxdata/influxdb-client');
 
-const url = 'http://192.168.100.76:8086/'; // Evaluate where we'll host influxDB 
-const token = 'my-super-token';           // InfluxDB token
-const org = 'my-org';                    // org name
-const bucket = 'iot-bucket';            // bucket name
+const url = 'http://74.208.89.126:8086/'; // Evaluate where we'll host influxDB 
+const token = 'q3C06WE5gch-TdrdBeTeucXeZ7swoycX5XsXIFcAG05UDcyPPpH7qZbg-Ph2icpF40aEVbHYRrRgiK12UJfa0w==';           // InfluxDB token
+const org = 'myorg';                    // org name
+const bucket = 'data-iot';            // bucket name
 
 const influxDB = new InfluxDB({ url, token });
 const writeApi = influxDB.getWriteApi(org, bucket);
