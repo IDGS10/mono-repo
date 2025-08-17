@@ -76,7 +76,7 @@ module.exports = (middleware) => {
   
   // Rutas que requieren roles administrativos (Organization, Manager, Cluster manager)
   router.post('/', 
-    middleware.requireRoles(['Organization', 'Manager', 'Cluster manager']), 
+    middleware.requireRoles(['Propietario', 'Manager', 'Project manager', 'Organization', 'Cluster manager']), 
     validateOrganization, 
     OrganizationController.create
   );
@@ -88,14 +88,14 @@ module.exports = (middleware) => {
   );
   
   router.put('/:id', 
-    middleware.requireRoles(['Organization', 'Manager', 'Cluster manager']), 
+      middleware.requireRoles(['Propietario', 'Manager', 'Project manager', 'Organization', 'Cluster manager']),
     checkOrganizationAccess, 
     validateOrganization, 
     OrganizationController.update
   );
   
   router.patch('/:id/status', 
-    middleware.requireRoles(['Organization', 'Manager', 'Cluster manager']), 
+  middleware.requireRoles(['Propietario', 'Manager', 'Project manager', 'Organization', 'Cluster manager']),
     checkOrganizationAccess, 
     OrganizationController.updateStatus
   );
