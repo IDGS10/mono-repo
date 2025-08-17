@@ -32,10 +32,10 @@ class AuthService {
       }
 
       const { email, firstName, lastName, password } = validation.sanitizedData;
-      const { phone, status = 'active', rol = 'Propietario', accepted = 0, orgId = null } = originalUserData;
+      const { phone, status = 'active', rol = 'Manager', accepted = 0, orgId = null } = originalUserData;
 
       // Validate rol
-      const validRoles = ['Propietario', 'Lider', 'Encargado'];
+      const validRoles = ['Manager', 'Project manager', 'Organization', 'Cluster manager'];
       if (!validRoles.includes(rol)) {
         throw new Error(`Rol inválido. Debe ser uno de: ${validRoles.join(', ')}`);
       }

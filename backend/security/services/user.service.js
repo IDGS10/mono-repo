@@ -57,7 +57,7 @@ class UserService {
 
       // Validate rol if provided
       if (rol) {
-        const validRoles = ['Propietario', 'Lider', 'Encargado'];
+        const validRoles = ['Manager', 'Project manager', 'Organization', 'Cluster manager'];
         if (!validRoles.includes(rol)) {
           throw new Error(`Rol inválido. Debe ser uno de: ${validRoles.join(', ')}`);
         }

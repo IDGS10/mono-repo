@@ -125,7 +125,7 @@ module.exports = {
         lastName: lastName.trim(),
         phone: phone ? phone.trim() : null,
         status: status || 'active',
-        rol: rol || 'Propietario',
+        rol: rol || 'Manager',
         accepted: accepted !== undefined ? accepted : 0,
         orgId: orgId || null
       }, req.ip, req.get('User-Agent'));
