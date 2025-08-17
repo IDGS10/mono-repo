@@ -14,7 +14,7 @@ import {
   Loader
 } from 'lucide-react';
 
-const API_BASE = API_CONFIG.BASE_API || "http://localhost:3001/api";
+const API_BASE = API_CONFIG.BASE_API || "http://localhost:8200/api";
 
 
 const AcceptInvitation = () => {
