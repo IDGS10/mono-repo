@@ -1,6 +1,8 @@
 const UserInvitation = require('../models/UserInvitation');
 const Organization = require('../models/Organization');
 const emailService = require('../services/emailService');
+const userService = require('../services/userService');
+const bcrypt = require('bcryptjs');
 
 class InvitationController {
   static async create(req, res, next) {
@@ -155,28 +157,66 @@ class InvitationController {
         organization: invitation.organization_name
       });
 
-      // CONNECTION WITH USER MODULE
-      /*
-      const newUser = await userService.createFromInvitation({
-        ...userData,
-        email: invitation.invited_email,
-        role: invitation.invited_role,
-        organization_id: invitation.organization_id,
-        invited_by: invitation.invited_by
-      });
-      */
+      // Verificar si el usuario ya existe en el sistema de seguridad
+      const userExists = await userService.userExists(invitation.invited_email);
+      
+      let newUser = null;
+      if (!userExists && userData) {
+        // Validar que se proporcionen los datos necesarios
+        if (!userData.password) {
+          return res.status(400).json({
+            error: 'Se requiere una contraseña para crear la cuenta'
+          });
+        }
 
-      // CHANGE ACCEPTANCE METHOD AFTER
+        // Hash the password before sending to security service
+        const hashedPassword = await bcrypt.hash(userData.password, 12);
+
+        // Crear usuario en el sistema de seguridad
+        try {
+          const userPayload = {
+            first_name: userData.first_name || invitation.invited_name?.split(' ')[0] || 'Usuario',
+            last_name: userData.last_name || invitation.invited_name?.split(' ').slice(1).join(' ') || 'Invitado',
+            email: invitation.invited_email,
+            password_hash: hashedPassword,
+            phone: userData.phone || '',
+            role: invitation.invited_role,
+            organization_id: invitation.organization_id,
+            invited_by: invitation.invited_by,
+            invited_name: invitation.invited_name
+          };
+
+          newUser = await userService.createFromInvitation(userPayload);
+          
+          console.log('✅ Usuario creado en sistema de seguridad:', newUser);
+        } catch (userError) {
+          console.error('❌ Error creando usuario:', userError);
+          return res.status(500).json({
+            error: 'Error al crear el usuario en el sistema',
+            details: userError.message
+          });
+        }
+      } else if (userExists) {
+        console.log('ℹ️ Usuario ya existe en sistema de seguridad');
+        // Obtener información del usuario existente
+        newUser = await userService.getUserByEmail(invitation.invited_email);
+      } else {
+        console.log('⚠️ No se proporcionaron datos de usuario para crear cuenta');
+      }
+
+      // Marcar invitación como aceptada
       await UserInvitation.updateStatus(invitation.id_invitation, 'accepted');
 
       res.json({
         message: 'Invitación aceptada exitosamente',
         redirectTo: '/dashboard',
+        user_created: !userExists,
         user_data: {
           email: invitation.invited_email,
           name: invitation.invited_name,
           role: invitation.invited_role,
-          organization_name: invitation.organization_name
+          organization_name: invitation.organization_name,
+          security_user_id: newUser?.id || null
         }
       });
     } catch (error) {

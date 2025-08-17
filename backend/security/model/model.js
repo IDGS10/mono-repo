@@ -446,5 +446,157 @@ module.exports = {
         error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
+  },
+
+  /**
+   * Registers a user from organization invitation
+   */
+  async registerFromInvitation(req, res) {
+    try {
+      const { 
+        first_name, 
+        last_name, 
+        email, 
+        password_hash, 
+        phone, 
+        rol, 
+        org_id 
+      } = req.body;
+
+      console.log('🔄 Registrando usuario desde invitación:', { email, rol, org_id });
+
+      // Validate required fields
+      if (!first_name || !last_name || !email || !password_hash || !rol) {
+        return res.status(400).json({
+          success: false,
+          message: "Datos requeridos: first_name, last_name, email, password_hash, rol"
+        });
+      }
+
+      // Call authentication service with pre-hashed password
+      const result = await AuthService.registerUser({
+        email: email.toLowerCase().trim(),
+        password: password_hash, // Ya viene hasheada desde organizations
+        firstName: first_name.trim(),
+        lastName: last_name.trim(),
+        phone: phone ? phone.trim() : null,
+        status: 'active',
+        rol: rol,
+        accepted: 1, // Usuario aceptado automáticamente por invitación
+        orgId: org_id || null,
+        isPreHashed: true // Indicar que la contraseña ya está hasheada
+      }, req.ip, req.get('User-Agent'));
+
+      res.status(201).json({
+        success: true,
+        message: "Usuario registrado exitosamente desde invitación",
+        user: {
+          id: result.user.id,
+          email: result.user.email,
+          firstName: result.user.first_name,
+          lastName: result.user.last_name,
+          phone: result.user.phone,
+          status: result.user.status,
+          rol: result.user.rol,
+          accepted: result.user.accepted,
+          orgId: result.user.org_id,
+          createdAt: result.user.created_at
+        }
+      });
+    } catch (error) {
+      console.error("Error in registerFromInvitation:", error);
+
+      if (error.message.includes('ya existe')) {
+        return res.status(409).json({
+          success: false,
+          message: "El usuario ya existe con ese email"
+        });
+      }
+
+      res.status(500).json({
+        success: false,
+        message: "Error interno del servidor al registrar usuario desde invitación",
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  },
+
+  /**
+   * Checks if a user exists by email
+   */
+  async checkUserExists(req, res) {
+    try {
+      const { email } = req.params;
+
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          message: "Email es requerido"
+        });
+      }
+
+      const user = await AuthService.getUserByEmail(email.toLowerCase().trim());
+      
+      res.status(200).json({
+        success: true,
+        exists: !!user,
+        email: email.toLowerCase().trim()
+      });
+    } catch (error) {
+      console.error("Error in checkUserExists:", error);
+      res.status(500).json({
+        success: false,
+        message: "Error interno del servidor",
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  },
+
+  /**
+   * Gets user by email
+   */
+  async getUserByEmail(req, res) {
+    try {
+      const { email } = req.params;
+
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          message: "Email es requerido"
+        });
+      }
+
+      const user = await AuthService.getUserByEmail(email.toLowerCase().trim());
+      
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "Usuario no encontrado"
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.first_name,
+          lastName: user.last_name,
+          phone: user.phone,
+          status: user.status,
+          rol: user.rol,
+          accepted: user.accepted,
+          orgId: user.org_id,
+          createdAt: user.created_at
+        }
+      });
+    } catch (error) {
+      console.error("Error in getUserByEmail:", error);
+      res.status(500).json({
+        success: false,
+        message: "Error interno del servidor",
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
   }
 };

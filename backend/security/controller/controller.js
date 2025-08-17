@@ -49,6 +49,27 @@ module.exports = {
   }),
 
   /**
+   * Registers a user from organization invitation
+   */
+  registerFromInvitation: asyncHandler(async (req, res) => {
+    return FacialAuthModel.registerFromInvitation(req, res);
+  }),
+
+  /**
+   * Checks if user exists by email
+   */
+  checkUserExists: asyncHandler(async (req, res) => {
+    return FacialAuthModel.checkUserExists(req, res);
+  }),
+
+  /**
+   * Gets user by email
+   */
+  getUserByEmail: asyncHandler(async (req, res) => {
+    return FacialAuthModel.getUserByEmail(req, res);
+  }),
+
+  /**
    * Updates authenticated user profile
    */
   updateUserProfile: asyncHandler(async (req, res) => {
