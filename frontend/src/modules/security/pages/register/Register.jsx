@@ -105,8 +105,6 @@ export default function Register() {
       }
     }
 
-    
-
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -147,7 +145,6 @@ export default function Register() {
           if (response.token && response.user) {
             //Guardamos el estado de login para verificación de la sesión
             localStorage.setItem("isLoggedIn", "true");
-
             // Guardar los datos completos del usuario y token
             const userData = {
               token: response.token,
@@ -294,6 +291,7 @@ export default function Register() {
                         setTouched((prev) => ({ ...prev, lastName: true }))
                       }
                       className={`w-full px-4 py-3 border rounded-lg focus:ring-2 hover:border-[#95b54c] focus:border-transparent transition-colors ${
+
                         formErrors.lastName
                           ? "border-red-500 bg-red-50"
                           : touched.lastName &&

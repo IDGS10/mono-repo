@@ -9,6 +9,7 @@ export const ROUTE_DEFINITIONS = [
   {
     path: '/',
     component: 'ProjectDashboard',
+
     name: 'Dashboard',
     showInMenu: true,
     menuOrder: 1,

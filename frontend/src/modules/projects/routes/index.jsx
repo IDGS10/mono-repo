@@ -13,7 +13,6 @@ const createRoute = (relativePath, config) => ({
 const routeDefinitions = ROUTE_DEFINITIONS.map(route => 
   createRoute(route.path, route)
 );
-
 // Map component strings to actual component references
 const componentMap = {
   'ProjectDashboard': ProjectDashboard,

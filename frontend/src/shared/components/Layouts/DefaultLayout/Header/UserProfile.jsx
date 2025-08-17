@@ -15,7 +15,6 @@ const UserProfile = () => {
       }
     }
   }, []);
-
   return (
     <div className="flex items-center space-x-3 pl-4 border-l border-gray-200 dark:border-gray-700">
       <div className="text-right">

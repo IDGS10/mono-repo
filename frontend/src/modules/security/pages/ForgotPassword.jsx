@@ -50,7 +50,6 @@ const ForgotPassword = () => {
             Ingresa tu email y te enviaremos un enlace para recuperarla
           </p>
         </div>
-
         <form className="space-y-6" onSubmit={handleSubmit}>
           {error && (
             <div className="bg-red-50 border border-red-300 text-red-800 px-4 py-3 rounded-md text-sm">

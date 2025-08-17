@@ -39,12 +39,12 @@ export default function HomePage() {
 
             {/* Botón Registrarse - ACCESIBLE */}
             <button
-  onClick={() => navigate("/register")}
-  className="bg-[#3e5586] hover:bg-[#5da8a0] text-white font-semibold text-xl px-10 py-5 rounded-2xl shadow-md transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-[#5da8a0]"
-  style={{ minWidth: 220 }}
->
-  Registrarse
-</button>
+              onClick={() => navigate("/register")}
+              className="bg-[#3e5586] hover:bg-[#5da8a0] text-white font-semibold text-xl px-10 py-5 rounded-2xl shadow-md transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-[#5da8a0]"
+              style={{ minWidth: 220 }}
+            >
+              Registrarse
+            </button>
           </div>
         </div>
       </div>

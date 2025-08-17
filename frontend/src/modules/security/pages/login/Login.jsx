@@ -15,7 +15,6 @@ import ApiService from "../../services/ApiService";
 
 export default function PasswordLogin() {
   const navigate = useNavigate();
-
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -131,7 +130,6 @@ export default function PasswordLogin() {
                 type="submit"
                 disabled={isLoading}
                 className="bg-[#3e5586] text-white font-semibold rounded-2xl shadow-lg hover:bg-[#5da8a0] transition-all duration-200 px-8 py-4 flex items-center justify-center space-x-3 w-full disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-4 focus:ring-[#5da8a0]"
-
               >
                 {isLoading ? (
                   <>
@@ -146,7 +144,6 @@ export default function PasswordLogin() {
                 )}
               </button>
             </form>
-
             <div className="mt-6 text-center space-y-2">
               <Link
                 to="/forgot-password"

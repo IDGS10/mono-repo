@@ -96,7 +96,6 @@ class ApiService {
             error: "El usuario ya existe con ese correo o cédula",
           };
         }
-
         // Handle validation errors (400 status)
         if (error.response?.status === 400) {
           const errorData = error.response.data;
@@ -109,7 +108,6 @@ class ApiService {
             validationErrors: errorData?.details || {}
           };
         }
-
         return {
           success: false,
           error: error.response?.data?.error || "Error durante el registro",
