@@ -18,6 +18,22 @@ namespace AnalyticsPSQL_MasterApi.Models
         [Column("description")]
         public string Description { get; set; }
 
+        [Column("max_devices")]
+        public int MaxDevices { get; set; }
+
+        [Column("requester_id")]
+        [Required]
+        public int RequestorId { get; set; }
+
+        [Column("project_id")]
+        public int ProjectId { get; set; }
+
+        [Column("cluster_manager_id")]
+        public int ClusterManagerId { get; set; }
+
+        [Column("status")]
+        public string Status { get; set; }
+
         [Column("location")]
         [MaxLength(200)]
         public string Location { get; set; }
@@ -27,6 +43,15 @@ namespace AnalyticsPSQL_MasterApi.Models
 
         [Column("updated_at")]
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+        [Column("assigned_at")]
+        public DateTime AssignatedAt { get; set; } = DateTime.UtcNow;
+        
+        [Column("activated_at")]
+        public DateTime ActivatedAt { get; set; } = DateTime.UtcNow;
+
+        [Column("completed_at")]
+        public DateTime CompletedAt { get; set; } = DateTime.UtcNow;
 
         [Column("is_active")]
         public bool IsActive { get; set; } = true;

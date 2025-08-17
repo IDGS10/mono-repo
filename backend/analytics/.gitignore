@@ -3,4 +3,4 @@ RealTimeService/IoTDeviceScripts/node_modules
 AnalyticsMasterAPI/.vs
 AnalyticsMasterAPI/bin
 AnalyticsMasterAPI/obj
-AnalyticsMasterAPI/appsettings.json
+AnalyticsMasterAPI/appsettings.prod.json

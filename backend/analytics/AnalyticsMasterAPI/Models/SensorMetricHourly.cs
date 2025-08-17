@@ -42,7 +42,7 @@ namespace AnalyticsPSQL_MasterApi.Models
         [Column("variance_value", TypeName = "decimal(10,4)")]
         public decimal? VarianceValue { get; set; }
 
-        // Datya percentile
+        // Data percentile
         [Column("percentile_25", TypeName = "decimal(10,4)")]
         public decimal? Percentile25 { get; set; }
 

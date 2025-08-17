@@ -25,6 +25,61 @@ $$ LANGUAGE plpgsql;
 
 
 
+SELECT 
+    schemaname,
+    tablename,
+    tableowner
+FROM pg_tables 
+WHERE tablename LIKE 'sensor_readings_%'
+ORDER BY tablename;
+
+-- Detailed partition information
+SELECT 
+    schemaname,
+    tablename,
+    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size
+FROM pg_tables 
+WHERE tablename LIKE 'sensor_readings_%'
+ORDER BY tablename;
+
+
+-- Create automatically partitions over data range
+DO $$
+DECLARE
+    current_date date := '2024-08-01'::date;
+    end_date date := '2026-02-01'::date;
+BEGIN
+    WHILE current_date < end_date LOOP
+        PERFORM create_monthly_partition('sensor_readings', current_date);
+        current_date := current_date + interval '1 month';
+    END LOOP;
+END $$;
+SELECT create_monthly_partition('sensor_readings', '2025-09-01'::date);
+SELECT create_monthly_partition('sensor_readings', '2025-10-01'::date);
+SELECT create_monthly_partition('sensor_readings', '2025-11-01'::date);
+SELECT create_monthly_partition('sensor_readings', '2025-12-01'::date);
+
+-- 2026 (just an example)
+SELECT create_monthly_partition('sensor_readings', '2026-01-01'::date);
+
+
+
+--- NEW FUNCTION TO CREATE AUTOMATIC PARTITIONS OVER THE CURRENT MONTH
+CREATE OR REPLACE FUNCTION maintain_sensor_readings_partitions()
+RETURNS void AS $$
+DECLARE
+    current_month date := date_trunc('month', CURRENT_DATE);
+BEGIN
+    -- For the current month and 2 next
+    PERFORM create_monthly_partition('sensor_readings', current_month);
+    PERFORM create_monthly_partition('sensor_readings', current_month + interval '1 month');
+    PERFORM create_monthly_partition('sensor_readings', current_month + interval '2 months');
+END;
+$$ LANGUAGE plpgsql;
+
+
+
+
 -- =================================================================
 --      THIS QUERY IS JUST AN EXAMPLE OF HOW TO CREATE A TRIGGER 
 --      FUNCTION IN POSTGRESQL, PLEASE EVALUATE BEFORE USING IT

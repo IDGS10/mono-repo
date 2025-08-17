@@ -11,7 +11,7 @@ namespace AnalyticsPSQL_MasterApi.Models
         public Guid DeviceId { get; set; } = Guid.NewGuid();
 
         [Column("swarm_id")]
-        public Guid SwarmId { get; set; }
+        public Guid? SwarmId { get; set; }
 
         [Column("device_name")]
         [Required]
@@ -54,6 +54,22 @@ namespace AnalyticsPSQL_MasterApi.Models
 
         [Column("updated_at")]
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+        // Business Logic
+        [Column("role")]
+        public string Role { get; set; }
+
+        [Column("assigned_at")]
+        public DateTime? AssignatedAt {  get; set; } = DateTime.UtcNow;
+
+        [Column("assigned_by")]
+        public int AssignatedBy { get; set; }
+
+        [Column("removed_at")]
+        public DateTime? RemovedAt { get; set; } = DateTime.UtcNow;
+
+        [Column("status")]
+        public string Status { get; set; }
 
         // Navigation
         [ForeignKey("SwarmId")]

@@ -79,7 +79,7 @@ CREATE TABLE device_swarms (
 --     status VARCHAR(20) DEFAULT 'assigned' CHECK (status IN ('assigned', 'active', 'inactive', 'removed')),
 --     PRIMARY KEY (swarm_id, device_id)
 -- );
-DROP TABLE IF EXISTS esp32_devices; 
+-- DROP TABLE IF EXISTS esp32_devices CASCADE; 
 -- Individual ESP32 devices
 CREATE TABLE esp32_devices (
     device_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -96,13 +96,16 @@ CREATE TABLE esp32_devices (
     battery_level DECIMAL(5,2), -- Percentage
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    -- Additions for retro-compatibility with Mauricio's schema
-    role VARCHAR(50) DEFAULT 'sensor',
+    role VARCHAR(50) DEFAULT 'sensor',-- Additions for retro-compatibility with Mauricio's schema
     assigned_at TIMESTAMP DEFAULT NOW(),
     assigned_by INTEGER NOT NULL,
     removed_at TIMESTAMP NULL,
     status VARCHAR(20) DEFAULT 'assigned' CHECK (status IN ('assigned', 'active', 'inactive', 'removed'))
 );
+-- not use INET specific IP scheme parse manually instead.
+ALTER TABLE esp32_devices 
+    ALTER COLUMN last_ip_address TYPE VARCHAR(50);
+
 
 DROP TABLE IF EXISTS sensor_types; 
 -- Sensor types definition
@@ -132,7 +135,7 @@ CREATE TABLE device_sensors (
 
 DROP TABLE IF EXISTS sensor_readings; 
 -- Main sensor readings table (partitioned by time)
--- PATITIONS NEED TO BE CHECKED FRECUENTLY TO AVOID OVERFLOW
+-- PATITIONS NEED TO BE CHECKED FRECUENTLY TO AVOID OVERFLOW ----> Not implemented yet
 CREATE TABLE sensor_readings (
     reading_id UUID DEFAULT uuid_generate_v4(),
     device_id UUID REFERENCES esp32_devices(device_id) ON DELETE CASCADE,
@@ -143,7 +146,7 @@ CREATE TABLE sensor_readings (
     quality_score DECIMAL(3,2) DEFAULT 1.0, -- Data quality indicator (0-1)
     metadata JSONB, -- Additional sensor-specific data
     PRIMARY KEY (reading_id, timestamp)
-) PARTITION BY RANGE (timestamp);
+) --PARTITION BY RANGE (timestamp);
 
 DROP TABLE IF EXISTS network_logs; 
 -- Network connectivity logs

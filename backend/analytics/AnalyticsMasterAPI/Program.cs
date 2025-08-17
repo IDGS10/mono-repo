@@ -1,5 +1,8 @@
 using AnalyticsPSQL_MasterApi.Data;
 using Microsoft.EntityFrameworkCore;
+using AnalyticsPSQL_MasterApi.Services;
+using InfluxDB.Client;
+using AnalyticsPSQL_MasterApi.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,10 +13,64 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Configure Entity Framework
+// Configure Entity Framework for PostgreSQL
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
-);
+{
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    options.UseNpgsql(connectionString, npgsqlOptions =>
+    {
+        npgsqlOptions.CommandTimeout(300); // 5 minutos para queries complejas
+        npgsqlOptions.EnableRetryOnFailure(3); // Reintentos automáticos
+    });
+});
+
+
+// Configure InfluxDB
+builder.Services.Configure<InfluxDbOptions>(
+    builder.Configuration.GetSection("InfluxDb"));
+
+builder.Services.AddSingleton<IInfluxDBClient>(provider =>
+{
+    var config = provider.GetRequiredService<IConfiguration>();
+    var url = config["InfluxDb:Url"];
+    var token = config["InfluxDb:Token"];
+
+    if (string.IsNullOrEmpty(url) || string.IsNullOrEmpty(token))
+    {
+        throw new InvalidOperationException("InfluxDB URL and Token are required");
+    }
+
+    return new InfluxDBClient(url, token);
+});
+
+// Register simulation services
+builder.Services.AddScoped<IInfluxSimulationService,InfluxSimulationService>();
+
+// Register the background service
+builder.Services.AddHostedService<InfluxSimulationBackgroundService>();
+
+// Configure logging
+builder.Services.AddLogging(logging =>
+{
+    logging.ClearProviders();
+    logging.AddConsole();
+    logging.AddDebug();
+    logging.SetMinimumLevel(LogLevel.Information);
+});
+
+// CORS development
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
+
+
 
 
 var app = builder.Build();
@@ -27,8 +84,13 @@ var app = builder.Build();
 
 // Configure Swagger for all environments
 app.UseSwagger();
-app.UseSwaggerUI();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "ESP32 Analytics API v1");
+    c.RoutePrefix = string.Empty; // Root swagger
+});
 
+app.UseCors("AllowAll");
 
 app.UseAuthorization();
 
