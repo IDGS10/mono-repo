@@ -143,6 +143,109 @@ router.post("/auth/logout",
 
 /**
  * @swagger
+ * /auth/register-from-invitation:
+ *   post:
+ *     summary: Register user from organization invitation
+ *     description: Creates a user account from an organization invitation
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - first_name
+ *               - last_name
+ *               - email
+ *               - password_hash
+ *               - rol
+ *             properties:
+ *               first_name:
+ *                 type: string
+ *               last_name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password_hash:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *               rol:
+ *                 type: string
+ *               org_id:
+ *                 type: integer
+ *     responses:
+ *       201:
+ *         description: User registered successfully
+ *       400:
+ *         description: Invalid data
+ *       409:
+ *         description: User already exists
+ *       500:
+ *         description: Internal server error
+ */
+router.post("/auth/register-from-invitation", 
+  Controller.registerFromInvitation
+);
+
+/**
+ * @swagger
+ * /auth/check-user/{email}:
+ *   get:
+ *     summary: Check if user exists
+ *     description: Verifies if a user exists by email
+ *     tags: [Authentication]
+ *     parameters:
+ *       - in: path
+ *         name: email
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: email
+ *     responses:
+ *       200:
+ *         description: Check completed
+ *       400:
+ *         description: Email required
+ *       500:
+ *         description: Internal server error
+ */
+router.get("/auth/check-user/:email", 
+  Controller.checkUserExists
+);
+
+/**
+ * @swagger
+ * /auth/user/{email}:
+ *   get:
+ *     summary: Get user by email
+ *     description: Gets user information by email
+ *     tags: [Authentication]
+ *     parameters:
+ *       - in: path
+ *         name: email
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: email
+ *     responses:
+ *       200:
+ *         description: User found
+ *       400:
+ *         description: Email required
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
+ */
+router.get("/auth/user/:email", 
+  Controller.getUserByEmail
+);
+
+/**
+ * @swagger
  * /user/profile:
  *   get:
  *     summary: Get user profile

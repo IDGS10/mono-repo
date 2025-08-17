@@ -22,7 +22,7 @@ const authenticateToken = (req, res, next) => {
 //CHECH OWNER ACCESS TO ORGANIZATION
 
 const checkOwnerRole = (req, res, next) => {
-  if (req.user.role !== 'propietario') {
+  if (req.user.role !== 'Propietario') {
     return res.status(403).json({ 
       error: 'Solo los propietarios pueden realizar esta acción' 
     });

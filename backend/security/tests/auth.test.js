@@ -27,7 +27,7 @@ describe('Authentication API Tests', () => {
         password: 'SecurePass123!',
         phone: '+1234567890',
         status: 'active',
-        rol: 'Lider',
+        rol: 'Project manager',
         accepted: 1,
         orgId: 123
       };
@@ -68,7 +68,7 @@ describe('Authentication API Tests', () => {
       expect(response.body).to.have.property('success', true);
       expect(response.body).to.have.property('token');
       expect(response.body).to.have.property('user');
-      expect(response.body.user).to.have.property('rol', 'Propietario'); // Default
+      expect(response.body.user).to.have.property('rol', 'Manager'); // Default
       expect(response.body.user).to.have.property('status', 'active'); // Default
       expect(response.body.user).to.have.property('accepted', 0); // Default
       expect(response.body.user).to.have.property('orgId', null); // Default

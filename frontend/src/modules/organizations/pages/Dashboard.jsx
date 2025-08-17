@@ -14,20 +14,12 @@ import {
   Eye
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { API_CONFIG } from '../../../config/api.js';
+import OrganizationService from '../services/organizationService';
+import InvitationService from '../services/invitationService';
+import { OrganizationsApi } from '../../../Api';
 
-
-const API_BASE = API_CONFIG.BASE_API || "http://localhost:3001/api";
-
-
-// Utility function to get auth headers
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('authToken');
-  return {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json'
-  };
-};
+// Utility function - ya no necesaria porque usamos el servicio
+// const getAuthHeaders = () => { ... };
 
 // Component for when user has no organization
 const NoOrganizationView = ({ onCreateOrganization }) => (
@@ -161,15 +153,7 @@ const Dashboard = () => {
   const fetchDashboard = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE}/organizations/dashboard`, {
-        headers: getAuthHeaders()
-      });
-
-      if (!response.ok) {
-        throw new Error('Error al cargar el dashboard');
-      }
-
-      const data = await response.json();
+      const data = await OrganizationService.getDashboard();
       setDashboardData(data);
       setHasOrganization(data.hasOrganization);
     } catch (err) {
@@ -195,14 +179,12 @@ const Dashboard = () => {
 
   const handleInvitationAction = async (invitationId, action) => {
     try {
-      const response = await fetch(`${API_BASE}/invitations/${invitationId}/${action}`, {
-        method: 'PATCH',
-        headers: getAuthHeaders()
-      });
-
-      if (response.ok) {
-        fetchDashboard(); // Refresh data
+      if (action === 'revoke') {
+        await InvitationService.revoke(invitationId);
+      } else if (action === 'resend') {
+        await InvitationService.resend(invitationId);
       }
+      fetchDashboard(); // Refresh data
     } catch (err) {
       console.error('Error handling invitation:', err);
     }
@@ -210,14 +192,8 @@ const Dashboard = () => {
 
   const handleProjectAction = async (projectId, action) => {
     try {
-      const response = await fetch(`${API_BASE}/projects/approvals/${projectId}/${action}`, {
-        method: 'PATCH',
-        headers: getAuthHeaders()
-      });
-
-      if (response.ok) {
-        fetchDashboard(); // Refresh data
-      }
+      await OrganizationsApi.patch(`/project-approvals/${projectId}/${action}`);
+      fetchDashboard(); // Refresh data
     } catch (err) {
       console.error('Error handling project:', err);
     }

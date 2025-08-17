@@ -53,7 +53,7 @@ async function initializeDatabase() {
         password_hash VARCHAR(255) NOT NULL,
         phone VARCHAR(20),
         status VARCHAR(20) DEFAULT 'active',
-        rol VARCHAR(20) DEFAULT 'Propietario' CHECK (rol IN ('Propietario', 'Lider', 'Encargado')),
+        rol VARCHAR(50) DEFAULT 'Manager' CHECK (rol IN ('Manager', 'Project manager', 'Organization', 'Cluster manager')),
         accepted INTEGER DEFAULT 0,
         org_id INTEGER,
         last_login TIMESTAMP,

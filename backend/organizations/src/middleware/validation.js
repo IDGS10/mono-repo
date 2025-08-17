@@ -31,7 +31,7 @@ const invitationSchema = Joi.object({
   organization_id: Joi.number().required(),
   invited_name: Joi.string().min(2).required(),
   invited_email: Joi.string().email().required(),
-  invited_role: Joi.string().valid('líder', 'encargado').required()
+  invited_role: Joi.string().valid('Propietario', 'Manager', 'Project manager', 'Organization', 'Cluster manager').required()
 });
 
 const validateOrganization = (req, res, next) => {
