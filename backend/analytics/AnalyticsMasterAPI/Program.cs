@@ -85,7 +85,23 @@ var app = builder.Build();
 
 // Configure Swagger for all environments
 //app.UseSwagger();
-app.UseSwagger();
+app.UseSwagger( c =>
+{
+    // Modificar el path base del documento swagger
+    c.RouteTemplate = "swagger/{documentName}/swagger.json";
+    c.PreSerializeFilters.Add((swaggerDoc, httpReq) =>
+    {
+        // Forzar el servidor base URL a incluir /analytics
+        var scheme = httpReq.Headers["X-Forwarded-Proto"].FirstOrDefault() ?? httpReq.Scheme;
+        var host = httpReq.Headers["X-Forwarded-Host"].FirstOrDefault() ?? httpReq.Host.Value;
+
+        var serverUrl = $"{scheme}://{host}/analytics";
+        swaggerDoc.Servers = new List<OpenApiServer>
+        {
+            new OpenApiServer { Url = serverUrl }
+        };
+    });
+});
 app.UseSwaggerUI();
 
 app.UseSwaggerUI(c =>
