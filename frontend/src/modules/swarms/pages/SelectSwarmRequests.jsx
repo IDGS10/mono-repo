@@ -19,6 +19,8 @@ export default function SelectSwarmRequests() {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
   const [assigning, setAssigning] = useState(false);
+  // NUEVO: Estado para mostrar detalles de asignación
+  const [assignmentResults, setAssignmentResults] = useState(null);
 
   // Function to load swarm requests using the service
   const loadSwarmRequests = async () => {
@@ -61,24 +63,33 @@ export default function SelectSwarmRequests() {
     return 0;
   });
 
+  // ACTUALIZADO: Manejo de asignación con resultados de auto-asignación
   const handleAddToCatalog = async (req) => {
     setAssigning(true);
     
     try {
       // Use the assignSwarmToMe service method
       console.log("SWARM ID", req)
-      await swarmService.assignSwarmToMe(req.id);
+      const result = await swarmService.assignSwarmToMe(req.id);
+      
+      // NUEVO: Guardar resultados de auto-asignación para mostrar
+      if (result.autoAssignmentResults) {
+        setAssignmentResults({
+          swarmName: req.name,
+          results: result.autoAssignmentResults
+        });
+      }
       
       // Remove the request from the local list since it's now assigned
       setRequests(prevRequests => 
         prevRequests.filter(request => request.id !== req.id)
       );
       
-      setSuccessMessage(`'${req.name}' added to your catalog successfully!`);
+      setSuccessMessage(`'${req.name}' assigned to you successfully!`);
       setSelectedRequest(null);
     } catch (error) {
       console.error('Error assigning swarm:', error);
-      setSuccessMessage(`Error adding '${req.name}' to your catalog. Please try again.`);
+      setSuccessMessage(`Error assigning '${req.name}'. Please try again.`);
     } finally {
       setAssigning(false);
     }
@@ -118,7 +129,7 @@ export default function SelectSwarmRequests() {
             Pending Swarm Requests ({sortedRequests.length})
           </h1>
           <p className="text-gray-600 dark:text-gray-400 text-lg">
-            Review and add swarm requests to your catalog.
+            Review and assign swarm requests to your management.
           </p>
         </div>
         
@@ -215,7 +226,7 @@ export default function SelectSwarmRequests() {
           </div>
         </div>
       ) : (
-        /* Swarm Requests Grid - Mejorado para consistencia */
+        /* Swarm Requests Grid - ACTUALIZADO con información de MACs */
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {sortedRequests.map((req) => (
             <div
@@ -255,6 +266,52 @@ export default function SelectSwarmRequests() {
                       {req.maxDevices}
                     </span>
                   </div>
+                  
+                  {/* NUEVO: Mostrar información de MACs solicitadas */}
+                  {req.requestedMacsCount > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500 dark:text-gray-500">Requested devices:</span>
+                        <span className="text-blue-600 dark:text-blue-400 font-medium">
+                          {req.requestedMacsCount} device{req.requestedMacsCount !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      
+                      {/* NUEVO: Vista previa de las primeras MACs */}
+                      {req.requestedMacs && req.requestedMacs.length > 0 && (
+                        <div className="mt-2">
+                          <div className="text-xs text-gray-400 dark:text-gray-500 mb-1">
+                            MAC addresses requested:
+                          </div>
+                          <div className="space-y-1 max-h-20 overflow-y-auto">
+                            {req.requestedMacs.slice(0, 3).map((macEntry, index) => {
+                              const mac = typeof macEntry === 'string' ? macEntry : macEntry.mac;
+                              const deviceName = typeof macEntry === 'object' ? macEntry.deviceName : null;
+                              
+                              return (
+                                <div key={index} className="text-xs">
+                                  <span className="font-mono text-gray-600 dark:text-gray-400">
+                                    {mac}
+                                  </span>
+                                  {deviceName && (
+                                    <span className="ml-2 text-gray-500 dark:text-gray-500">
+                                      ({deviceName})
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                            
+                            {req.requestedMacs.length > 3 && (
+                              <div className="text-xs text-gray-400 dark:text-gray-500 italic">
+                                +{req.requestedMacs.length - 3} more device{req.requestedMacs.length - 3 !== 1 ? 's' : ''}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
               
@@ -266,11 +323,11 @@ export default function SelectSwarmRequests() {
                 {assigning ? (
                   <span className="flex items-center justify-center gap-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Adding...
+                    Assigning...
                   </span>
                 ) : (
                   <span className="flex items-center justify-center gap-2">
-                    ➕ Add to my catalog
+                    ➕ Assign to me
                   </span>
                 )}
               </button>
@@ -279,17 +336,140 @@ export default function SelectSwarmRequests() {
         </div>
       )}
 
-      {/* Confirmation modal */}
+      {/* NUEVO: Modal de confirmación actualizado con información de MACs */}
       <ConfirmationModal
         isOpen={!!selectedRequest}
         onClose={() => setSelectedRequest(null)}
         onConfirm={() => handleAddToCatalog(selectedRequest)}
-        title={`Add "${selectedRequest?.name}" to your catalog?`}
-        message="This will add the swarm request to your personal catalog for management."
-        confirmText={assigning ? "Adding..." : "Confirm"}
+        title={`Assign "${selectedRequest?.name}" to your management?`}
+        message={
+          <div className="space-y-3">
+            <p>This will assign the swarm request to you for management.</p>
+            
+            {selectedRequest?.requestedMacsCount > 0 && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                <div className="text-sm text-blue-800 dark:text-blue-300">
+                  <strong>📱 Requested Devices:</strong> {selectedRequest.requestedMacsCount} device{selectedRequest.requestedMacsCount !== 1 ? 's' : ''}
+                </div>
+                <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                  The system will automatically attempt to assign the requested devices to this swarm.
+                </div>
+              </div>
+            )}
+          </div>
+        }
+        confirmText={assigning ? "Assigning..." : "Confirm Assignment"}
         cancelText="Cancel"
         isLoading={assigning}
       />
+
+      {/* NUEVO: Modal para mostrar resultados de auto-asignación */}
+      {assignmentResults && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  Device Assignment Results - {assignmentResults.swarmName}
+                </h3>
+                <button
+                  onClick={() => setAssignmentResults(null)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                {/* Dispositivos asignados exitosamente */}
+                {assignmentResults.results.assigned?.length > 0 && (
+                  <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+                    <h4 className="font-medium text-green-800 dark:text-green-300 mb-2">
+                      ✅ Successfully Assigned ({assignmentResults.results.assigned.length})
+                    </h4>
+                    <div className="space-y-1">
+                      {assignmentResults.results.assigned.map((device, index) => (
+                        <div key={index} className="text-sm text-green-700 dark:text-green-400">
+                          <span className="font-mono">{device.mac}</span>
+                          {device.deviceName && (
+                            <span className="ml-2">- {device.deviceName}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Dispositivos no encontrados */}
+                {assignmentResults.results.notFound?.length > 0 && (
+                  <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
+                    <h4 className="font-medium text-red-800 dark:text-red-300 mb-2">
+                      ❌ Not Found ({assignmentResults.results.notFound.length})
+                    </h4>
+                    <div className="space-y-1">
+                      {assignmentResults.results.notFound.map((item, index) => (
+                        <div key={index} className="text-sm text-red-700 dark:text-red-400">
+                          <span className="font-mono">{item.mac || item}</span>
+                          {item.reason && (
+                            <span className="ml-2 text-xs">- {item.reason}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Dispositivos ya asignados a otros swarms */}
+                {assignmentResults.results.alreadyAssigned?.length > 0 && (
+                  <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
+                    <h4 className="font-medium text-yellow-800 dark:text-yellow-300 mb-2">
+                      ⚠️ Already Assigned Elsewhere ({assignmentResults.results.alreadyAssigned.length})
+                    </h4>
+                    <div className="space-y-1">
+                      {assignmentResults.results.alreadyAssigned.map((device, index) => (
+                        <div key={index} className="text-sm text-yellow-700 dark:text-yellow-400">
+                          <span className="font-mono">{device.mac}</span>
+                          {device.deviceName && (
+                            <span className="ml-2">- {device.deviceName}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Dispositivos no disponibles */}
+                {assignmentResults.results.unavailable?.length > 0 && (
+                  <div className="bg-gray-50 dark:bg-gray-700/20 p-4 rounded-lg">
+                    <h4 className="font-medium text-gray-800 dark:text-gray-300 mb-2">
+                      ⏸️ Unavailable ({assignmentResults.results.unavailable.length})
+                    </h4>
+                    <div className="space-y-1">
+                      {assignmentResults.results.unavailable.map((device, index) => (
+                        <div key={index} className="text-sm text-gray-700 dark:text-gray-400">
+                          <span className="font-mono">{device.mac}</span>
+                          {device.reason && (
+                            <span className="ml-2 text-xs">- {device.reason}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => setAssignmentResults(null)}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Success feedback */}
       <SuccessToast

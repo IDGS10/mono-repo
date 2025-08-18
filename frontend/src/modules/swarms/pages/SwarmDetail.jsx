@@ -27,7 +27,9 @@ export default function SwarmDetail() {
     setError(false)
 
     try {
+      console.log("HOLAAAA")
       const data = await swarmService.getSwarmDetailWithDevices(id)
+      console.log(data)
       setSwarm(data)
     } catch (error) {
       console.error('Error loading swarm detail:', error)
