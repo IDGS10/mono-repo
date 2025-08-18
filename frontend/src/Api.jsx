@@ -32,6 +32,15 @@ export const ProjectsApi = axios.create({
   withCredentials: false,
 });
 
+export const SwarmsApi = axios.create({
+  baseURL: "http://localhost:5052",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  timeout: 10000,
+  withCredentials: false,
+});
+
 
 const setupInterceptors = (apiInstance) => {
   //Request interceptor - Add token to every request
@@ -74,3 +83,4 @@ const setupInterceptors = (apiInstance) => {
 setupInterceptors(SecurityApi);
 setupInterceptors(OrganizationsApi);
 setupInterceptors(ProjectsApi);
+setupInterceptors(SwarmsApi);
