@@ -9,10 +9,10 @@ const { Swarm, Device } = models
 // @access  Private (requires Bearer token)
 export const createSwarm = async (req, res, next) => {
   try {
-    const { userId, email, rol } = req.user
+    const { userId, email, role } = req.user
     const { name, description, maxDevices, projectId, location } = req.body
 
-    logger.info(`User ${email} (${rol}) creating swarm: ${name}`)
+    logger.info(`User ${email} (${role}) creating swarm: ${name}`)
 
     // Basic validations
     if (!name || !maxDevices || !projectId) {
@@ -28,12 +28,12 @@ export const createSwarm = async (req, res, next) => {
     }
 
     const swarm = await Swarm.create({
-      swarmName: name, // Cambio: name -> swarmName
+      swarmName: name,
       description,
       maxDevices,
       requesterId: userId,
       projectId,
-      location, // Nuevo campo
+      location,
       status: 'requested',
     })
 
@@ -56,7 +56,7 @@ export const createSwarm = async (req, res, next) => {
 // @access  Private (requires Bearer token)
 export const getSwarms = async (req, res, next) => {
   try {
-    const { userId, rol } = req.user
+    const { userId, role } = req.user
     const { status, requesterId, clusterManagerId, projectId, location } = req.query
 
     // Build filters
@@ -67,8 +67,8 @@ export const getSwarms = async (req, res, next) => {
     if (projectId) where.projectId = projectId
     if (location) where.location = { [models.Sequelize.Op.iLike]: `%${location}%` }
 
-    // Apply role-based filters
-    if (rol === 'User') {
+    // Apply role-based filters - CORREGIDO
+    if (role !== 'Organization' && role !== 'Cluster manager') {
       where.requesterId = userId
     }
 
@@ -78,7 +78,7 @@ export const getSwarms = async (req, res, next) => {
         {
           model: Device,
           as: 'devices',
-          attributes: ['deviceId', 'deviceName', 'deviceType', 'isOnline', 'batteryLevel'], // Actualizado
+          attributes: ['deviceId', 'deviceName', 'deviceType', 'isOnline', 'batteryLevel'],
         },
       ],
       order: [['created_at', 'DESC']],
@@ -87,7 +87,7 @@ export const getSwarms = async (req, res, next) => {
     return successResponse(res, {
       swarms,
       count: swarms.length,
-      userContext: { userId, rol }
+      userContext: { userId, role }
     })
   } catch (error) {
     logger.error('Error getting swarms:', error)
@@ -100,12 +100,12 @@ export const getSwarms = async (req, res, next) => {
 // @access  Private (requires Bearer token)
 export const getSwarm = async (req, res, next) => {
   try {
-    const { userId, rol } = req.user
+    const { userId, role } = req.user
     const { id } = req.params
 
-    // Check access permissions
-    let whereClause = { swarmId: id } // Cambio: id -> swarmId
-    if (rol !== 'Owner') {
+    // Check access permissions - CORREGIDO
+    let whereClause = { swarmId: id }
+    if (role !== 'Organization' && role !== 'Cluster manager') {
       whereClause.requesterId = userId
     }
 
@@ -135,18 +135,18 @@ export const getSwarm = async (req, res, next) => {
 // @access  Private (requires Bearer token)
 export const updateSwarm = async (req, res, next) => {
   try {
-    const { userId, email, rol } = req.user
+    const { userId, email, role } = req.user
     const { id } = req.params
     const { name, description, maxDevices, location } = req.body
 
-    const swarm = await Swarm.findOne({ where: { swarmId: id } }) // Cambio: findByPk -> findOne con swarmId
+    const swarm = await Swarm.findOne({ where: { swarmId: id } })
 
     if (!swarm) {
       return errorResponse(res, 'Swarm not found', 404)
     }
 
-    // Check ownership or permissions
-    if (rol !== 'Owner' && swarm.requesterId !== userId) {
+    // Check ownership or permissions - CORREGIDO
+    if (role !== 'Organization' && role !== 'Cluster manager' && swarm.requesterId !== userId) {
       return errorResponse(
         res,
         'You are not authorized to update this swarm',
@@ -156,9 +156,9 @@ export const updateSwarm = async (req, res, next) => {
 
     // Build allowed updates
     const allowedUpdates = {}
-    if (name) allowedUpdates.swarmName = name // Cambio: name -> swarmName
+    if (name) allowedUpdates.swarmName = name
     if (description) allowedUpdates.description = description
-    if (location) allowedUpdates.location = location // Nuevo campo
+    if (location) allowedUpdates.location = location
 
     // Only allow changing maxDevices if not active
     if (maxDevices && swarm.status !== 'active') {
@@ -184,17 +184,17 @@ export const updateSwarm = async (req, res, next) => {
 // @access  Private (requires Bearer token)
 export const deleteSwarm = async (req, res, next) => {
   try {
-    const { userId, email, rol } = req.user
+    const { userId, email, role } = req.user
     const { id } = req.params
 
-    const swarm = await Swarm.findOne({ where: { swarmId: id } }) // Cambio: findByPk -> findOne con swarmId
+    const swarm = await Swarm.findOne({ where: { swarmId: id } })
 
     if (!swarm) {
       return errorResponse(res, 'Swarm not found', 404)
     }
 
-    // Check ownership or permissions
-    if (rol !== 'Owner' && swarm.requesterId !== userId) {
+    // Check ownership or permissions - CORREGIDO
+    if (role !== 'Organization' && role !== 'Cluster manager' && swarm.requesterId !== userId) {
       return errorResponse(
         res,
         'You are not authorized to delete this swarm',
@@ -229,7 +229,7 @@ export const deleteSwarm = async (req, res, next) => {
 // @access  Private (requires Bearer token)
 export const assignSwarm = async (req, res, next) => {
   try {
-    const { userId, email, rol } = req.user
+    const { userId, email, role } = req.user
     const { id } = req.params
     const { clusterManagerId } = req.body
 
@@ -237,12 +237,12 @@ export const assignSwarm = async (req, res, next) => {
       return errorResponse(res, 'clusterManagerId is required', 400)
     }
 
-    // Check permissions
-    if (rol === 'User') {
+    // Check permissions - CORREGIDO: Solo Project manager está restringido
+    if (role === 'Project manager') {
       return errorResponse(res, 'Insufficient permissions to assign swarms', 403)
     }
 
-    const swarm = await Swarm.findOne({ where: { swarmId: id } }) // Cambio: findByPk -> findOne con swarmId
+    const swarm = await Swarm.findOne({ where: { swarmId: id } })
 
     if (!swarm) {
       return errorResponse(res, 'Swarm not found', 404)
@@ -272,15 +272,15 @@ export const assignSwarm = async (req, res, next) => {
 // @access  Private (requires Bearer token)
 export const activateSwarm = async (req, res, next) => {
   try {
-    const { userId, email, rol } = req.user
+    const { userId, email, role } = req.user
     const { id } = req.params
 
-    // Check permissions
-    if (rol === 'User') {
+    // Check permissions - CORREGIDO: Solo Project manager está restringido
+    if (role === 'Project manager') {
       return errorResponse(res, 'Insufficient permissions to activate swarms', 403)
     }
 
-    const swarm = await Swarm.findOne({ where: { swarmId: id } }) // Cambio: findByPk -> findOne con swarmId
+    const swarm = await Swarm.findOne({ where: { swarmId: id } })
 
     if (!swarm) {
       return errorResponse(res, 'Swarm not found', 404)
@@ -310,10 +310,10 @@ export const activateSwarm = async (req, res, next) => {
 // @access  Private (requires Bearer token)
 export const pauseSwarm = async (req, res, next) => {
   try {
-    const { userId, email, rol } = req.user
+    const { userId, email, role } = req.user
     const { id } = req.params
 
-    const swarm = await Swarm.findOne({ where: { swarmId: id } }) // Cambio: findByPk -> findOne con swarmId
+    const swarm = await Swarm.findOne({ where: { swarmId: id } })
 
     if (!swarm) {
       return errorResponse(res, 'Swarm not found', 404)
@@ -339,10 +339,10 @@ export const pauseSwarm = async (req, res, next) => {
 // @access  Private (requires Bearer token)
 export const completeSwarm = async (req, res, next) => {
   try {
-    const { userId, email, rol } = req.user
+    const { userId, email, role } = req.user
     const { id } = req.params
 
-    const swarm = await Swarm.findOne({ where: { swarmId: id } }) // Cambio: findByPk -> findOne con swarmId
+    const swarm = await Swarm.findOne({ where: { swarmId: id } })
 
     if (!swarm) {
       return errorResponse(res, 'Swarm not found', 404)
@@ -372,15 +372,15 @@ export const completeSwarm = async (req, res, next) => {
 // @access  Private (requires Bearer token)
 export const rejectSwarm = async (req, res, next) => {
   try {
-    const { userId, email, rol } = req.user
+    const { userId, email, role } = req.user
     const { id } = req.params
 
-    // Check permissions
-    if (rol === 'User') {
+    // Check permissions - CORREGIDO: Solo Project manager está restringido
+    if (role === 'Project manager') {
       return errorResponse(res, 'Insufficient permissions to reject swarms', 403)
     }
 
-    const swarm = await Swarm.findOne({ where: { swarmId: id } }) // Cambio: findByPk -> findOne con swarmId
+    const swarm = await Swarm.findOne({ where: { swarmId: id } })
 
     if (!swarm) {
       return errorResponse(res, 'Swarm not found', 404)
@@ -410,12 +410,12 @@ export const rejectSwarm = async (req, res, next) => {
 // @access  Private (requires Bearer token)
 export const getSwarmDevices = async (req, res, next) => {
   try {
-    const { userId, rol } = req.user
+    const { userId, role } = req.user
     const { id } = req.params
 
-    // Check access permissions
-    let whereClause = { swarmId: id } // Cambio: id -> swarmId
-    if (rol !== 'Owner') {
+    // Check access permissions - CORREGIDO
+    let whereClause = { swarmId: id }
+    if (role !== 'Organization' && role !== 'Cluster manager') {
       whereClause.requesterId = userId
     }
 
@@ -431,7 +431,7 @@ export const getSwarmDevices = async (req, res, next) => {
     return successResponse(res, {
       swarm: { 
         swarmId: swarm.swarmId, 
-        swarmName: swarm.swarmName, // Cambio: name -> swarmName
+        swarmName: swarm.swarmName,
         status: swarm.status 
       },
       devices,
@@ -448,7 +448,7 @@ export const getSwarmDevices = async (req, res, next) => {
 // @access  Private (requires Bearer token)
 export const addDeviceToSwarm = async (req, res, next) => {
   try {
-    const { userId, email, rol } = req.user
+    const { userId, email, role } = req.user
     const { id } = req.params
     const { deviceId } = req.body
 
@@ -456,7 +456,7 @@ export const addDeviceToSwarm = async (req, res, next) => {
       return errorResponse(res, 'deviceId is required', 400)
     }
 
-    const swarm = await Swarm.findOne({ where: { swarmId: id } }) // Cambio: findByPk -> findOne con swarmId
+    const swarm = await Swarm.findOne({ where: { swarmId: id } })
 
     if (!swarm) {
       return errorResponse(res, 'Swarm not found', 404)
@@ -508,7 +508,7 @@ export const addDeviceToSwarm = async (req, res, next) => {
 // @access  Private (requires Bearer token)
 export const removeDeviceFromSwarm = async (req, res, next) => {
   try {
-    const { userId, email, rol } = req.user
+    const { userId, email, role } = req.user
     const { id, deviceId } = req.params
 
     const device = await Device.findOne({
@@ -536,12 +536,12 @@ export const removeDeviceFromSwarm = async (req, res, next) => {
 // @access  Private (requires Bearer token)
 export const getSwarmStats = async (req, res, next) => {
   try {
-    const { userId, rol } = req.user
+    const { userId, role } = req.user
     const { id } = req.params
 
-    // Check access permissions
-    let whereClause = { swarmId: id } // Cambio: id -> swarmId
-    if (rol !== 'Owner') {
+    // Check access permissions - CORREGIDO
+    let whereClause = { swarmId: id }
+    if (role !== 'Organization' && role !== 'Cluster manager') {
       whereClause.requesterId = userId
     }
 
@@ -573,7 +573,7 @@ export const getSwarmStats = async (req, res, next) => {
     return successResponse(res, {
       swarm: {
         swarmId: swarm.swarmId,
-        swarmName: swarm.swarmName, // Cambio: name -> swarmName
+        swarmName: swarm.swarmName,
         status: swarm.status,
         maxDevices: swarm.maxDevices,
       },
