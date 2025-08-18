@@ -1,4 +1,3 @@
-// src/modules/devices/pages/Dashboard.jsx
 import { useEffect, useState } from 'react';
 import LoadingSpinner from '../components/LoadingSpinner.jsx';
 import ErrorMessage from '../components/ErrorMessage.jsx';

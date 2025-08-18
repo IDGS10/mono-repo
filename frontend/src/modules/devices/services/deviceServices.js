@@ -1,5 +1,4 @@
-import axios from 'axios';
-
+import { DeviceApi } from "../../../Api.jsx";
 const API_URL = 'https://server-uteq.nrsoftware.online/devices/api/devices';
 
 export const getDevices = async () => {
