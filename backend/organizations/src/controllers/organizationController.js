@@ -6,9 +6,9 @@ class OrganizationController {
   static async getDashboard(req, res, next) {
     try {
       const userId = req.user.id;
-  
-      const organization = await Organization.findByOwnerId(userId);
-      
+      const organization = await Organization.findByOwnerId(userId); 
+      // ORGANIZATIONS CREATED BY OWNER ID
+
       if (!organization) {
         return res.json({
           hasOrganization: false,
@@ -26,7 +26,7 @@ class OrganizationController {
       next(error);
     }
   }
-  static async getTypes(req, res, next) {
+  static async getTypes(req, res, next) { //TYPES
     try {
       const types = await OrganizationType.getAll();
       res.json(types);
@@ -55,7 +55,8 @@ class OrganizationController {
         created_by_id: userId
       };
 
-      const organization = await Organization.create(organizationData);
+      const organization = await Organization.create(organizationData); //CREATE ORGANIZATION
+
       res.status(201).json({
         message: 'Organización creada exitosamente',
         organization
@@ -64,7 +65,8 @@ class OrganizationController {
       next(error);
     }
   }
-  static async getById(req, res, next) {
+  static async getById(req, res, next) { //GET ORGANIZATION BY ID
+
     try {
       const { id } = req.params;
       
@@ -80,7 +82,7 @@ class OrganizationController {
       next(error);
     }
   }
-  static async update(req, res, next) {
+  static async update(req, res, next) { //ACTUALIZAR ORGANIZATION
     try {
       const { id } = req.params;
       const userId = req.user.id;
@@ -96,7 +98,8 @@ class OrganizationController {
         }
       }
 
-      const organization = await Organization.update(id, req.validatedData, userId);
+      const organization = await Organization.update(id, req.validatedData, userId); //UPDATE ORGANIZATION
+
       
       if (!organization) {
         return res.status(404).json({
@@ -112,7 +115,7 @@ class OrganizationController {
       next(error);
     }
   }
-  static async updateStatus(req, res, next) {
+  static async updateStatus(req, res, next) { //UPDATE STATUS OF ORGANIZATION
     try {
       const { id } = req.params;
       const { isActive } = req.body;
@@ -140,7 +143,9 @@ class OrganizationController {
       next(error);
     }
   }
-  static async getActiveOrganizations(req, res, next) {
+
+  static async getActiveOrganizations(req, res, next) { //CORREGIR ESTE METODO
+
     try {
       const query = `
         SELECT 

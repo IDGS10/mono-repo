@@ -1,7 +1,8 @@
 const db = require('../config/database');
 
 class Organization {
-  static async create(data) {
+  static async create(data) { //ORGANIZATION DATA CREATION 
+
     const {
       name,
       description,
@@ -20,17 +21,23 @@ class Organization {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
       RETURNING *
     `;
-
-    const values = [
-      name, description, organization_type_id, organization_email,
-      phone_number, logo_url, owner_id, created_by_id
-    ];
+const values = [
+  name, 
+  description, 
+  organization_type_id, 
+  organization_email,
+  phone_number, 
+  logo_url || null, 
+  owner_id, 
+  created_by_id
+];
 
     const result = await db.query(query, values);
     return result.rows[0];
   }
 
-  static async findById(id) {
+  static async findById(id) { //FIND ORG
+
     const query = `
       SELECT 
         o.*,
@@ -51,7 +58,7 @@ class Organization {
     return org;
   }
 
-  static async findByOwnerId(ownerId) {
+  static async findByOwnerId(ownerId) { //FIND OWNER
     const query = `
       SELECT 
         o.*,
@@ -65,41 +72,44 @@ class Organization {
     return result.rows[0];
   }
 
-  static async update(id, data, modifiedById) {
-    const fields = [];
-    const values = [];
-    let valueIndex = 1;
+static async update(id, data, modifiedById) { //UPDATE
+  const fields = [];
+  const values = [];
+  let valueIndex = 1;
 
-    Object.keys(data).forEach(key => {
-      if (data[key] !== undefined) {
-        fields.push(`${key} = $${valueIndex}`);
-        values.push(data[key]);
-        valueIndex++;
+  Object.keys(data).forEach(key => {
+    if (data[key] !== undefined) {
+      let value = data[key];
+      if (key === 'logo_url' && value === '') {
+        value = null;
       }
-    });
-
-    if (fields.length === 0) {
-      throw new Error('No hay campos para actualizar');
+      
+      fields.push(`${key} = $${valueIndex}`);
+      values.push(value);
+      valueIndex++;
     }
+  });
 
-    fields.push(`modified_by_id = $${valueIndex}`);
-    values.push(modifiedById);
-    valueIndex++;
-
-    fields.push(`update_at = CURRENT_TIMESTAMP`);
-
-    values.push(id);
-
-    const query = `
-      UPDATE organizations 
-      SET ${fields.join(', ')}
-      WHERE id_organization = $${valueIndex}
-      RETURNING *
-    `;
-
-    const result = await db.query(query, values);
-    return result.rows[0];
+  if (fields.length === 0) {
+    throw new Error('No hay campos para actualizar');
   }
+
+  fields.push(`modified_by_id = $${valueIndex}`);
+  values.push(modifiedById);
+  valueIndex++;
+
+  values.push(id);
+
+  const query = `
+    UPDATE organizations 
+    SET ${fields.join(', ')}, update_at = CURRENT_TIMESTAMP
+    WHERE id_organization = $${valueIndex}
+    RETURNING *
+  `;
+
+  const result = await db.query(query, values);
+  return result.rows[0];
+}
 
   static async updateStatus(id, isActive, modifiedById) {
     const query = `
@@ -113,7 +123,8 @@ class Organization {
     return result.rows[0];
   }
 
-  static async checkEmailExists(email, excludeId = null) {
+  static async checkEmailExists(email, excludeId = null) {  //CKECK EMAIL EXIST
+
     let query = 'SELECT id_organization FROM organizations WHERE organization_email = $1';
     const values = [email];
 

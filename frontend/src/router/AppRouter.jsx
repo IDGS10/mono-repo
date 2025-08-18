@@ -1,4 +1,3 @@
-// router/AppRouter.jsx - WITH SIMPLE AUTHENTICATION
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Suspense, useEffect, useState } from 'react';
 import { loadAllRoutes } from '../shared/utils/routeUtils';
@@ -7,7 +6,11 @@ import LoadingSpinner from '../shared/components/LoadingSpinner';
 
 // Simple component to protect routes
 const ProtectedRoute = ({ children }) => {
-  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+  // Comentar la validación real
+  // const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+  
+  // BYPASS TEMPORAL para testing
+  const isLoggedIn = true; // ✅ Forzar que siempre esté logueado
   
   if (!isLoggedIn) {
     return <Navigate to="/login" replace />;

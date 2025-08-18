@@ -13,7 +13,7 @@ describe('Dashboard API Tests', () => {
       lastName: 'Tester',
       email: 'dashboard.tester@example.com',
       password: 'SecurePass123!',
-      rol: 'Propietario'
+      rol: 'Manager'
     };
 
     const registerResponse = await request(app)

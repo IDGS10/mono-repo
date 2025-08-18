@@ -15,7 +15,7 @@ describe('User Management API Tests', () => {
       email: 'profile.tester@example.com',
       password: 'SecurePass123!',
       phone: '+1234567890',
-      rol: 'Encargado',
+      rol: 'Organization',
       orgId: 456
     };
 
@@ -40,7 +40,7 @@ describe('User Management API Tests', () => {
       expect(response.body.user).to.have.property('email', 'profile.tester@example.com');
       expect(response.body.user).to.have.property('firstName', 'Profile');
       expect(response.body.user).to.have.property('lastName', 'Tester');
-      expect(response.body.user).to.have.property('rol', 'Encargado');
+      expect(response.body.user).to.have.property('rol', 'Organization');
     });
 
     it('should fail without authorization token', async () => {
@@ -68,7 +68,7 @@ describe('User Management API Tests', () => {
         firstName: 'Updated',
         lastName: 'Name',
         phone: '+9876543210',
-        rol: 'Lider',
+        rol: 'Project manager',
         status: 'active',
         accepted: 1,
         orgId: 789
@@ -85,7 +85,7 @@ describe('User Management API Tests', () => {
       expect(response.body.user).to.have.property('firstName', 'Updated');
       expect(response.body.user).to.have.property('lastName', 'Name');
       expect(response.body.user).to.have.property('phone', '+9876543210');
-      expect(response.body.user).to.have.property('rol', 'Lider');
+      expect(response.body.user).to.have.property('rol', 'Project manager');
     });
 
     it('should update partial profile data', async () => {

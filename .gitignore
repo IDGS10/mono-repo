@@ -1,6 +1,0 @@
-backend/node_modules/
-backend/logs/
-backend/config/.env
-backend/src/.env
-backend/mqtt/certs/
-backend/config/devices.SQL

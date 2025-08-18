@@ -4,17 +4,18 @@ class Swarm extends Model {
   static init(sequelize) {
     return super.init(
       {
-        id: {
-          type: DataTypes.INTEGER,
+        swarmId: {
+          type: DataTypes.UUID,
           primaryKey: true,
-          autoIncrement: true,
+          defaultValue: DataTypes.UUIDV4,
           allowNull: false,
+          field: 'swarm_id',
         },
-        name: {
+        swarmName: {
           type: DataTypes.STRING(100),
-          allowNull: false,
+          allowNull: true,
+          field: 'swarm_name',
           validate: {
-            notEmpty: true,
             len: [1, 100],
           },
         },
@@ -24,7 +25,7 @@ class Swarm extends Model {
         },
         maxDevices: {
           type: DataTypes.INTEGER,
-          allowNull: false,
+          allowNull: true,
           field: 'max_devices',
           validate: {
             min: 1,
@@ -33,7 +34,7 @@ class Swarm extends Model {
         },
         requesterId: {
           type: DataTypes.INTEGER,
-          allowNull: false,
+          allowNull: true,
           field: 'requester_id',
         },
         projectId: {
@@ -49,7 +50,7 @@ class Swarm extends Model {
         status: {
           type: DataTypes.STRING(20),
           defaultValue: 'requested',
-          allowNull: false,
+          allowNull: true,
           validate: {
             isIn: [['requested', 'assigned', 'active', 'paused', 'completed', 'rejected']],
           },
@@ -74,11 +75,21 @@ class Swarm extends Model {
           allowNull: true,
           field: 'last_activity',
         },
+        location: {
+          type: DataTypes.STRING(200),
+          allowNull: true,
+        },
+        isActive: {
+          type: DataTypes.BOOLEAN,
+          defaultValue: true,
+          allowNull: true,
+          field: 'is_active',
+        },
       },
       {
         sequelize,
         modelName: 'Swarm',
-        tableName: 'swarms',
+        tableName: 'device_swarms', // Tabla device_swarms
         timestamps: true,
         createdAt: 'created_at',
         updatedAt: 'updated_at',
@@ -88,10 +99,10 @@ class Swarm extends Model {
   }
 
   static associate(models) {
-    this.hasMany(models.SwarmDevice, {
+    this.hasMany(models.Device, {
       foreignKey: 'swarmId',
       as: 'devices',
-      onDelete: 'CASCADE',
+      onDelete: 'SET NULL',
     })
   }
 
@@ -108,6 +119,7 @@ class Swarm extends Model {
     this.status = 'active'
     this.activatedAt = new Date()
     this.lastActivity = new Date()
+    this.isActive = true
     await this.save()
     return this
   }
@@ -121,12 +133,14 @@ class Swarm extends Model {
   async complete() {
     this.status = 'completed'
     this.completedAt = new Date()
+    this.isActive = false
     await this.save()
     return this
   }
 
   async reject() {
     this.status = 'rejected'
+    this.isActive = false
     await this.save()
     return this
   }
@@ -143,7 +157,7 @@ class Swarm extends Model {
       where: { status },
       include: [
         {
-          model: this.sequelize.models.SwarmDevice,
+          model: this.sequelize.models.Device,
           as: 'devices',
         },
       ],
@@ -155,7 +169,7 @@ class Swarm extends Model {
       where: { requesterId },
       include: [
         {
-          model: this.sequelize.models.SwarmDevice,
+          model: this.sequelize.models.Device,
           as: 'devices',
         },
       ],
@@ -167,10 +181,16 @@ class Swarm extends Model {
       where: { projectId },
       include: [
         {
-          model: this.sequelize.models.SwarmDevice,
+          model: this.sequelize.models.Device,
           as: 'devices',
         },
       ],
+    })
+  }
+
+  static async findActive() {
+    return await this.findAll({
+      where: { isActive: true },
     })
   }
 }

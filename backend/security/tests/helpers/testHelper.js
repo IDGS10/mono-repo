@@ -40,7 +40,7 @@ class TestHelper {
       firstName: 'Test',
       lastName: 'User',
       phone: '3001234567',
-      rol: 'Propietario'
+      rol: 'Manager'
     };
 
     const testUser = { ...defaultData, ...userData };
