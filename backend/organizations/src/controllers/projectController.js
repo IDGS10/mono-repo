@@ -360,55 +360,55 @@ class ProjectController {
     }
   }
   // NOTIFICATION METHODS
-  static async notifyProjectApproval(approvalData) {
-    const {
+static async notifyProjectApproval(approvalData) {
+  const {
+    temporal_project_id,
+    organization_id,
+    reviewed_by,
+    review_notes,
+    project_data
+  } = approvalData;
+
+  try {
+
+    const projectsServerUrl = process.env.PROJECTS_MODULE_URL || 'http://localhost:3002';
+    
+    const payload = {
       temporal_project_id,
       organization_id,
+      status: 'approved',
       reviewed_by,
       review_notes,
-      project_data
-    } = approvalData;
+      approved_at: new Date().toISOString(),
+      project_data: project_data
+    };
 
-    try {
+  
+    const response = await fetch(`${projectsServerUrl}/api/projects/${temporal_project_id}/status`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload)
+    });
 
-      // URL SERVER PROJECT MODULE
-      const projectsServerUrl = process.env.PROJECTS_MODULE_URL || 'http://localhost:3002';
-      
-      const payload = {
-        temporal_project_id,
-        organization_id,
-        status: 'approved',
-        reviewed_by,
-        review_notes,
-        approved_at: new Date().toISOString(),
-        project_data: project_data
-      };
-
-      const response = await fetch(`${projectsServerUrl}/api/projects/create-approved`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Error del módulo de proyectos:', errorText);
-        throw new Error(`Error ${response.status}: ${errorText}`);
-      }
-
-      const result = await response.json();
-      console.log('Proyecto aprobado notificado exitosamente:', result);  // CHECK CONSOLE FOR NOTIFICATION
-      return result.project_id || result.real_project_id || result.id;
-      
-    } catch (error) {
-      console.error('Error notificando aprobación:', error.message);
-
-      throw error;
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error del módulo de proyectos:', errorText);
+      throw new Error(`Error ${response.status}: ${errorText}`);
     }
+
+    const result = await response.json();
+    console.log('Estado del proyecto actualizado exitosamente:', result);
+    
+   
+    return result.project_id || result.real_project_id || result.id || temporal_project_id;
+    
+  } catch (error) {
+    console.error('Error actualizando estado del proyecto:', error.message);
+    throw error;
   }
+}
 
   static async notifyProjectRejection(rejectionData) {
     const {

@@ -15,7 +15,7 @@ export const SecurityApi = axios.create({
 });
 
 export const OrganizationsApi = axios.create({
-  baseURL: "http://localhost:3001/api",
+  baseURL: "http://localhost:8200/api",
   headers: {
     "Content-Type": "application/json",
   },
