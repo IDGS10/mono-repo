@@ -30,7 +30,7 @@ class Device extends Model {
           allowNull: true,
           field: 'mac_address',
           validate: {
-            is: /^([0-9A-F]{2}[:-]){5}([0-9A-F]{2})$/i, // Formato MAC address
+            is: /^([0-9A-F]{2}[:-]){5}([0-9A-F]{2})$/i,
           },
         },
         firmwareVersion: {
@@ -39,7 +39,8 @@ class Device extends Model {
           field: 'firmware_version',
         },
         lastIpAddress: {
-          type: DataTypes.INET,
+          // Cambiado de INET a STRING(50) para coincidir con tu tabla
+          type: DataTypes.STRING(50),
           allowNull: true,
           field: 'last_ip_address',
         },
@@ -80,11 +81,46 @@ class Device extends Model {
             max: 100,
           },
         },
+        // CAMPOS FALTANTES QUE TIENES EN TU TABLA:
+        role: {
+          type: DataTypes.STRING(50),
+          allowNull: true,
+          defaultValue: 'sensor',
+        },
+        assignedAt: {
+          type: DataTypes.DATE, // timestamp without time zone
+          defaultValue: DataTypes.NOW,
+          allowNull: true,
+          field: 'assigned_at',
+        },
+        assignedBy: {
+          type: DataTypes.INTEGER,
+          allowNull: true,
+          field: 'assigned_by',
+          // Podrías agregar una referencia si tienes una tabla de usuarios
+          // references: {
+          //   model: 'users',
+          //   key: 'id',
+          // },
+        },
+        removedAt: {
+          type: DataTypes.DATE, // timestamp without time zone
+          allowNull: true,
+          field: 'removed_at',
+        },
+        status: {
+          type: DataTypes.STRING(20),
+          defaultValue: 'assigned',
+          allowNull: true,
+          validate: {
+            isIn: [['assigned', 'unassigned', 'maintenance', 'inactive']], // Ajusta según tus estados
+          },
+        },
       },
       {
         sequelize,
         modelName: 'Device',
-        tableName: 'esp32_devices', // Tabla esp32_devices
+        tableName: 'esp32_devices',
         timestamps: true,
         createdAt: 'created_at',
         updatedAt: 'updated_at',
@@ -99,9 +135,16 @@ class Device extends Model {
       as: 'swarm',
       onDelete: 'SET NULL',
     })
+    
+    // Si tienes una tabla de usuarios, podrías agregar:
+    // this.belongsTo(models.User, {
+    //   foreignKey: 'assignedBy',
+    //   as: 'assignedByUser',
+    //   onDelete: 'SET NULL',
+    // })
   }
 
-  // Instance methods
+  // Métodos de instancia existentes
   async setOnline() {
     this.isOnline = true
     this.lastSeen = new Date()
@@ -139,7 +182,37 @@ class Device extends Model {
     return this
   }
 
-  // Static methods
+  // NUEVOS MÉTODOS PARA LOS CAMPOS AGREGADOS:
+  async assignDevice(assignedBy, role = 'sensor') {
+    this.status = 'assigned'
+    this.assignedBy = assignedBy
+    this.assignedAt = new Date()
+    this.role = role
+    this.removedAt = null
+    await this.save()
+    return this
+  }
+
+  async removeDevice() {
+    this.status = 'unassigned'
+    this.removedAt = new Date()
+    await this.save()
+    return this
+  }
+
+  async setMaintenance() {
+    this.status = 'maintenance'
+    await this.save()
+    return this
+  }
+
+  async setActive() {
+    this.status = 'assigned'
+    await this.save()
+    return this
+  }
+
+  // Métodos estáticos existentes
   static async findOnline() {
     return await this.findAll({
       where: { isOnline: true },
@@ -190,7 +263,36 @@ class Device extends Model {
     })
   }
 
-  // Método para heartbeat (mantener dispositivo vivo)
+  // NUEVOS MÉTODOS ESTÁTICOS PARA LOS CAMPOS AGREGADOS:
+  static async findByStatus(status) {
+    return await this.findAll({
+      where: { status },
+    })
+  }
+
+  static async findByRole(role) {
+    return await this.findAll({
+      where: { role },
+    })
+  }
+
+  static async findAssignedBy(userId) {
+    return await this.findAll({
+      where: { assignedBy: userId },
+    })
+  }
+
+  static async findRemovedDevices() {
+    return await this.findAll({
+      where: {
+        removedAt: {
+          [this.sequelize.Sequelize.Op.ne]: null,
+        },
+      },
+    })
+  }
+
+  // Método para heartbeat actualizado
   async heartbeat(batteryLevel = null, ipAddress = null) {
     this.isOnline = true
     this.lastSeen = new Date()

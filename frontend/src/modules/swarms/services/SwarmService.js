@@ -22,6 +22,9 @@ class SwarmService {
     if (filters.limit) queryParams.append('limit', filters.limit);
     if (filters.offset) queryParams.append('offset', filters.offset);
     
+    // NUEVO: Incluir MACs si se necesitan (útil para swarms solicitados)
+    if (filters.includeMacs) queryParams.append('includeMacs', 'true');
+    
     if (queryParams.toString()) {
       endpoint += `?${queryParams.toString()}`;
     }
@@ -47,6 +50,10 @@ class SwarmService {
       activatedAt: s.activatedAt,
       location: s.location,
       isActive: s.isActive,
+      // NUEVO: MACs solicitadas (solo para swarms con status 'requested')
+      requestedMacs: s.requestedMacs || null,
+      requestedMacsCount: s.requestedMacsCount || 0,
+      requestedMacsFormatted: s.requestedMacsFormatted || null,
     })) || []);
   }
 
@@ -65,7 +72,8 @@ class SwarmService {
    * @returns {Promise<Array>} Array of pending requests
    */
   async getSwarmRequests() {
-    return this.getSwarms({ status: 'requested' });
+    // NUEVO: Incluir MACs para ver las solicitudes completas
+    return this.getSwarms({ status: 'requested', includeMacs: true });
   }
 
   /**
@@ -99,6 +107,10 @@ class SwarmService {
           activatedAt: swarm.activatedAt,
           location: swarm.location,
           isActive: swarm.isActive,
+          // NUEVO: MACs solicitadas y formateadas
+          requestedMacs: swarm.requestedMacs || null,
+          requestedMacsCount: swarm.requestedMacsCount || 0,
+          requestedMacsFormatted: swarm.requestedMacsFormatted || null,
         };
       }
       
@@ -108,7 +120,7 @@ class SwarmService {
       console.error('Failed to fetch swarm directly:', error);
       // Fallback: Get all swarms and find the specific one
       try {
-        const allSwarms = await this.getSwarms();
+        const allSwarms = await this.getSwarms({ includeMacs: true });
         const targetSwarm = allSwarms.find(s => s.id === swarmId);
         
         if (targetSwarm) {
@@ -153,6 +165,11 @@ class SwarmService {
         lastSeen: device.lastSeen,
         macAddress: device.macAddress,
         location: device.location,
+        // NUEVO: Campos adicionales del dispositivo
+        role: device.role,
+        deviceStatus: device.status,
+        assignedAt: device.assignedAt,
+        assignedBy: device.assignedBy,
       }));
       
       return {
@@ -170,21 +187,66 @@ class SwarmService {
   }
 
   /**
+   * NUEVO: Get status of requested MACs for a swarm
+   * Useful for showing detailed MAC assignment status in swarm requests
+   * @param {string} swarmId - The swarm ID to fetch MAC status for
+   * @returns {Promise<Object>} MAC status details
+   */
+  async getRequestedMacsStatus(swarmId) {
+    try {
+      const response = await apiService.get(`/swarms/${swarmId}/requested-macs-status`);
+      return {
+        swarm: response.data?.swarm,
+        requestedMacs: response.data?.requestedMacs || [],
+        macsStatus: response.data?.macsStatus || {},
+      };
+    } catch (error) {
+      throw new Error(`Failed to get MAC status: ${error.response?.data?.message || error.message}`);
+    }
+  }
+
+  /**
+   * NUEVO: Manually assign devices based on requested MACs
+   * Used when auto-assignment didn't work completely
+   * @param {string} swarmId - The swarm ID to assign devices to
+   * @returns {Promise<Object>} Assignment results
+   */
+  async assignRequestedDevices(swarmId) {
+    try {
+      const response = await apiService.post(`/swarms/${swarmId}/assign-requested-devices`);
+      return {
+        swarm: response.data?.swarm,
+        assignmentResults: response.data?.assignmentResults,
+      };
+    } catch (error) {
+      throw new Error(`Failed to assign requested devices: ${error.response?.data?.message || error.message}`);
+    }
+  }
+
+  /**
    * Create a new swarm
    * @param {Object} swarmData - Swarm data to create
    * @param {string} swarmData.name - Swarm name
    * @param {string} swarmData.description - Swarm description
    * @param {number} swarmData.maxDevices - Maximum number of devices
    * @param {number} swarmData.requesterId - ID of the requesting user
+   * @param {Array} swarmData.requestedMacs - Optional array of requested MAC addresses
    * @returns {Promise<Object>} Created swarm data
    */
   async createSwarm(swarmData) {
-    const response = await apiService.post('/swarms', {
+    const payload = {
       name: swarmData.name,
       description: swarmData.description || "",
       maxDevices: swarmData.maxDevices,
       requesterId: swarmData.requesterId,
-    });
+    };
+    
+    // NUEVO: Incluir MACs solicitadas si se proporcionan
+    if (swarmData.requestedMacs && swarmData.requestedMacs.length > 0) {
+      payload.requestedMacs = swarmData.requestedMacs;
+    }
+    
+    const response = await apiService.post('/swarms', payload);
     return response.data?.swarm;
   }
 
@@ -196,11 +258,18 @@ class SwarmService {
    */
   async updateSwarm(swarmId, swarmData) {
     try {
-      const response = await apiService.put(`/swarms/${swarmId}`, {
+      const payload = {
         name: swarmData.name,
         description: swarmData.description,
         maxDevices: swarmData.maxDevices,
-      });
+      };
+      
+      // NUEVO: Permitir actualizar MACs solicitadas (solo si el swarm está en estado 'requested')
+      if (swarmData.requestedMacs !== undefined) {
+        payload.requestedMacs = swarmData.requestedMacs;
+      }
+      
+      const response = await apiService.put(`/swarms/${swarmId}`, payload);
       
       return response.data?.swarm || response.data;
     } catch (error) {
@@ -233,6 +302,8 @@ class SwarmService {
       description: swarm.description || "",
       maxDevices: swarm.maxDevices,
       requesterId: swarm.requesterId,
+      // NUEVO: No duplicar MACs solicitadas (dejar que el usuario las configure)
+      // requestedMacs: swarm.requestedMacs
     };
     
     const response = await apiService.post('/swarms', duplicatedData);
@@ -242,17 +313,100 @@ class SwarmService {
   /**
    * Assign a swarm request to the current user
    * Changes swarm status from 'requested' to 'assigned'
+   * ACTUALIZADO: Ahora maneja auto-asignación de dispositivos basada en MACs
    * @param {string} swarmId - ID of the swarm to assign
-   * @returns {Promise<Object>} Updated swarm data
+   * @param {Object} options - Assignment options
+   * @param {boolean} options.autoAssignDevices - Whether to auto-assign devices based on requested MACs
+   * @returns {Promise<Object>} Updated swarm data and assignment results
    */
-  async assignSwarmToMe(swarmId) {
+  async assignSwarmToMe(swarmId, options = { autoAssignDevices: true }) {
     try {
       const response = await apiService.post(`/swarms/${swarmId}/assign`, {
-        clusterManagerId: 1 // TODO: Get this from user context
+        clusterManagerId: 1, // TODO: Get this from user context
+        autoAssignDevices: options.autoAssignDevices
       });
-      return response.data?.swarm || response.data;
+      
+      return {
+        swarm: response.data?.swarm || response.data,
+        // NUEVO: Resultados de auto-asignación de dispositivos
+        autoAssignmentResults: response.data?.autoAssignmentResults || null,
+      };
     } catch (error) {
       throw new Error(`Unable to assign swarm ${swarmId}. ${error.response?.data?.message || error.message}`);
+    }
+  }
+
+  /**
+   * NUEVO: Activate a swarm (transition from 'assigned' to 'active')
+   * @param {string} swarmId - ID of the swarm to activate
+   * @returns {Promise<Object>} Updated swarm data
+   */
+  async activateSwarm(swarmId) {
+    try {
+      const response = await apiService.post(`/swarms/${swarmId}/activate`);
+      return response.data?.swarm || response.data;
+    } catch (error) {
+      throw new Error(`Failed to activate swarm: ${error.response?.data?.message || error.message}`);
+    }
+  }
+
+  /**
+   * NUEVO: Pause a swarm
+   * @param {string} swarmId - ID of the swarm to pause
+   * @returns {Promise<Object>} Updated swarm data
+   */
+  async pauseSwarm(swarmId) {
+    try {
+      const response = await apiService.post(`/swarms/${swarmId}/pause`);
+      return response.data?.swarm || response.data;
+    } catch (error) {
+      throw new Error(`Failed to pause swarm: ${error.response?.data?.message || error.message}`);
+    }
+  }
+
+  /**
+   * NUEVO: Complete a swarm
+   * @param {string} swarmId - ID of the swarm to complete
+   * @returns {Promise<Object>} Updated swarm data
+   */
+  async completeSwarm(swarmId) {
+    try {
+      const response = await apiService.post(`/swarms/${swarmId}/complete`);
+      return response.data?.swarm || response.data;
+    } catch (error) {
+      throw new Error(`Failed to complete swarm: ${error.response?.data?.message || error.message}`);
+    }
+  }
+
+  /**
+   * NUEVO: Reject a swarm request
+   * @param {string} swarmId - ID of the swarm to reject
+   * @returns {Promise<Object>} Updated swarm data
+   */
+  async rejectSwarm(swarmId) {
+    try {
+      const response = await apiService.post(`/swarms/${swarmId}/reject`);
+      return response.data?.swarm || response.data;
+    } catch (error) {
+      throw new Error(`Failed to reject swarm: ${error.response?.data?.message || error.message}`);
+    }
+  }
+
+  /**
+   * NUEVO: Get swarm statistics including MAC assignment stats
+   * @param {string} swarmId - ID of the swarm to get stats for
+   * @returns {Promise<Object>} Swarm statistics
+   */
+  async getSwarmStats(swarmId) {
+    try {
+      const response = await apiService.get(`/swarms/${swarmId}/stats`);
+      return {
+        swarm: response.data?.swarm,
+        stats: response.data?.stats,
+        macsStats: response.data?.macsStats || null,
+      };
+    } catch (error) {
+      throw new Error(`Failed to get swarm stats: ${error.response?.data?.message || error.message}`);
     }
   }
 }
