@@ -3,14 +3,16 @@ import { API} from '../config.js'
 
 const PROJECTS_API_URL = API.PROJECTS_API_URL
 const SWARMS_API_URL = API.SWARMS_API_URL
+const DEVICES_API_URL = API.DEVICES_API_URL
 
 console.log('🔧 HARDCODED URLs - PROJECTS_API_URL:', PROJECTS_API_URL)
 console.log('🔧 HARDCODED URLs - SWARMS_API_URL:', SWARMS_API_URL)
+console.log('🔧 HARDCODED URLs - DEVICES_API_URL:', DEVICES_API_URL)
 
 // Configuration
 const API_CONFIG = {
-  timeout: parseInt(import.meta.env.VITE_API_TIMEOUT) || 30000,
-  retryAttempts: parseInt(import.meta.env.VITE_API_RETRY_ATTEMPTS) || 3
+  timeout: 30000,
+  retryAttempts: 3
 }
 
 // Get JWT token from localStorage
@@ -298,7 +300,7 @@ export const deleteProject = async (id) => {
     }
 
     console.log(`✅ Project ${id} deleted successfully`)
-    return transformedProject(deletedProject)
+    return transformProject(deletedProject)
   } catch (error) {
     console.error(`❌ Error deleting project ${id}:`, error.message)
     throw new Error('Failed to delete project. Please try again.')
@@ -394,9 +396,83 @@ export const getSwarms = async () => {
   }
 }
 
-// ========== UTILITY FUNCTIONS ==========
+export const requestSwarmSimple = async (projectId, swarmData) => {
+  try {
+    console.log(`🔍 Requesting swarm for project ${projectId}...`)
+    
+    const user = getUserFromToken()
+    if (!user) {
+      throw new Error('User not authenticated. Please login again.')
+    }
 
-// Get project statistics
+    const payload = {
+      swarmName: swarmData.swarmName,
+      description: swarmData.description || '',
+      deviceCount: parseInt(swarmData.deviceCount) || 10,
+      location: swarmData.location || '',
+      autoSelectDevices: swarmData.autoSelectDevices || false
+    }
+
+    console.log('🔐 Swarm request payload:', payload)
+
+    const response = await apiCall(`${PROJECTS_API_URL}/projects/${projectId}/request-swarm`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    })
+    
+    console.log(`✅ Swarm requested successfully:`, response)
+    
+    return {
+      success: true,
+      data: response.data || response
+    }
+  } catch (error) {
+    console.error(`❌ Error requesting swarm:`, error.message)
+    throw new Error('Failed to request swarm. Please try again.')
+  }
+}
+
+export const getProjectSwarmsSimple = async (projectId) => {
+  try {
+    console.log(`🔍 Fetching swarms for project ${projectId}...`)
+    const response = await apiCall(`${PROJECTS_API_URL}/projects/${projectId}/swarms`)
+    
+    let swarms = []
+    if (response.success && response.data) {
+      swarms = response.data.swarms || []
+    }
+
+    console.log(`✅ Project swarms fetched:`, swarms.length)
+    return swarms
+    
+  } catch (error) {
+    console.error(`❌ Error fetching swarms for project ${projectId}:`, error.message)
+    return [] // Fallback to empty array
+  }
+}
+
+export const getAvailableDevicesInfo = async () => {
+  try {
+    console.log('🔍 Fetching available devices info...')
+    const response = await apiCall(`${PROJECTS_API_URL}/projects/devices/available`)
+    
+    let devices = []
+    let summary = {}
+    if (response.success && response.data) {
+      devices = response.data.devices || []
+      summary = response.data.summary || {}
+    }
+
+    console.log('✅ Available devices info fetched:', devices.length)
+    return { devices, summary }
+    
+  } catch (error) {
+    console.error('❌ Error fetching devices info:', error.message)
+    return { devices: [], summary: {} }
+  }
+}
+
+
 export const getProjectStats = async () => {
   try {
     console.log('🔍 Fetching project statistics...')
@@ -423,7 +499,6 @@ export const getProjectStats = async () => {
   }
 }
 
-// Search projects
 export const searchProjects = async (searchParams) => {
   try {
     console.log('🔍 Searching projects...')

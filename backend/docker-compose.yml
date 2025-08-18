@@ -102,6 +102,43 @@ services:
         limits:
           cpus: '1.0'
           memory: 512M
+# Projects Service
+  projects:
+    build:
+      context: .
+      dockerfile: ./projects/Dockerfile
+      target: production
+      args:
+        - NODE_ENV=production
+    container_name: projects
+    restart: unless-stopped
+    ports:
+      - "5054:8300"  # Puerto externo 5054 mapeado al puerto interno 8300
+    environment:
+      - NODE_ENV=production
+      - PORT=8300
+    env_file:
+      - ./projects/.env
+    volumes:
+      - ./projects/logs:/app/logs
+      - ./projects/config/.ssl:/app/config/.ssl:ro
+      - ./shared:/shared:ro  # Mount shared middleware
+    networks:
+      - backend-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8300/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+
+
+
 
  # MQTT Client Service
   mqtt-client:
