@@ -1,41 +1,39 @@
 import { DeviceApi } from "../../../Api.jsx";
-const API_URL = 'https://server-uteq.nrsoftware.online/devices/api/devices';
+
+const ENDPOINT = "/devices";
 
 export const getDevices = async () => {
   try {
-    const response = await axios.get(API_URL);
+    const response = await DeviceApi.get(ENDPOINT);
     return response.data;
   } catch (err) {
-    throw new Error('Error al cargar dispositivos');
+    throw new Error(err.response?.data?.message || "Error al cargar dispositivos");
   }
 };
 
 export const createDevice = async (deviceData) => {
   try {
-    const response = await axios.post(API_URL, deviceData, {
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const response = await DeviceApi.post(ENDPOINT, deviceData);
     return response.data;
   } catch (err) {
-    throw new Error('Error al crear el dispositivo');
+    throw new Error(err.response?.data?.message || "Error al crear el dispositivo");
   }
 };
 
 export const updateDevice = async (id, deviceData) => {
   try {
-    const response = await axios.put(`${API_URL}/${id}`, deviceData, {
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const response = await DeviceApi.put(`${ENDPOINT}/${id}`, deviceData);
     return response.data;
   } catch (err) {
-    throw new Error('Error al actualizar el dispositivo');
+    throw new Error(err.response?.data?.message || "Error al actualizar el dispositivo");
   }
 };
 
 export const deleteDevice = async (id) => {
   try {
-    await axios.delete(`${API_URL}/${id}`);
+    await DeviceApi.delete(`${ENDPOINT}/${id}`);
+    return { success: true };
   } catch (err) {
-    throw new Error('Error al eliminar el dispositivo');
+    throw new Error(err.response?.data?.message || "Error al eliminar el dispositivo");
   }
 };

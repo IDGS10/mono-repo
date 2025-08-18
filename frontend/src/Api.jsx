@@ -37,7 +37,7 @@ export const DeviceApi = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  timetout: 1000,
+  timetout: 10000,
   withCredentials: false,
 })
 
