@@ -18,11 +18,26 @@ const ProjectCard = ({ project }) => {
     completed: 'Completed'
   };
 
+  // CORRECCIÓN: Usar el ID correcto del proyecto
+  const projectId = project.id_project || project.id;
+
+  // CORRECCIÓN: Formatear fechas de manera segura
+  const formatDate = (dateString) => {
+    if (!dateString) return null;
+    try {
+      return new Date(dateString).toLocaleDateString();
+    } catch (error) {
+      return null;
+    }
+  };
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-5 hover:shadow-md transition-shadow">
       <div className="flex justify-between items-start mb-2">
-        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">{project.name}</h2>
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[project.status] || 'bg-gray-100 text-gray-800'}`}>
+        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 line-clamp-2">
+          {project.name}
+        </h2>
+        <span className={`px-2 py-1 rounded-full text-xs font-medium flex-shrink-0 ml-2 ${statusColors[project.status] || 'bg-gray-100 text-gray-800'}`}>
           {statusDisplay[project.status] || project.status}
         </span>
       </div>
@@ -31,21 +46,38 @@ const ProjectCard = ({ project }) => {
         {project.description || 'No description provided'}
       </p>
 
-      {project.location && (
-        <p className="text-gray-500 dark:text-gray-500 text-sm">
-          Location: <span className="text-gray-700 dark:text-gray-300">{project.location}</span>
-        </p>
-      )}
+      <div className="space-y-1 mb-4">
+        {project.location && (
+          <p className="text-gray-500 dark:text-gray-500 text-sm">
+            <span className="font-medium">Location:</span> 
+            <span className="text-gray-700 dark:text-gray-300 ml-1">{project.location}</span>
+          </p>
+        )}
 
-      {project.startDate && (
-        <p className="text-gray-500 dark:text-gray-500 text-sm">
-          Start date: <span className="text-gray-700 dark:text-gray-300">{project.startDate}</span>
-        </p>
-      )}
+        {/* CORRECCIÓN: Mostrar fechas usando los campos correctos */}
+        {(project.created_at || project.createdAt) && (
+          <p className="text-gray-500 dark:text-gray-500 text-sm">
+            <span className="font-medium">Created:</span> 
+            <span className="text-gray-700 dark:text-gray-300 ml-1">
+              {formatDate(project.created_at || project.createdAt)}
+            </span>
+          </p>
+        )}
+
+        {/* Mostrar ID del proyecto para debugging en desarrollo */}
+        {process.env.NODE_ENV === 'development' && (
+          <p className="text-gray-400 dark:text-gray-600 text-xs">
+            ID: {projectId}
+          </p>
+        )}
+      </div>
 
       <button
         className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-lg font-medium transition-colors w-full"
-        onClick={() => navigate(`/projects/${project.id}`)}
+        onClick={() => {
+          console.log(`Navigating to project: ${projectId}`);
+          navigate(`/projects/${projectId}`);
+        }}
       >
         View Details
       </button>

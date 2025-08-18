@@ -2,7 +2,7 @@ import { query } from '../config/database.js'
 
 export default class Project {
   constructor(data = {}) {
-    this.id_project = data.id_project || null // Auto-increment, se asigna en BD
+    this.id_project = data.id_project || null // Se asigna al crear
     this.name = data.name
     this.description = data.description
     this.location = data.location
@@ -15,14 +15,44 @@ export default class Project {
     this.updated_at = data.updated_at
   }
 
-  // POLÍTICA DE SEGURIDAD: NO SELECT * - Campos específicos solamente
+  // Campos específicos para SELECT (no usar *)
   static getSelectFields() {
     return `id_project, name, description, location, status, 
             modified_by, created_by, id_org, owner_id, 
             created_at, updated_at`
   }
 
-  // La tabla ya existe, pero verificamos que tenga la estructura correcta
+  // Generar ID único de 8 dígitos
+  static async generateUniqueId() {
+    let attempts = 0
+    const maxAttempts = 10
+    
+    while (attempts < maxAttempts) {
+      // Generar ID aleatorio de 8 dígitos (10000000 - 99999999)
+      const randomId = Math.floor(10000000 + Math.random() * 90000000)
+      
+      try {
+        // Verificar que no exista en BD
+        const checkQuery = 'SELECT id_project FROM projects WHERE id_project = $1'
+        const result = await query(checkQuery, [randomId])
+        
+        if (result.rows.length === 0) {
+          console.log(`✅ Generated unique project ID: ${randomId}`)
+          return randomId
+        }
+        
+        attempts++
+        console.log(`⚠️ ID ${randomId} already exists, retrying... (${attempts}/${maxAttempts})`)
+      } catch (error) {
+        console.error('Error checking unique ID:', error)
+        attempts++
+      }
+    }
+    
+    throw new Error(`Failed to generate unique ID after ${maxAttempts} attempts`)
+  }
+
+  // Verificar tabla existente
   static async verifyTable() {
     const checkTableQuery = `
       SELECT column_name, data_type, is_nullable, column_default
@@ -41,19 +71,25 @@ export default class Project {
     }
   }
 
-  // Save project to database (INSERT)
+  // Guardar proyecto con ID único
   async save() {
+    // Si no tiene ID, generar uno único
+    if (!this.id_project) {
+      this.id_project = await Project.generateUniqueId()
+    }
+    
     const insertQuery = `
       INSERT INTO projects (
-        name, description, location, status, 
+        id_project, name, description, location, status, 
         modified_by, created_by, id_org, owner_id,
         created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING ${Project.getSelectFields()}
     `
     
     const now = new Date()
     const values = [
+      this.id_project, // ID único generado
       this.name,
       this.description,
       this.location,
@@ -69,19 +105,26 @@ export default class Project {
     try {
       const result = await query(insertQuery, values)
       const savedProject = new Project(result.rows[0])
-      console.log('✅ Project saved with ID:', savedProject.id_project)
+      console.log(`✅ Project saved with unique ID: ${savedProject.id_project}`)
       return savedProject
     } catch (error) {
       console.error('❌ Error saving project:', error)
+      
+      // Si hay error de duplicado, intentar con nuevo ID
+      if (error.code === '23505' && error.constraint?.includes('id_project')) {
+        console.log('🔄 Duplicate ID detected, generating new one...')
+        this.id_project = await Project.generateUniqueId()
+        return this.save() // Recursivo con nuevo ID
+      }
+      
       throw error
     }
   }
 
-  // POLÍTICA DE SEGURIDAD: Paginación obligatoria - NO SELECT *
+  // CORREGIDO: Buscar todos con paginación obligatoria
   static async findAll(ownerId = null, idOrg = null, page = 1, limit = 10) {
-    // Validar parámetros de paginación
     const pageNum = Math.max(1, parseInt(page) || 1)
-    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 10)) // Máximo 100 registros
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 10))
     const offset = (pageNum - 1) * limitNum
 
     let findQuery = `SELECT ${Project.getSelectFields()} FROM projects`
@@ -91,13 +134,13 @@ export default class Project {
     let paramCount = 1
     
     if (ownerId) {
-      conditions.push(`owner_id = $${paramCount}`)
+      conditions.push(`owner_id = $${paramCount}`) // CORREGIDO: usar $n
       values.push(ownerId)
       paramCount++
     }
     
     if (idOrg) {
-      conditions.push(`id_org = $${paramCount}`)
+      conditions.push(`id_org = $${paramCount}`) // CORREGIDO: usar $n
       values.push(idOrg)
       paramCount++
     }
@@ -106,12 +149,11 @@ export default class Project {
     findQuery += whereClause
     countQuery += whereClause
     
-    // Agregar paginación
+    // CORREGIDO: Agregar paginación con parámetros correctos
     findQuery += ` ORDER BY created_at DESC LIMIT $${paramCount} OFFSET $${paramCount + 1}`
     const queryValues = [...values, limitNum, offset]
     
     try {
-      // Ejecutar ambas consultas
       const [dataResult, countResult] = await Promise.all([
         query(findQuery, queryValues),
         query(countQuery, values)
@@ -140,7 +182,7 @@ export default class Project {
     }
   }
 
-  // POLÍTICA DE SEGURIDAD: NO SELECT * - Campos específicos
+  // Buscar por ID
   static async findById(id) {
     const findQuery = `SELECT ${Project.getSelectFields()} FROM projects WHERE id_project = $1`
     
@@ -156,7 +198,7 @@ export default class Project {
     }
   }
 
-  // Update project
+  // CORREGIDO: Actualizar proyecto
   async update(updates) {
     const allowedFields = ['name', 'description', 'location', 'status', 'modified_by', 'id_org', 'owner_id']
     const updateFields = []
@@ -165,7 +207,7 @@ export default class Project {
 
     Object.keys(updates).forEach(key => {
       if (allowedFields.includes(key) && updates[key] !== undefined) {
-        updateFields.push(`${key} = $${paramCount}`)
+        updateFields.push(`${key} = $${paramCount}`) // CORREGIDO: usar $n
         values.push(updates[key])
         paramCount++
       }
@@ -175,8 +217,8 @@ export default class Project {
       throw new Error('No valid fields to update')
     }
 
-    // Always update the updated_at timestamp
-    updateFields.push(`updated_at = $${paramCount}`)
+    // Siempre actualizar updated_at
+    updateFields.push(`updated_at = $${paramCount}`) // CORREGIDO: usar $n
     values.push(new Date())
     paramCount++
     
@@ -195,12 +237,13 @@ export default class Project {
         throw new Error('Project not found')
       }
       
-      // Update current instance
+      // Actualizar instancia actual
       const updatedData = result.rows[0]
       Object.keys(updatedData).forEach(key => {
         this[key] = updatedData[key]
       })
       
+      console.log(`✅ Updated project ${this.id_project}`)
       return this
     } catch (error) {
       console.error('❌ Error updating project:', error)
@@ -208,7 +251,7 @@ export default class Project {
     }
   }
 
-  // Delete project
+  // Eliminar proyecto
   static async delete(id) {
     const deleteQuery = `DELETE FROM projects WHERE id_project = $1 RETURNING ${Project.getSelectFields()}`
     
@@ -217,6 +260,7 @@ export default class Project {
       if (result.rows.length === 0) {
         throw new Error('Project not found')
       }
+      console.log(`✅ Deleted project ${id}`)
       return new Project(result.rows[0])
     } catch (error) {
       console.error('❌ Error deleting project:', error)
@@ -224,7 +268,7 @@ export default class Project {
     }
   }
 
-  // POLÍTICA DE SEGURIDAD: Paginación obligatoria en findByStatus
+  // CORREGIDO: Buscar por estado con paginación
   static async findByStatus(status, ownerId = null, idOrg = null, page = 1, limit = 10) {
     const pageNum = Math.max(1, parseInt(page) || 1)
     const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 10))
@@ -236,14 +280,14 @@ export default class Project {
     let paramCount = 2
     
     if (ownerId) {
-      findQuery += ` AND owner_id = $${paramCount}`
+      findQuery += ` AND owner_id = $${paramCount}` // CORREGIDO: usar $n
       countQuery += ` AND owner_id = $${paramCount}`
       values.push(ownerId)
       paramCount++
     }
     
     if (idOrg) {
-      findQuery += ` AND id_org = $${paramCount}`
+      findQuery += ` AND id_org = $${paramCount}` // CORREGIDO: usar $n
       countQuery += ` AND id_org = $${paramCount}`
       values.push(idOrg)
       paramCount++
@@ -279,7 +323,7 @@ export default class Project {
     }
   }
 
-  // Get project statistics - CAMPOS ESPECÍFICOS, NO SELECT *
+  // CORREGIDO: Obtener estadísticas
   static async getStats(ownerId = null, idOrg = null) {
     let statsQuery = `
       SELECT 
@@ -292,13 +336,13 @@ export default class Project {
     let paramCount = 1
     
     if (ownerId) {
-      conditions.push(`owner_id = $${paramCount}`)
+      conditions.push(`owner_id = $${paramCount}`) // CORREGIDO: usar $n
       values.push(ownerId)
       paramCount++
     }
     
     if (idOrg) {
-      conditions.push(`id_org = $${paramCount}`)
+      conditions.push(`id_org = $${paramCount}`) // CORREGIDO: usar $n
       values.push(idOrg)
       paramCount++
     }
@@ -312,7 +356,6 @@ export default class Project {
     try {
       const result = await query(statsQuery, values)
       
-      // Convert to object format
       const stats = {
         total: 0,
         pending_approval: 0,
@@ -334,10 +377,10 @@ export default class Project {
     }
   }
 
-  // Convert to JSON (excluding sensitive fields if needed)
+  // Convertir a JSON
   toJSON() {
     return {
-      id: this.id_project, // Para compatibilidad con frontend
+      id: this.id_project, // Compatibilidad con frontend
       id_project: this.id_project,
       name: this.name,
       description: this.description,
@@ -347,14 +390,14 @@ export default class Project {
       created_by: this.created_by,
       id_org: this.id_org,
       owner_id: this.owner_id,
-      createdAt: this.created_at, // Para compatibilidad con frontend
-      updatedAt: this.updated_at, // Para compatibilidad con frontend
+      createdAt: this.created_at, // Compatibilidad con frontend
+      updatedAt: this.updated_at, // Compatibilidad con frontend
       created_at: this.created_at,
       updated_at: this.updated_at
     }
   }
 
-  // Static method to create from frontend data
+  // Método estático para crear desde datos de frontend
   static fromFrontendData(data, userId, orgId = null) {
     return new Project({
       name: data.name,

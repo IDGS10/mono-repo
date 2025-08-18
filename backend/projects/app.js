@@ -1,12 +1,9 @@
 import express from 'express'
-import cors from 'cors'
 import dotenv from 'dotenv'
-import helmet from 'helmet'
-import rateLimit from 'express-rate-limit'
 import { testConnection } from './config/database.js'
 import Project from './models/Project.js'
 import projectsRoutes from './routes/projectsRoutes.js'
-import { generateTestJWT } from './middleware/auth.js'
+import { createMiddleware } from '@mono-repo/shared-middleware'
 
 // Load environment variables
 dotenv.config()
@@ -14,102 +11,46 @@ dotenv.config()
 const app = express()
 const PORT = process.env.PORT || 3001
 
-// POLÍTICA DE SEGURIDAD: Validar variables críticas
-if (!process.env.JWT_SECRET) {
-  console.error('❌ SECURITY ERROR: JWT_SECRET must be set to a secure value in production!')
-  if (process.env.NODE_ENV === 'production') {
-    process.exit(1)
-  }
-}
-
-// Security middleware
-app.use(helmet())
-
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
-  message: {
-    error: 'Too many requests from this IP, please try again later.'
-  }
-})
-app.use(limiter)
-
-// POLÍTICA DE SEGURIDAD: CORS configuration - VALIDADA ✅
-const allowedOrigins = process.env.CORS_ORIGIN?.split(',')
-const corsOptions = {
-  origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, postman, etc.)
-    if (!origin) return callback(null, true)
-    
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true)
-    } else {
-      console.warn(`❌ CORS blocked origin: ${origin}`)
-      return callback(new Error('Not allowed by CORS policy'))
-    }
-  },
-  credentials: true,
-  optionsSuccessStatus: 200
-}
-app.use(cors(corsOptions))
-
-console.log('✅ CORS Policy: Restricted origins -', allowedOrigins)
-
-// Body parsing middleware
-app.use(express.json({ limit: '10mb' }))
-app.use(express.urlencoded({ extended: true, limit: '10mb' }))
-
-// Request logging middleware
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`)
-  if (req.headers.authorization) {
-    console.log('🔐 Authorization header present')
-  }
-  next()
+// PASO 1: Configurar el middleware compartido
+const middleware = createMiddleware({
+  serviceName: 'projects-service',
+  jwtSecret: process.env.JWT_SECRET,
+  databasePool: null, // Se asignará después de conectar la BD
+  corsOrigin: process.env.CORS_ORIGIN?.split(',') || [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:3000'
+  ],
+  rateLimitWindow: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15,
+  rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
+  maxFileSize: 10 * 1024 * 1024,
+  sessionTimeout: '24h',
+  loggingFormat: 'combined',
+  enableMetrics: true,
+  skipHealthChecks: true
 })
 
-// POLÍTICA DE SEGURIDAD: Todas las rutas de projects requieren JWT
-app.use('/projects', projectsRoutes)
-
-// Public endpoints (no requieren JWT)
-app.get('/', (req, res) => {
-  res.json({
-    message: 'Welcome to Projects API - Secure Version',
-    version: process.env.API_VERSION || '1.0.0',
-    description: 'API REST for Projects Management - ALL ENDPOINTS REQUIRE JWT',
-    security: {
-      jwt_required: 'All /projects endpoints require valid JWT token',
-      cors_policy: 'Restricted to allowed origins only',
-      rate_limiting: 'Active'
-    },
-    note: 'This API handles only Projects. Swarms are managed by external API.',
-    external_apis: {
-      swarms: process.env.SWARMS_API_URL,
-      organizations: process.env.ORGANIZATIONS_API_URL
-    },
-    endpoints: {
-      health: 'GET /health (public)',
-      'test-token': 'GET /test-token (public - development only)',
-      projects: 'ALL /projects/* (JWT required)',
-    },
-    documentation: {
-      projects: {
-        list: 'GET    /projects (JWT required)',
-        create: 'POST   /projects (JWT required)',
-        get: 'GET    /projects/{id} (JWT required)',
-        update: 'PUT    /projects/{id} (JWT required)',
-        delete: 'DELETE /projects/{id} (JWT required)',
-        approve: 'PATCH  /projects/{id}/approve (JWT required)',
-        reject: 'PATCH  /projects/{id}/reject (JWT required)',
-        stats: 'GET    /projects/stats (JWT required)',
-      },
-    }
-  })
+// PASO 2: Configuración automática de Express usando el helper
+const expressHelper = middleware.setupExpressApp({
+  enableCompression: true,
+  enableSecurity: true,
+  enableLogging: process.env.NODE_ENV !== 'test'
 })
 
-// Health check endpoint (público)
-app.get('/health', async (req, res) => {
+const { 
+  app: configuredApp, 
+  addAuthenticatedRoutes, 
+  addPublicRoutes, 
+  setupErrorHandling, 
+  listen 
+} = expressHelper
+
+// PASO 3: Rutas públicas (sin JWT)
+const publicRoutes = express.Router()
+
+// Health check mejorado con información del middleware
+publicRoutes.get('/health', async (req, res) => {
   try {
     const isDbHealthy = await testConnection()
     
@@ -122,16 +63,17 @@ app.get('/health', async (req, res) => {
       }
     }
     
-    res.status(isDbHealthy ? 200 : 503).json({
+    middleware.ResponseUtils.success(res, 200, 'Health check completed', {
       status: isDbHealthy ? 'healthy' : 'unhealthy',
       timestamp: new Date().toISOString(),
       database: isDbHealthy ? 'connected' : 'disconnected',
       table_structure: tableInfo ? 'verified' : 'unknown',
-      module: 'projects',
+      service: middleware.config.serviceName,
       security: {
         jwt_authentication: 'enabled',
         cors_policy: 'restricted',
-        rate_limiting: 'active'
+        rate_limiting: 'active',
+        security_headers: 'enabled'
       },
       external_apis: {
         swarms: process.env.SWARMS_API_URL,
@@ -141,68 +83,103 @@ app.get('/health', async (req, res) => {
       uptime: process.uptime()
     })
   } catch (error) {
-    res.status(503).json({
-      status: 'unhealthy',
-      timestamp: new Date().toISOString(),
+    middleware.ResponseUtils.error(res, 503, 'Service unhealthy', {
       database: 'error',
       error: error.message
     })
   }
 })
 
-// DESARROLLO SOLAMENTE: Endpoint para generar JWT de prueba
+// Root endpoint
+publicRoutes.get('/', (req, res) => {
+  middleware.ResponseUtils.success(res, 200, 'Projects API - Secure Version', {
+    service: middleware.config.serviceName,
+    version: process.env.API_VERSION || '1.0.0',
+    description: 'API REST for Projects Management with Shared Middleware',
+    security: {
+      jwt_required: 'All /projects endpoints require valid JWT token',
+      cors_policy: 'Restricted to allowed origins only',
+      rate_limiting: 'Active',
+      security_headers: 'Enabled'
+    },
+    middleware_features: {
+      authentication: 'JWT with database validation',
+      validation: 'Input validation and sanitization',
+      logging: 'Centralized logging with metrics',
+      error_handling: 'Standardized error responses'
+    },
+    external_apis: {
+      swarms: process.env.SWARMS_API_URL,
+      organizations: process.env.ORGANIZATIONS_API_URL
+    },
+    endpoints: {
+      health: 'GET /health (public)',
+      'test-token': 'GET /test-token (development only)',
+      projects: 'ALL /projects/* (JWT required)'
+    }
+  })
+})
+
+// Test token para desarrollo
 if (process.env.NODE_ENV === 'development') {
-  app.get('/test-token', (req, res) => {
-    const { userId = 1, username = 'testuser', role = 'user' } = req.query
-    
-    const testToken = generateTestJWT({ userId, username, role })
-    
-    res.json({
-      message: 'Test JWT generated (DEVELOPMENT ONLY)',
-      token: testToken,
-      user: { userId, username, role },
-      usage: 'Authorization: Bearer ' + testToken,
-      warning: 'This endpoint is only available in development mode'
-    })
+  publicRoutes.get('/test-token', async (req, res) => {
+    try {
+      // CORRECCIÓN: Usar import dinámico en lugar de require
+      const jwt = await import('jsonwebtoken')
+      
+      const { 
+        userId = 1, 
+        username = 'testuser', 
+        role = 'Owner',
+        email = 'test@example.com'
+      } = req.query
+      
+      const payload = {
+        userId: parseInt(userId),
+        username,
+        email,
+        rol: role, // Nota: usar 'rol' como en tu BD
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 horas
+      }
+      
+      // Usar el JWT secret del middleware compartido
+      const testToken = jwt.default.sign(payload, middleware.config.auth.jwtSecret)
+      
+      middleware.ResponseUtils.success(res, 200, 'Test JWT generated successfully', {
+        token: testToken,
+        user: payload,
+        usage: {
+          header: `Authorization: Bearer ${testToken}`,
+          localStorage: `localStorage.setItem('userToken', '${testToken}')`,
+          curl: `curl -H "Authorization: Bearer ${testToken}" http://localhost:${PORT}/projects`
+        },
+        expires_in: '24 hours',
+        warning: 'This endpoint is only available in development mode'
+      })
+      
+    } catch (error) {
+      console.error('Error generating test token:', error)
+      middleware.ResponseUtils.error(res, 500, 'Failed to generate test token', error.message)
+    }
   })
   
   console.log('⚠️  Development mode: /test-token endpoint available')
-} else {
-  console.log('✅ Production mode: /test-token endpoint disabled')
+  console.log(`🔧 Test token URL: http://localhost:${PORT}/test-token`)
 }
 
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Endpoint not found',
-    path: req.originalUrl,
-    security_note: 'All /projects endpoints require JWT authentication',
-    note: 'This API only handles Projects. For Swarms, use the external Swarms API.'
-  })
-})
+// PASO 4: Agregar rutas públicas
+addPublicRoutes('/', publicRoutes)
 
-// Global error handler
-app.use((error, req, res, next) => {
-  console.error('Global error handler:', error)
-  
-  // CORS errors
-  if (error.message.includes('CORS')) {
-    return res.status(403).json({
-      success: false,
-      message: 'CORS policy violation',
-      error: 'Origin not allowed'
-    })
-  }
-  
-  res.status(error.status || 500).json({
-    success: false,
-    message: error.message || 'Internal server error',
-    ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
-  })
-})
+// PASO 5: Rutas autenticadas (requieren JWT)
+// Los roles permitidos se definen aquí
+const allowedRoles = ['Owner', 'Leader', 'User'] // Ajusta según tus necesidades
+addAuthenticatedRoutes('/projects', projectsRoutes, allowedRoles)
 
-// Initialize database and start server
+// PASO 6: Configurar manejo de errores
+setupErrorHandling()
+
+// PASO 7: Inicializar base de datos y servidor
 const startServer = async () => {
   try {
     console.log('🔍 Testing database connection...')
@@ -213,51 +190,68 @@ const startServer = async () => {
       process.exit(1)
     }
 
-    // Verify existing table structure
+    // IMPORTANTE: Asignar el pool de BD al middleware después de la conexión
+    const { pool } = await import('./config/database.js')
+    middleware.config.auth.databasePool = pool
+    console.log('✅ Database pool assigned to shared middleware')
+
+    // Verificar estructura de tabla
     console.log('🔨 Verificando estructura de tabla existente...')
     try {
       const tableStructure = await Project.verifyTable()
       console.log('✅ Tabla projects verificada:', tableStructure.length, 'columnas')
     } catch (error) {
       console.warn('⚠️ Error verificando tabla:', error.message)
-      console.log('💡 Ejecuta: node scripts/fix-projects-table.js')
     }
 
-    app.listen(PORT, () => {
-      console.log('🚀 Projects API Server started successfully! (SECURE VERSION)')
+    // Iniciar servidor usando el helper del middleware
+    const server = listen(PORT, () => {
+      console.log('🚀 Projects API Server started successfully! (SHARED MIDDLEWARE)')
       console.log(`📍 Server running on port ${PORT}`)
       console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`)
       console.log(`🔗 API URL: http://localhost:${PORT}`)
       console.log(`💚 Health check: http://localhost:${PORT}/health`)
       console.log('📋 Module: Projects Only')
       console.log(`🐝 External Swarms API: ${process.env.SWARMS_API_URL}`)
-      console.log('🔐 SECURITY STATUS:')
-      console.log('  ✅ JWT Authentication: ENABLED on all /projects routes')
-      console.log('  ✅ CORS Policy: RESTRICTED to allowed origins')
-      console.log('  ✅ Rate Limiting: ACTIVE')
-      console.log('  ✅ SELECT * Queries: ELIMINATED with pagination')
+      console.log('🔐 SHARED MIDDLEWARE FEATURES:')
+      console.log('  ✅ JWT Authentication: Database validation enabled')
+      console.log('  ✅ CORS Policy: Restricted origins')
+      console.log('  ✅ Rate Limiting: Active')
+      console.log('  ✅ Security Headers: Helmet enabled')
+      console.log('  ✅ Input Validation: Sanitization enabled')
+      console.log('  ✅ Centralized Logging: With metrics')
+      console.log('  ✅ Error Handling: Standardized responses')
       
       if (process.env.NODE_ENV === 'development') {
         console.log(`🔧 Test JWT: GET http://localhost:${PORT}/test-token`)
       }
     })
+
+    return server
   } catch (error) {
     console.error('💥 Failed to start server:', error)
     process.exit(1)
   }
 }
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('🛑 SIGTERM received. Shutting down gracefully...')
-  process.exit(0)
-})
+// Graceful shutdown mejorado
+const gracefulShutdown = (signal) => {
+  console.log(`🛑 ${signal} received. Shutting down gracefully...`)
+  
+  // Cerrar pool de base de datos si existe
+  if (middleware.config.auth.databasePool) {
+    middleware.config.auth.databasePool.end(() => {
+      console.log('🔌 Database pool closed')
+      process.exit(0)
+    })
+  } else {
+    process.exit(0)
+  }
+}
 
-process.on('SIGINT', () => {
-  console.log('🛑 SIGINT received. Shutting down gracefully...')
-  process.exit(0)
-})
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
+process.on('SIGINT', () => gracefulShutdown('SIGINT'))
 
 startServer()
 
-export default app
+export default configuredApp
