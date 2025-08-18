@@ -95,8 +95,17 @@ module.exports = {
       if (!email || !password || !firstName || !lastName) {
         return res.status(400).json({
           success: false,
-          message: "Todos los campos son requeridos",
+          message: "Los campos email, password, firstName y lastName son requeridos",
           required: ["email", "password", "firstName", "lastName"]
+        });
+      }
+
+      // Phone validation - make it required for new registrations
+      if (!phone || !phone.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: "El número de teléfono es requerido",
+          required: ["phone"]
         });
       }
 
@@ -109,13 +118,31 @@ module.exports = {
         });
       }
 
-      // Validate password length
+      // Validate password length and complexity
       if (password.length < 6) {
         return res.status(400).json({
           success: false,
           message: "La contraseña debe tener al menos 6 caracteres"
         });
       }
+
+      // Validate phone format
+      const cleanPhone = phone.replace(/\D/g, '');
+      if (cleanPhone.length < 10 || cleanPhone.length > 15) {
+        return res.status(400).json({
+          success: false,
+          message: `El teléfono debe tener entre 10 y 15 dígitos (actualmente tiene ${cleanPhone.length})`
+        });
+      }
+
+      console.log('🚀 Registrando nuevo usuario:', {
+        email: email.toLowerCase().trim(),
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        phone: phone.trim(),
+        rol: rol || 'Manager',
+        status: status || 'active'
+      });
 
       // Call authentication service
       const result = await AuthService.registerUser({
@@ -126,13 +153,15 @@ module.exports = {
         phone: phone ? phone.trim() : null,
         status: status || 'active',
         rol: rol || 'Manager',
-        accepted: accepted !== undefined ? accepted : 0,
+        accepted: accepted !== undefined ? accepted : 1, // Auto-accept for direct registration
         orgId: orgId || null
       }, req.ip, req.get('User-Agent'));
 
+      console.log('✅ Usuario registrado exitosamente:', result.user.email);
+
       res.status(201).json({
         success: true,
-        message: "User registered successfully",
+        message: "Usuario registrado exitosamente",
         user: {
           id: result.user.id,
           email: result.user.email,
@@ -149,18 +178,18 @@ module.exports = {
         expiresIn: result.expiresIn
       });
     } catch (error) {
-      console.error("Error in register:", error);
+      console.error("❌ Error en register:", error);
 
       // Handle specific errors
       if (error.message.includes('ya existe')) {
         return res.status(409).json({
           success: false,
-          message: "El usuario ya existe con ese email"
+          message: "Ya existe un usuario registrado con este email"
         });
       }
 
       if (error.message.includes('Rol inválido')) {
-        return res.status(500).json({
+        return res.status(400).json({
           success: false,
           message: error.message
         });
@@ -178,7 +207,7 @@ module.exports = {
 
       res.status(500).json({
         success: false,
-        message: "Internal server error while registering user",
+        message: "Error interno del servidor al registrar usuario",
         error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
