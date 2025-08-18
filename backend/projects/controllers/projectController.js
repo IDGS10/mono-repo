@@ -1,6 +1,7 @@
 import Project from '../models/Project.js'
 import { query } from '../config/database.js'
-
+import {   requestCompleteSwarm, getProjectSwarmsFromAPI, getAvailableDevicesFromAPI 
+} from '../services/swarmService.js'
 // Si tienes el middleware compartido instalado, descomenta esta línea:
 import { createMiddleware } from '@mono-repo/shared-middleware'
 
@@ -349,6 +350,113 @@ export default class ProjectController {
       ResponseUtils.error(res, 500, 'Failed to approve project', error.message)
     }
   }
+
+
+ static async requestSwarm(req, res) {
+    try {
+      const { id: projectId } = req.params
+      const swarmData = req.body
+
+      // Validar campos requeridos
+      if (!swarmData.swarmName || !swarmData.deviceCount) {
+        return ResponseUtils.validationError(res, 'Swarm name and device count are required')
+      }
+
+      // Verificar que el proyecto existe y está aprobado
+      const project = await Project.findById(parseInt(projectId))
+      if (!project) {
+        return ResponseUtils.notFound(res, 'Project not found')
+      }
+
+      if (project.status !== 'approved') {
+        return ResponseUtils.validationError(res, 'Project must be approved before requesting swarms')
+      }
+
+      // Crear swarm completo (backend maneja todo)
+      const result = await requestCompleteSwarm(projectId, swarmData, req)
+
+      ResponseUtils.created(res, 'Swarm request submitted successfully', {
+        project: project.toJSON(),
+        swarm: result.swarm,
+        assignedDevices: result.devices,
+        summary: {
+          swarmId: result.swarm?.swarmId,
+          devicesAssigned: result.selectedDevicesCount,
+          devicesAvailable: result.availableDevicesCount,
+          totalDevices: result.totalDevicesCount,
+          status: 'requested'
+        },
+        message: 'Your swarm request has been submitted and is pending approval'
+      })
+
+    } catch (error) {
+      console.error('❌ Error requesting swarm:', error)
+      ResponseUtils.error(res, 500, 'Failed to request swarm', error.message)
+    }
+  }
+
+  static async getProjectSwarms(req, res) {
+    try {
+      const { id: projectId } = req.params
+
+      const project = await Project.findById(parseInt(projectId))
+      if (!project) {
+        return ResponseUtils.notFound(res, 'Project not found')
+      }
+
+      const swarms = await getProjectSwarmsFromAPI(projectId, req)
+
+      ResponseUtils.success(res, 200, 'Project swarms retrieved successfully', {
+        project: {
+          id: project.id_project,
+          name: project.name,
+          status: project.status
+        },
+        swarms: swarms,
+        count: swarms.length
+      })
+
+    } catch (error) {
+      console.error('❌ Error getting project swarms:', error)
+      ResponseUtils.error(res, 500, 'Failed to get project swarms', error.message)
+    }
+  }
+
+  static async getAvailableDevices(req, res) {
+    try {
+      const deviceInfo = await getAvailableDevicesFromAPI(req)
+
+      // Verificar que deviceInfo tenga la estructura correcta
+      if (!deviceInfo || typeof deviceInfo !== 'object') {
+        throw new Error('Invalid device info structure received')
+      }
+
+      const availableDevices = deviceInfo.availableDevices || []
+      const summary = deviceInfo.summary || { total: 0, available: 0, assigned: 0, offline: 0 }
+
+      ResponseUtils.success(res, 200, 'Available devices retrieved successfully', {
+        devices: availableDevices,
+        allDevices: deviceInfo.allDevices || [],
+        count: availableDevices.length,
+        summary: {
+          totalDevices: summary.total,
+          availableDevices: summary.available,
+          assignedDevices: summary.assigned,
+          offlineDevices: summary.offline,
+          byType: Array.isArray(availableDevices) ? availableDevices.reduce((acc, device) => {
+            const type = device.type || 'Unknown'
+            acc[type] = (acc[type] || 0) + 1
+            return acc
+          }, {}) : {}
+        }
+      })
+
+    } catch (error) {
+      console.error('❌ Error getting available devices:', error)
+      ResponseUtils.error(res, 500, 'Failed to get available devices', error.message)
+    }
+  }
+
 
   static async rejectProject(req, res) {
     try {

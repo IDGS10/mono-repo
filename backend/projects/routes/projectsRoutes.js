@@ -111,6 +111,14 @@ router.patch('/:id/reject',
   ProjectController.rejectProject
 )
 
+// Rutas para integración con Swarms API
+router.post('/:id/request-swarm', ProjectController.requestSwarm)
+router.get('/:id/swarms', ProjectController.getProjectSwarms)
+
+// Ruta global para dispositivos disponibles
+router.get('/devices/available', ProjectController.getAvailableDevices)
+
+
 // Middleware de logging para rutas protegidas
 router.use((req, res, next) => {
   console.log(`🔒 Protected route accessed: ${req.method} ${req.path}`)
