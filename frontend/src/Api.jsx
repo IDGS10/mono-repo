@@ -32,6 +32,15 @@ export const ProjectsApi = axios.create({
   withCredentials: false,
 });
 
+export const DeviceApi = axios.create({
+  baseURL: "https://server-uteq.nrsoftware.online/devices/api",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  timetout: 1000,
+  withCredentials: false,
+})
+
 
 const setupInterceptors = (apiInstance) => {
   //Request interceptor - Add token to every request
@@ -74,3 +83,4 @@ const setupInterceptors = (apiInstance) => {
 setupInterceptors(SecurityApi);
 setupInterceptors(OrganizationsApi);
 setupInterceptors(ProjectsApi);
+setupInterceptors(DeviceApi);
