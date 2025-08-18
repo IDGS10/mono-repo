@@ -40,7 +40,7 @@ export default function Register() {
   const [touched, setTouched] = useState({});
   const firstInvalidRef = useRef(null);
 
-  //Validar fortaleza de contraseña
+  //Strength password validation
   const getPasswordStrength = (password) => {
     let score = 0;
     if (password.length >= 8) score++;
@@ -51,7 +51,7 @@ export default function Register() {
     return score;
   };
 
-  //Validar formulario
+  //Validate form dadta
   const validateForm = () => {
     const errors = {};
 
@@ -74,7 +74,7 @@ export default function Register() {
     } else if (registrationData.password.length < 6) {
       errors.password = "La contraseña debe tener al menos 6 caracteres";
     } else {
-      // Validaciones más estrictas para coincidir con el backend
+      //Validaciones más estrictas para coincidir con el backend
       const passwordErrors = [];
       if (!/[a-z]/.test(registrationData.password)) {
         passwordErrors.push("una letra minúscula");
@@ -85,11 +85,15 @@ export default function Register() {
       if (!/\d/.test(registrationData.password)) {
         passwordErrors.push("un número");
       }
-      if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(registrationData.password)) {
+      if (
+        !/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(registrationData.password)
+      ) {
         passwordErrors.push("un carácter especial");
       }
       if (passwordErrors.length > 0) {
-        errors.password = `La contraseña debe contener al menos: ${passwordErrors.join(', ')}`;
+        errors.password = `La contraseña debe contener al menos: ${passwordErrors.join(
+          ", "
+        )}`;
       }
     }
 
@@ -97,15 +101,15 @@ export default function Register() {
       errors.confirmPassword = "Las contraseñas no coinciden";
     }
 
-    // Phone validation (optional but if provided, validate format)
-    if (registrationData.phone && registrationData.phone.trim()) {
-      const cleanPhone = registrationData.phone.replace(/\D/g, '');
+    //Phone validation (required field)
+    if (!registrationData.phone || !registrationData.phone.trim()) {
+      errors.phone = "El teléfono es requerido";
+    } else {
+      const cleanPhone = registrationData.phone.replace(/\D/g, "");
       if (cleanPhone.length < 10 || cleanPhone.length > 15) {
         errors.phone = `El teléfono debe tener entre 10 y 15 dígitos (actualmente tiene ${cleanPhone.length})`;
       }
     }
-
-    
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -124,7 +128,7 @@ export default function Register() {
       setPasswordStrength(getPasswordStrength(value));
     }
 
-    //Limpiar error específico cuando el usuario empieza a escribir
+    //Clean specific error when user starts typing
     if (formErrors[field]) {
       setFormErrors((prev) => ({
         ...prev,
@@ -139,21 +143,40 @@ export default function Register() {
     if (validateForm()) {
       setIsLoading(true);
       try {
-        const response = await ApiService.registerUser(registrationData);
+        const registrationPayload = {
+          email: registrationData.email.trim().toLowerCase(),
+          password: registrationData.password,
+          firstName: registrationData.firstName.trim(),
+          lastName: registrationData.lastName.trim(),
+          phone: registrationData.phone.trim(),
+          rol: "Manager",
+          status: "active",
+          accepted: 1,
+          orgId: null,
+        };
+
+        console.log("Enviando datos de registro:", {
+          ...registrationPayload,
+          password: "[HIDDEN]",
+        });
+
+        const response = await ApiService.registerUser(registrationPayload);
 
         if (response.success) {
-          toast.success("Usuario registrado exitosamente!");
+          toast.success(
+            "¡Usuario registrado exitosamente! Bienvenido a la plataforma."
+          );
 
           if (response.token && response.user) {
-            //Guardamos el estado de login para verificación de la sesión
             localStorage.setItem("isLoggedIn", "true");
 
-            // Guardar los datos completos del usuario y token
             const userData = {
               token: response.token,
-              user: response.user // Almacenar el objeto completo del usuario
+              user: response.user,
             };
             localStorage.setItem("monoRepoUserData", JSON.stringify(userData));
+
+            console.log("Usuario registrado y autenticado:", response.user);
 
             navigate("/analytics");
           } else {
@@ -163,22 +186,27 @@ export default function Register() {
             return false;
           }
         } else {
-          // Handle validation errors from backend
-          if (response.validationErrors && Object.keys(response.validationErrors).length > 0) {
-            // Set form errors from backend validation
+          //Handle validation errors from backend
+          if (
+            response.validationErrors &&
+            Object.keys(response.validationErrors).length > 0
+          ) {
+            //Set form errors from backend validation
             setFormErrors(response.validationErrors);
 
-            // Show detailed error message
+            //Show detailed error message
             const errorMessages = Object.values(response.validationErrors);
-            toast.error(`Errores de validación:\n${errorMessages.join('\n')}`, {
+            toast.error(`Errores de validación:\n${errorMessages.join("\n")}`, {
               autoClose: 8000,
-              style: { whiteSpace: 'pre-line' }
+              style: { whiteSpace: "pre-line" },
             });
 
-            // Focus on first invalid field
+            //Focus on first invalid field
             setTimeout(() => {
               const firstErrorField = Object.keys(response.validationErrors)[0];
-              const firstErrorElement = document.querySelector(`[name="${firstErrorField}"]`);
+              const firstErrorElement = document.querySelector(
+                `[name="${firstErrorField}"]`
+              );
               if (firstErrorElement) {
                 firstErrorElement.focus();
               }
@@ -203,7 +231,6 @@ export default function Register() {
     }
   };
 
-  //Utilidad para iconos de validación
   const getValidationIcon = (field) => {
     if (!touched[field]) return null;
 
@@ -219,50 +246,52 @@ export default function Register() {
   };
 
   return (
-<AuthLayout className="bg-[#eaf9df]">
-  <div className="min-h-screen bg-gradient-to-br from-[#cbe552] to-[#edf7f5] py-8 px-4">
-    <div className="max-w-2xl mx-auto">
-      <div className="text-center mb-8">
-        <div
-          className="inline-flex p-4 rounded-full mb-4"
-          style={{ backgroundColor: "#3e5586" }}
-        >
-          <FaUser className="w-8 h-8 text-white" />
-        </div>
-        <h2 className="text-3xl font-bold text-[#3e5586]">Registro de Usuario</h2>
-        <p className="text-[#607123] mt-2">
-          Complete sus datos personales para crear su cuenta
-        </p>
-      </div>
+    <AuthLayout className="bg-[#eaf9df]">
+      <div className="min-h-screen bg-gradient-to-br from-[#cbe552] to-[#edf7f5] py-8 px-4">
+        <div className="max-w-2xl mx-auto">
+          <div className="text-center mb-8">
+            <div
+              className="inline-flex p-4 rounded-full mb-4"
+              style={{ backgroundColor: "#3e5586" }}
+            >
+              <FaUser className="w-8 h-8 text-white" />
+            </div>
+            <h2 className="text-3xl font-bold text-[#3e5586]">
+              Registro de Usuario
+            </h2>
+            <p className="text-[#607123] mt-2">
+              Complete sus datos personales para crear su cuenta
+            </p>
+          </div>
 
-      <div className="bg-white rounded-2xl shadow-xl border border-[#95b54c] p-8">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Nombre */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nombre <span className="text-red-500">*</span>
-              </label>
-              <div className="relative flex items-center">
-                <input
-                  type="text"
-                  value={registrationData.firstName}
-                  onChange={(e) =>
-                    handleInputChange("firstName", e.target.value)
-                  }
-                  onBlur={() =>
-                    setTouched((prev) => ({ ...prev, firstName: true }))
-                  }
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 hover:border-[#95b54c] focus:border-transparent transition-colors ${
-                    formErrors.firstName
-                      ? "border-red-500 bg-red-50"
-                      : touched.firstName &&
-                        registrationData.firstName &&
-                        !formErrors.firstName
-                      ? "border-green-400 bg-green-50"
-                      : "border-gray-300 hover:border-[#95b54c]"
-                  }`}
-                  placeholder="Juan"
+          <div className="bg-white rounded-2xl shadow-xl border border-[#95b54c] p-8">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Nombre */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Nombre <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative flex items-center">
+                    <input
+                      type="text"
+                      value={registrationData.firstName}
+                      onChange={(e) =>
+                        handleInputChange("firstName", e.target.value)
+                      }
+                      onBlur={() =>
+                        setTouched((prev) => ({ ...prev, firstName: true }))
+                      }
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 hover:border-[#95b54c] focus:border-transparent transition-colors ${
+                        formErrors.firstName
+                          ? "border-red-500 bg-red-50"
+                          : touched.firstName &&
+                            registrationData.firstName &&
+                            !formErrors.firstName
+                          ? "border-green-400 bg-green-50"
+                          : "border-gray-300 hover:border-[#95b54c]"
+                      }`}
+                      placeholder="Juan"
                       ref={
                         formErrors.firstName && !firstInvalidRef.current
                           ? firstInvalidRef
@@ -415,21 +444,22 @@ export default function Register() {
                   {/* Barra de fortaleza de contraseña */}
                   <div className="h-2 mt-2 rounded bg-gray-200 overflow-hidden">
                     <div
-                      className={`h-2 rounded transition-all duration-300 ${passwordStrength <= 2
-                        ? "bg-red-400 w-1/5"
-                        : passwordStrength === 3
+                      className={`h-2 rounded transition-all duration-300 ${
+                        passwordStrength <= 2
+                          ? "bg-red-400 w-1/5"
+                          : passwordStrength === 3
                           ? "bg-yellow-400 w-3/5"
                           : passwordStrength >= 4
-                            ? "bg-green-500 w-full"
-                            : ""
-                        }`}
+                          ? "bg-green-500 w-full"
+                          : ""
+                      }`}
                     ></div>
                   </div>
                   <div className="text-xs text-gray-500 mt-1">
                     Fortaleza:{" "}
                     {
                       ["Débil", "Débil", "Media", "Fuerte", "Muy fuerte"][
-                      passwordStrength
+                        passwordStrength
                       ]
                     }
                   </div>
@@ -553,9 +583,7 @@ export default function Register() {
               {/* Botón de envío */}
               <div className="flex flex-col sm:flex-row gap-4 pt-6">
                 {/* Botón principal de registro (profesional y consistente) */}
-                <button
-  className="bg-[#3e5586] text-white font-semibold rounded-2xl shadow-md hover:bg-[#5da8a0] transition-all duration-200 px-8 py-4 flex items-center justify-center space-x-3 w-full disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-4 focus:ring-[#5da8a0]"
->
+                <button className="bg-[#3e5586] text-white font-semibold rounded-2xl shadow-md hover:bg-[#5da8a0] transition-all duration-200 px-8 py-4 flex items-center justify-center space-x-3 w-full disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-4 focus:ring-[#5da8a0]">
                   {isLoading ? (
                     <>
                       <FaSpinner className="w-5 h-5 animate-spin" />
