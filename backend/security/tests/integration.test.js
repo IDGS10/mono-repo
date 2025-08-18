@@ -72,7 +72,7 @@ describe('System Health and Integration Tests', () => {
         lastName: 'Test',
         email: 'flow.test@example.com',
         password: 'SecurePass123!',
-        rol: 'Lider'
+        rol: 'Project manager'
       };
 
       const registerResponse = await request(app)

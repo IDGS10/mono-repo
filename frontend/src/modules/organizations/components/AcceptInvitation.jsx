@@ -54,7 +54,7 @@ function PasswordChecklist({ rules }) {
 
 export default function AcceptInvitation() {
   const { token } = useParams();
-const apiBase = API_CONFIG.BASE_SERVER || "http://localhost:3001";
+const apiBase = API_CONFIG.BASE_SERVER || "http://localhost:8200";
 
   
   

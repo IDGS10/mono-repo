@@ -28,7 +28,7 @@ module.exports = {
     email: `test${suffix}@example.com`.toLowerCase(),
     password: 'SecurePass123!',
     phone: '+1234567890',
-    rol: 'Propietario'
+    rol: 'Manager'
   }),
 
   // Helper function to generate different roles
@@ -41,7 +41,7 @@ module.exports = {
   }),
 
   // Valid roles for testing
-  validRoles: ['Propietario', 'Lider', 'Encargado'],
+  validRoles: ['Manager', 'Project manager', 'Organization', 'Cluster manager'],
 
   // Test data constants
   testConstants: {

@@ -32,10 +32,10 @@ class AuthService {
       }
 
       const { email, firstName, lastName, password } = validation.sanitizedData;
-      const { phone, status = 'active', rol = 'Propietario', accepted = 0, orgId = null } = originalUserData;
+      const { phone, status = 'active', rol = 'Manager', accepted = 0, orgId = null, isPreHashed = false } = originalUserData;
 
       // Validate rol
-      const validRoles = ['Propietario', 'Lider', 'Encargado'];
+      const validRoles = ['Manager', 'Project manager', 'Organization', 'Cluster manager'];
       if (!validRoles.includes(rol)) {
         throw new Error(`Rol inválido. Debe ser uno de: ${validRoles.join(', ')}`);
       }
@@ -46,8 +46,15 @@ class AuthService {
         throw new Error('El usuario ya existe');
       }
 
-      // Hash password
-      const hashedPassword = await bcrypt.hash(password, 12);
+      // Hash password only if not already hashed
+      let hashedPassword;
+      if (isPreHashed) {
+        hashedPassword = password; // La contraseña ya viene hasheada
+        console.log('🔐 Usando contraseña pre-hasheada para usuario:', email);
+      } else {
+        hashedPassword = await bcrypt.hash(password, 12);
+        console.log('🔐 Hasheando contraseña para usuario:', email);
+      }
 
       // Insert user into database
       const result = await getPool().query(
@@ -356,7 +363,16 @@ class AuthService {
       throw new Error(`Error al actualizar perfil: ${error.message}`);
     }
   }
+
+  /**
+   * Get user by email (public method for external services)
+   */
+  async getUserByEmail(email) {
+    return await this.findUserByEmail(email);
+  }
 }
+
+module.exports = new AuthService();
 
 // Export the service instance
 console.log("Creating AuthService instance...");
