@@ -1,52 +1,54 @@
+// src/modules/devices/pages/Dashboard.jsx
 import { useEffect, useState } from 'react';
-import axios from 'axios';
 import LoadingSpinner from '../components/LoadingSpinner.jsx';
 import ErrorMessage from '../components/ErrorMessage.jsx';
 import DeviceModal from '../components/DeviceModal.jsx';
+import { getDevices, createDevice, updateDevice, deleteDevice } from '../services/deviceServices';
 
 const Dashboard = () => {
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
- const [formData, setFormData] = useState({
-  id: '',
-  name: '',
-  matricula: '',
-  type: '',
-  status: 'offline',
-  SSID: '',
-  device_ip: '',
-  certificate: '',
-  password: '',
-  mac_address: '',
-  connection_type: '',
-  device_token: '',
-  firmware_version: '',
-  version: '',
-  is_active: true,
-  health_status: '',
-  error_logs: '',
-  maintenance_date: '',
-  notes: '',
-  created_by: 'admin',
-  swarm_id: null,
-  organization_id: null
-});
+  const [formData, setFormData] = useState({
+    id: '',
+    name: '',
+    matricula: '',
+    type: '',
+    status: 'offline',
+    SSID: '',
+    device_ip: '',
+    certificate: '',
+    password: '',
+    mac_address: '',
+    connection_type: '',
+    device_token: '',
+    firmware_version: '',
+    version: '',
+    is_active: true,
+    health_status: '',
+    error_logs: '',
+    maintenance_date: '',
+    notes: '',
+    created_by: 'admin',
+    swarm_id: null,
+    organization_id: null
+  });
   const [editingId, setEditingId] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
-    fetchDevices();
+    fetchAllDevices();
   }, []);
 
-  const fetchDevices = async () => {
+  const fetchAllDevices = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const response = await axios.get('http://localhost:5057/api/devices');
-      setDevices(response.data);
-      setLoading(false);
+      const data = await getDevices();
+      setDevices(data);
+      setError(null);
     } catch (err) {
-      setError('Error al cargar dispositivos',err);
+      setError(err.message);
+    } finally {
       setLoading(false);
     }
   };
@@ -63,49 +65,32 @@ const Dashboard = () => {
     setModalOpen(true);
   };
 
-const handleSubmit = async () => {
-  try {
-    let newDevice;
-    if (editingId) {
-      const res = await fetch(`http://localhost:5057/api/devices/${editingId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      if (!res.ok) throw new Error("Error al actualizar el dispositivo");
-      newDevice = await res.json();
-
-      setDevices(prev =>
-        prev.map(d => (d.id === editingId ? newDevice : d))
-      );
-      setEditingId(null);
-    } else {
-      const res = await fetch("http://localhost:5057/api/devices", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      if (!res.ok) throw new Error("Error al crear el dispositivo");
-      newDevice = await res.json();
-
-      setDevices(prev => [...prev, newDevice]);
+  const handleSubmit = async () => {
+    try {
+      let newDevice;
+      if (editingId) {
+        newDevice = await updateDevice(editingId, formData);
+        setDevices(prev => prev.map(d => (d.id === editingId ? newDevice : d)));
+        setEditingId(null);
+      } else {
+        newDevice = await createDevice(formData);
+        setDevices(prev => [...prev, newDevice]);
+      }
+      setModalOpen(false);
+    } catch (err) {
+      console.error(err);
+      setError(err.message);
     }
-
-    setModalOpen(false); 
-  } catch (err) {
-    console.error(err);
-  }
-};
-
+  };
 
   const handleDelete = async (id) => {
-    if (confirm('¿Estás seguro de eliminar este dispositivo?')) {
-      try {
-        await axios.delete(`http://localhost:5057/api/devices/${id}`);
-        setDevices(prev => prev.filter(device => device.id !== id));
-      } catch (err) {
-        setError('Error al eliminar el dispositivo',err);
-      }
+    if (!confirm('¿Estás seguro de eliminar este dispositivo?')) return;
+    try {
+      await deleteDevice(id);
+      setDevices(prev => prev.filter(device => device.id !== id));
+    } catch (err) {
+      console.error(err);
+      setError(err.message);
     }
   };
 
@@ -117,12 +102,12 @@ const handleSubmit = async () => {
             Device Manager ESP32
           </h1>
           <p className="text-gray-600 text-lg">
-            Administra los dispositivos asignados a alumnos
+            Administra los dispositivos asignados
           </p>
         </div>
         <div className="flex gap-3">
           <button 
-            onClick={fetchDevices}
+            onClick={fetchAllDevices}
             className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition"
           >
             🔄 Actualizar
@@ -140,7 +125,7 @@ const handleSubmit = async () => {
         {loading ? (
           <LoadingSpinner message="Cargando dispositivos..." />
         ) : error ? (
-          <ErrorMessage error={error} onRetry={fetchDevices} />
+          <ErrorMessage error={error} onRetry={fetchAllDevices} />
         ) : (
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-100 text-gray-600 uppercase text-sm font-semibold">
