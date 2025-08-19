@@ -1,7 +1,7 @@
 const app = require('./src/app');
 const config = require('./src/config/config');
 
-const PORT = config.port || 3001;
+const PORT = config.port || 8200;
 
 // Configurar la conexión de base de datos para el middleware después de que la app esté lista
 const startServer = async () => {

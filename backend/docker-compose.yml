@@ -11,10 +11,10 @@ services:
     container_name: security
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "8010:8010"
     environment:
       - NODE_ENV=production
-      - PORT=8000
+      - PORT=8010
     env_file:
       - ./security/.env
     volumes:
@@ -24,7 +24,7 @@ services:
     networks:
       - backend-network
     healthcheck:
-      test: ["CMD", "node", "-e", "const http = require('http'); const req = http.request({host: 'localhost', port: 8000, path: '/api/health', timeout: 5000}, (res) => process.exit(res.statusCode === 200 ? 0 : 1)); req.on('error', () => process.exit(1)); req.end();"]
+      test: ["CMD", "node", "-e", "const http = require('http'); const req = http.request({host: 'localhost', port: 8010, path: '/api/health', timeout: 5000}, (res) => process.exit(res.statusCode === 200 ? 0 : 1)); req.on('error', () => process.exit(1)); req.end();"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -39,7 +39,8 @@ services:
   device-manager:
     build:
       context: ./device-manager
-      dockerfile: Dockerfile   
+      dockerfile: Dockerfile
+      target: production   
       args:
         - NODE_ENV=production
     container_name: device-manager
@@ -54,11 +55,45 @@ services:
     volumes:
       - ./device-manager/config:/app/config:ro
       - ./device-manager/logs:/app/logs
-      - ./shared:/shared:ro
+      - ../shared:/app/shared:ro
     networks:
       - backend-network
     healthcheck:
       test: ["CMD", "node", "-e", "const http = require('http'); const req = http.request({host: 'localhost', port: 5057, path: '/api/health', timeout: 5000}, (res) => process.exit(res.statusCode === 200 ? 0 : 1)); req.on('error', () => process.exit(1)); req.end();"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+
+  # Organizations Service
+  organizations:
+    build:
+      context: .
+      dockerfile: ./organizations/Dockerfile
+      target: production
+      args:
+        - NODE_ENV=production
+    container_name: organizations
+    restart: unless-stopped
+    ports:
+      - "8200:8200"
+    environment:
+      - NODE_ENV=production
+      - PORT=8200
+    env_file:
+      - ./organizations/.env
+    volumes:
+      - ./organizations/logs:/app/logs
+      - ./shared:/shared:ro  # Mount shared middleware
+    networks:
+      - backend-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "const http = require('http'); const req = http.request({host: 'localhost', port: 8200, path: '/api/health', timeout: 5000}, (res) => process.exit(res.statusCode === 200 ? 0 : 1)); req.on('error', () => process.exit(1)); req.end();"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -113,7 +148,7 @@ services:
     container_name: projects
     restart: unless-stopped
     ports:
-      - "5054:8300"  # Puerto externo 5054 mapeado al puerto interno 8300
+      - "3002:8300"  # Puerto externo 3002 mapeado al puerto interno 8300
     environment:
       - NODE_ENV=production
       - PORT=8300

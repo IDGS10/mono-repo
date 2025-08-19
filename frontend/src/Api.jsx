@@ -15,7 +15,7 @@ export const SecurityApi = axios.create({
 });
 
 export const OrganizationsApi = axios.create({
-  baseURL: "http://localhost:3001/api",
+  baseURL: "http://localhost:8200/api",
   headers: {
     "Content-Type": "application/json",
   },
@@ -25,6 +25,15 @@ export const OrganizationsApi = axios.create({
 
 export const ProjectsApi = axios.create({
   baseURL: "http://localhost:3002/api",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  timeout: 10000,
+  withCredentials: false,
+});
+
+export const SwarmsApi = axios.create({
+  baseURL: "http://localhost:5052",
   headers: {
     "Content-Type": "application/json",
   },
@@ -74,3 +83,4 @@ const setupInterceptors = (apiInstance) => {
 setupInterceptors(SecurityApi);
 setupInterceptors(OrganizationsApi);
 setupInterceptors(ProjectsApi);
+setupInterceptors(SwarmsApi);

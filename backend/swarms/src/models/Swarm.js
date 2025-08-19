@@ -55,23 +55,56 @@ class Swarm extends Model {
             isIn: [['requested', 'assigned', 'active', 'paused', 'completed', 'rejected']],
           },
         },
+        // NUEVO CAMPO: MACs solicitadas
+        requestedMacs: {
+          type: DataTypes.JSONB,
+          allowNull: true,
+          field: 'requested_macs',
+          validate: {
+            isValidMacsArray(value) {
+              if (value !== null && value !== undefined) {
+                if (!Array.isArray(value)) {
+                  throw new Error('requestedMacs must be an array')
+                }
+                
+                // Validar cada MAC address en el array
+                const macRegex = /^([0-9A-F]{2}[:-]){5}([0-9A-F]{2})$/i
+                for (const macEntry of value) {
+                  if (typeof macEntry === 'string') {
+                    // Si es solo un string (MAC), validarlo
+                    if (!macRegex.test(macEntry)) {
+                      throw new Error(`Invalid MAC address format: ${macEntry}`)
+                    }
+                  } else if (typeof macEntry === 'object' && macEntry !== null) {
+                    // Si es un objeto con MAC y metadata
+                    if (!macEntry.mac || !macRegex.test(macEntry.mac)) {
+                      throw new Error(`Invalid MAC address format in object: ${macEntry.mac}`)
+                    }
+                  } else {
+                    throw new Error('Each MAC entry must be a string or object')
+                  }
+                }
+              }
+            }
+          }
+        },
         assignedAt: {
-          type: DataTypes.DATE,
+          type: 'TIMESTAMP WITHOUT TIME ZONE',
           allowNull: true,
           field: 'assigned_at',
         },
         activatedAt: {
-          type: DataTypes.DATE,
+          type: 'TIMESTAMP WITHOUT TIME ZONE',
           allowNull: true,
           field: 'activated_at',
         },
         completedAt: {
-          type: DataTypes.DATE,
+          type: 'TIMESTAMP WITHOUT TIME ZONE',
           allowNull: true,
           field: 'completed_at',
         },
         lastActivity: {
-          type: DataTypes.DATE,
+          type: 'TIMESTAMP WITHOUT TIME ZONE',
           allowNull: true,
           field: 'last_activity',
         },
@@ -89,7 +122,7 @@ class Swarm extends Model {
       {
         sequelize,
         modelName: 'Swarm',
-        tableName: 'device_swarms', // Tabla device_swarms
+        tableName: 'device_swarms',
         timestamps: true,
         createdAt: 'created_at',
         updatedAt: 'updated_at',
@@ -106,7 +139,7 @@ class Swarm extends Model {
     })
   }
 
-  // Instance methods
+  // Instance methods existentes
   async assignToClusterManager(clusterManagerId) {
     this.clusterManagerId = clusterManagerId
     this.status = 'assigned'
@@ -151,7 +184,194 @@ class Swarm extends Model {
     return this
   }
 
-  // Class methods
+  // NUEVOS MÉTODOS para manejar MACs solicitadas
+  async addRequestedMac(macAddress, deviceName = null, notes = null) {
+    const currentMacs = this.requestedMacs || []
+    
+    // Verificar si la MAC ya existe
+    const macExists = currentMacs.some(entry => {
+      return typeof entry === 'string' ? entry === macAddress : entry.mac === macAddress
+    })
+    
+    if (macExists) {
+      throw new Error(`MAC address ${macAddress} already exists in requested MACs`)
+    }
+    
+    const newEntry = deviceName || notes ? 
+      { mac: macAddress, deviceName, notes, requestedAt: new Date() } : 
+      macAddress
+    
+    this.requestedMacs = [...currentMacs, newEntry]
+    await this.save()
+    return this
+  }
+
+  async removeRequestedMac(macAddress) {
+    if (!this.requestedMacs) return this
+    
+    this.requestedMacs = this.requestedMacs.filter(entry => {
+      return typeof entry === 'string' ? entry !== macAddress : entry.mac !== macAddress
+    })
+    
+    await this.save()
+    return this
+  }
+
+  async updateRequestedMacs(macsArray) {
+    this.requestedMacs = macsArray
+    await this.save()
+    return this
+  }
+
+  // Método para obtener las MACs en formato consistente
+  getRequestedMacsFormatted() {
+    if (!this.requestedMacs) return []
+    
+    return this.requestedMacs.map(entry => {
+      if (typeof entry === 'string') {
+        return {
+          mac: entry,
+          deviceName: null,
+          notes: null,
+          requestedAt: this.createdAt
+        }
+      }
+      return {
+        mac: entry.mac,
+        deviceName: entry.deviceName || null,
+        notes: entry.notes || null,
+        requestedAt: entry.requestedAt || this.createdAt
+      }
+    })
+  }
+
+  // Método para intentar asignar dispositivos basado en las MACs solicitadas
+  async tryAssignRequestedDevices() {
+    if (!this.requestedMacs || this.requestedMacs.length === 0) {
+      return { assigned: [], notFound: [], alreadyAssigned: [], unavailable: [] }
+    }
+
+    const results = {
+      assigned: [],
+      notFound: [],
+      alreadyAssigned: [],
+      unavailable: [] // Dispositivos que existen pero no están disponibles
+    }
+
+    // Obtener las MACs solicitadas
+    const requestedMacs = this.requestedMacs.map(entry => 
+      typeof entry === 'string' ? entry : entry.mac
+    )
+
+    // Buscar dispositivos por MAC
+    const Device = this.sequelize.models.Device
+    
+    for (const macAddress of requestedMacs) {
+      try {
+        // CORREGIDO: Buscar dispositivo por MAC address
+        const device = await Device.findOne({
+          where: { macAddress: macAddress }
+        })
+
+        if (!device) {
+          // El dispositivo con esta MAC no existe en la base de datos
+          results.notFound.push({
+            mac: macAddress,
+            reason: 'Device not found in database'
+          })
+          continue
+        }
+
+        // CORREGIDO: Verificar si el dispositivo ya está asignado a otro swarm
+        if (device.swarmId && device.swarmId !== this.swarmId) {
+          results.alreadyAssigned.push({
+            mac: macAddress,
+            deviceId: device.deviceId,
+            deviceName: device.deviceName,
+            currentSwarmId: device.swarmId,
+            reason: 'Already assigned to another swarm'
+          })
+          continue
+        }
+
+        // Si ya está asignado a este mismo swarm, skipear
+        if (device.swarmId === this.swarmId) {
+          results.assigned.push({
+            mac: macAddress,
+            deviceId: device.deviceId,
+            deviceName: device.deviceName,
+            reason: 'Already assigned to this swarm'
+          })
+          continue
+        }
+
+        // CORREGIDO: Verificar si el dispositivo está disponible (no asignado a ningún swarm)
+        if (device.swarmId !== null) {
+          results.unavailable.push({
+            mac: macAddress,
+            deviceId: device.deviceId,
+            deviceName: device.deviceName,
+            currentSwarmId: device.swarmId,
+            reason: 'Device is not available'
+          })
+          continue
+        }
+
+        // Verificar si el swarm no está lleno
+        const isFull = await this.isFull()
+        if (isFull) {
+          results.unavailable.push({
+            mac: macAddress,
+            deviceId: device.deviceId,
+            deviceName: device.deviceName,
+            reason: 'Swarm is full'
+          })
+          break // Detener si el swarm está lleno
+        }
+
+        // CORREGIDO: Asignar dispositivo disponible al swarm
+        await device.assignToSwarm(this.swarmId)
+        await device.update({
+          role: 'sensor', // Rol por defecto
+          status: 'assigned',
+          assignedBy: this.clusterManagerId, // Asignado por el cluster manager
+          assignedAt: new Date(),
+          removedAt: null
+        })
+
+        results.assigned.push({
+          mac: macAddress,
+          deviceId: device.deviceId,
+          deviceName: device.deviceName,
+          reason: 'Successfully assigned'
+        })
+
+      } catch (error) {
+        console.error(`Error processing MAC ${macAddress}:`, error)
+        results.notFound.push({
+          mac: macAddress,
+          reason: `Database error: ${error.message}`
+        })
+      }
+    }
+
+    return results
+  }
+
+  // Métodos existentes
+  async getDeviceCount() {
+    return await this.sequelize.models.Device.count({
+      where: { swarmId: this.swarmId }
+    })
+  }
+
+  async isFull() {
+    if (!this.maxDevices) return false
+    const deviceCount = await this.getDeviceCount()
+    return deviceCount >= this.maxDevices
+  }
+
+  // Class methods existentes
   static async findByStatus(status) {
     return await this.findAll({
       where: { status },
@@ -191,6 +411,29 @@ class Swarm extends Model {
   static async findActive() {
     return await this.findAll({
       where: { isActive: true },
+    })
+  }
+
+  static async findByClusterManager(clusterManagerId) {
+    return await this.findAll({
+      where: { clusterManagerId },
+      include: [
+        {
+          model: this.sequelize.models.Device,
+          as: 'devices',
+        },
+      ],
+    })
+  }
+
+  // NUEVO: Método para buscar swarms que tienen MACs solicitadas específicas
+  static async findByRequestedMac(macAddress) {
+    return await this.findAll({
+      where: {
+        requestedMacs: {
+          [this.sequelize.Sequelize.Op.contains]: [macAddress]
+        }
+      }
     })
   }
 }

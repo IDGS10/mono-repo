@@ -1,19 +1,30 @@
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { useTheme } from '../../../../context/ThemeContext';
+import { SecurityApi } from '../../../../../Api';
 import UserProfile from './UserProfile';
 
 const TopHeader = ({ sidebarCollapsed }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { darkMode, toggleTheme } = useTheme(); // ✨ Global theme usage
+  const { darkMode, toggleTheme } = useTheme();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const handleLogout = () => {
-    // Clear authentication data
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('monoRepoUserData');
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    
+    setIsLoggingOut(true);
+    try {
+      await SecurityApi.post('/api/auth/logout');
+    } catch (error) {
+      console.error('Error during logout:', error);
+    } finally {
+      localStorage.removeItem('isLoggedIn');
+      localStorage.removeItem('monoRepoUserData');
 
-    // Redirect to login
-    navigate('/login');
+      navigate('/login');
+      setIsLoggingOut(false);
+    }
   };
 
   return (
@@ -53,10 +64,15 @@ const TopHeader = ({ sidebarCollapsed }) => {
           {/* Logout Button */}
           <button
             onClick={handleLogout}
-            className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-all duration-200"
-            title="Sign out"
+            disabled={isLoggingOut}
+            className={`p-2 transition-all duration-200 rounded-full ${
+              isLoggingOut 
+                ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' 
+                : 'text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
+            }`}
+            title={isLoggingOut ? "Signing out..." : "Sign out"}
           >
-            🚪
+            {isLoggingOut ? '⏳' : '🚪'}
           </button>
 
           {/* User Profile */}

@@ -3,7 +3,7 @@ const axios = require('axios');
 class UserService {
   constructor() {
     // URL del servicio de seguridad
-    this.securityServiceURL = process.env.SECURITY_SERVICE_URL || 'http://localhost:8000';
+    this.securityServiceURL = process.env.SECURITY_SERVICE_URL || 'http://localhost:8010';
   }
 
   /**

@@ -18,10 +18,7 @@ import {
   X
 } from 'lucide-react';
 import ProjectApprovalService from '../services/projectApprovalService';
-import { API_CONFIG } from '../../../config/api.js';
-
-
-const API_BASE = API_CONFIG.BASE_API || "http://localhost:8200/api";
+import { OrganizationsApi } from '../../../Api.jsx';
 
 
 const getAuthHeaders = () => {
@@ -396,26 +393,22 @@ const PendingOrganization = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [isSuccess, setIsSuccess] = useState(true);
 
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      
-      const response = await fetch(`${API_BASE}/project-approvals`, {
-        headers: getAuthHeaders()
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setApprovals(data.approvals || []);
-      } else {
-        throw new Error('Error al cargar los proyectos');
-      }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+const fetchData = async () => {
+  try {
+    setLoading(true);
+
+    const response = await OrganizationsApi.get('/project-approvals');
+
+ 
+    setApprovals(response.data.approvals || []);
+    
+  } catch (err) {
+    setError('Error al cargar los proyectos: ' + err.message);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   useEffect(() => {
     fetchData();

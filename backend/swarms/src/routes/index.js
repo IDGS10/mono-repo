@@ -13,7 +13,7 @@ router.get('/', (req, res) => {
     authentication: {
       type: 'Bearer Token',
       header: 'Authorization: Bearer <token>',
-      note: 'Get token from security service at http://localhost:8000',
+      note: 'Get token from security service at http://localhost:8010',
     },
     endpoints: {
       public: {
@@ -47,9 +47,10 @@ router.get('/', (req, res) => {
       },
     },
     roles: {
-      Owner: 'Full access to all swarms and operations',
-      Leader: 'Can manage swarms, assign, activate, reject',
-      User: 'Can create swarms and manage own swarms only',
+      Organization: 'Full access to all swarms and operations',
+      Manager: 'Can manage swarms, assign, activate, reject',
+      'Project manager': 'Can create swarms and manage own swarms only',
+      'Cluster manager': 'Can manage cluster operations',
     },
     examples: {
       authentication: {
@@ -94,7 +95,8 @@ router.use(
   '/swarms',
   (req, res, next) => {
     if (authMiddleware) {
-      authMiddleware.authenticateToken(['Owner', 'Leader', 'User'])(
+      // CORREGIDO: Usando los roles correctos del sistema
+      authMiddleware.authenticateToken(['Manager', 'Project manager', 'Organization', 'Cluster manager'])(
         req,
         res,
         next
