@@ -16,12 +16,17 @@ const middleware = createMiddleware({
   serviceName: 'projects-service',
   jwtSecret: process.env.JWT_SECRET,
   databasePool: null, // Se asignará después de conectar la BD
-  corsOrigin: process.env.CORS_ORIGIN?.split(',') || [
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'http://127.0.0.1:5173',
-    'http://127.0.0.1:3000'
-  ],
+  corsOrigin: process.env.ALLOWED_ORIGINS 
+    ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
+    : [
+        'http://localhost:5173',  // Vite dev server
+        'http://127.0.0.1:5173',  // Alternative localhost
+        'http://127.0.0.1:3000',
+        'https://mono-repo-fawn.vercel.app',
+        'https://server-uteq.nrsoftware.online',
+        'https://*.vercel.app',
+        'https://*.nrsoftware.online'
+      ],
   rateLimitWindow: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15,
   rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
   maxFileSize: 10 * 1024 * 1024,
@@ -45,6 +50,72 @@ const {
   setupErrorHandling, 
   listen 
 } = expressHelper
+
+// ===== ADDITIONAL CORS CONFIGURATION =====
+// Debug middleware for CORS
+configuredApp.use((req, res, next) => {
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`🌐 Projects - Request from origin: ${req.headers.origin || 'No origin'}`);
+    console.log(`🔄 Method: ${req.method}`);
+    console.log(`📍 Path: ${req.path}`);
+  }
+  next();
+});
+
+// Handle preflight requests for all routes
+configuredApp.options('*', (req, res) => {
+  const origin = req.headers.origin;
+  const allowedOrigins = process.env.ALLOWED_ORIGINS 
+    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+    : [
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        'http://127.0.0.1:3000',
+        'https://mono-repo-fawn.vercel.app',
+        'https://server-uteq.nrsoftware.online'
+      ];
+  
+  console.log(`🔍 Projects OPTIONS request from origin: ${origin}`);
+  console.log(`✅ Allowed origins:`, allowedOrigins);
+  
+  // Allow origin if it's in the allowed list or matches wildcards
+  if (allowedOrigins.includes(origin) || 
+      (origin && (origin.includes('.vercel.app') || origin.includes('.nrsoftware.online')))) {
+    res.header('Access-Control-Allow-Origin', origin);
+    console.log(`✅ Origin allowed: ${origin}`);
+  } else {
+    console.log(`❌ Origin rejected: ${origin}`);
+  }
+  
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Max-Age', '86400'); // 24 hours
+  res.status(200).send();
+});
+
+// ===== ADDITIONAL CORS MIDDLEWARE FOR ALL REQUESTS =====
+configuredApp.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const allowedOrigins = process.env.ALLOWED_ORIGINS 
+    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+    : [
+        'http://localhost:5173',
+        'http://127.0.0.1:5173', 
+        'http://127.0.0.1:3000',
+        'https://mono-repo-fawn.vercel.app',
+        'https://server-uteq.nrsoftware.online'
+      ];
+  
+  // Allow origin if it's in the allowed list or matches wildcards
+  if (allowedOrigins.includes(origin) || 
+      (origin && (origin.includes('.vercel.app') || origin.includes('.nrsoftware.online')))) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  
+  res.header('Access-Control-Allow-Credentials', 'true');
+  next();
+});
 
 // PASO 3: Rutas públicas (sin JWT)
 const publicRoutes = express.Router()
