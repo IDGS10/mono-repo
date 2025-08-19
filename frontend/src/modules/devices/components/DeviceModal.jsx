@@ -63,17 +63,6 @@ const DeviceModal = ({ isOpen, onClose, onSubmit, formData, setFormData, editing
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Tipo</label>
-              <input
-                name="type"
-                value={formData.type}
-                onChange={handleChange}
-                placeholder="esp32 / esp01"
-                className="mt-1 w-full px-4 py-2 border rounded-lg shadow-sm"
-              />
-            </div>
-
-            <div>
               <label className="block text-sm font-medium text-gray-700">Tipo de Sensor</label>
               <input
                 name="type"
