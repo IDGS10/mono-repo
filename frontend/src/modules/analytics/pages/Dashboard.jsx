@@ -12,7 +12,7 @@ const Dashboard = () => {
         setLoading(true);
         setError('');
         
-        const response = await SecurityApi.get('/api/hello');
+        const response = await SecurityApi.get('/hello');
         
         if (response.data && response.data.success) {
           setSecurityMessage(response.data.message);

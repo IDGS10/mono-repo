@@ -41,6 +41,15 @@ export const SwarmsApi = axios.create({
   withCredentials: false,
 });
 
+export const DeviceManagerApi = axios.create({
+  baseURL: "https://server-uteq.nrsoftware.online/device-manager/api",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  timeout: 10000,
+  withCredentials: false,
+});
+
 
 const setupInterceptors = (apiInstance) => {
   //Request interceptor - Add token to every request
@@ -84,3 +93,4 @@ setupInterceptors(SecurityApi);
 setupInterceptors(OrganizationsApi);
 setupInterceptors(ProjectsApi);
 setupInterceptors(SwarmsApi);
+setupInterceptors(DeviceManagerApi);

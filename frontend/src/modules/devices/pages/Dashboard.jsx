@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
+import { DeviceManagerApi } from '../../../Api.jsx';
 import LoadingSpinner from '../components/LoadingSpinner.jsx';
 import ErrorMessage from '../components/ErrorMessage.jsx';
 import DeviceModal from '../components/DeviceModal.jsx';
@@ -19,12 +19,13 @@ const Dashboard = () => {
   const fetchDevices = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:3000/api/devices');
+      const response = await DeviceManagerApi.get('/devices');
       setDevices(response.data);
       setLoading(false);
     } catch (err) {
-      setError('Error al cargar dispositivos',err);
+      setError('Error al cargar dispositivos');
       setLoading(false);
+      console.error('Error fetching devices:', err);
     }
   };
 
@@ -43,7 +44,7 @@ const Dashboard = () => {
   const handleSubmit = async () => {
     try {
       if (editingId) {
-        await axios.put(`http://localhost:3000/api/devices/${editingId}`, formData);
+        await DeviceManagerApi.put(`/devices/${editingId}`, formData);
         setDevices(prev =>
           prev.map(device =>
             device.id === editingId ? { ...device, ...formData } : device
@@ -51,22 +52,24 @@ const Dashboard = () => {
         );
         setEditingId(null);
       } else {
-        const response = await axios.post('http://localhost:3000/api/devices', formData);
+        const response = await DeviceManagerApi.post('/devices', formData);
         setDevices(prev => [...prev, response.data]);
       }
       setModalOpen(false);
     } catch (err) {
-      setError('Error al guardar el dispositivo',err);
+      setError('Error al guardar el dispositivo');
+      console.error('Error saving device:', err);
     }
   };
 
   const handleDelete = async (id) => {
     if (confirm('¿Estás seguro de eliminar este dispositivo?')) {
       try {
-        await axios.delete(`http://localhost:3000/api/devices/${id}`);
+        await DeviceManagerApi.delete(`/devices/${id}`);
         setDevices(prev => prev.filter(device => device.id !== id));
       } catch (err) {
-        setError('Error al eliminar el dispositivo',err);
+        setError('Error al eliminar el dispositivo');
+        console.error('Error deleting device:', err);
       }
     }
   };
