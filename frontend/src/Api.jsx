@@ -6,7 +6,7 @@ const getToken = () => {
 };
 
 export const SecurityApi = axios.create({
-  baseURL: "http://localhost:8000",
+  baseURL: "http://localhost:8010",
   headers: {
     "Content-Type": "application/json",
   },
