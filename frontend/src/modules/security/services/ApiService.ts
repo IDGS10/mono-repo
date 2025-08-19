@@ -1,7 +1,7 @@
 import axios from "axios";
 
 // Configuración base de la API
-const API_BASE_URL = "http://localhost:8000/api"; // Ajustar según tu backend
+const API_BASE_URL = "https://server-uteq.nrsoftware.online/security/api"; // Ajustar según tu backend
 
 // Configurar axios con interceptors para logging
 const api = axios.create({
@@ -315,7 +315,7 @@ class ApiService {
           return {
             success: false,
             error:
-              "Servidor no disponible. Verifique que el backend esté ejecutándose en http://localhost:8000",
+              "Servidor no disponible. Verifique que el backend esté ejecutándose en https://server-uteq.nrsoftware.online/security",
           };
         }
         if (error.code === "ECONNABORTED") {

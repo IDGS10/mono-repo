@@ -220,6 +220,13 @@ module.exports = {
     try {
       const { email, password } = req.body;
 
+      // Add CORS headers explicitly for this endpoint
+      const origin = req.headers.origin;
+      if (origin) {
+        res.header('Access-Control-Allow-Origin', origin);
+        res.header('Access-Control-Allow-Credentials', 'true');
+      }
+
       // Basic validation
       if (!email || !password) {
         return res.status(400).json({
@@ -253,6 +260,13 @@ module.exports = {
       });
     } catch (error) {
       console.error("Error in login:", error);
+
+      // Add CORS headers for error responses too
+      const origin = req.headers.origin;
+      if (origin) {
+        res.header('Access-Control-Allow-Origin', origin);
+        res.header('Access-Control-Allow-Credentials', 'true');
+      }
 
       // Handle specific errors
       if (error.message.includes('Credenciales inválidas')) {

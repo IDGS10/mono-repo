@@ -34,7 +34,7 @@ const options = {
     },
     servers: [
       {
-        url: "http://localhost:8000/api",
+        url: "https://server-uteq.nrsoftware.online/security/api",
         description: "Development server",
       },
       {
