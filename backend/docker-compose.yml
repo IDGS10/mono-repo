@@ -137,6 +137,34 @@ services:
           cpus: '1.0'
           memory: 512M
 
+# Organizations
+organizations:
+    build:
+      context: ./backend/organizations
+      dockerfile: Dockerfile
+      target: production
+      args:
+        - NODE_ENV=production
+    container_name: organizations
+    restart: unless-stopped
+    ports:
+      - "8200:8200"
+    environment:
+      - NODE_ENV=production
+      - PORT=8200
+    env_file:
+      - ./backend/organizations/.env
+    volumes:
+      - ./backend/organizations/logs:/app/logs
+      - ./shared:/shared:ro  # Mount shared middleware
+    networks:
+      - backend-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+
 
 
 
