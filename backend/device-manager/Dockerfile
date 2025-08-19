@@ -1,15 +1,3 @@
-# node-app Dockerfile
-FROM node:20
-
-WORKDIR /app
-
-COPY package*.json ./
-COPY . .
-
-RUN npm install
-EXPOSE 5057
-CMD ["node", "server.js"]
-
 # ========== BASE IMAGE ==========
 FROM node:20-alpine AS base
 
@@ -27,7 +15,46 @@ FROM base AS deps
 
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
+RUN npm ci --omit=dev && npm cache clean --force
+
+# ========== DEVELOPMENT ==========
+FROM base AS development
+
+WORKDIR /app
+
+# Copy package files and install all dependencies
+COPY package*.json ./
+RUN npm install
+
+# Copy source code
+COPY . ./
+
+# Change ownership to nodejs user
+RUN chown -R nodejs:nodejs /app
+USER nodejs
+
+EXPOSE 5057
+
+CMD ["dumb-init", "npm", "run", "dev"]
+
+# ========== PRODUCTION ==========
+FROM base AS production
+
+WORKDIR /app
+
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+
+# Copy source code
+COPY . ./
+
+# Change ownership to nodejs user
+RUN chown -R nodejs:nodejs /app
+USER nodejs
+
+EXPOSE 5057
+
+CMD ["dumb-init", "node", "server.js"]
 
 # ========== BUILD ==========
 FROM base AS build
@@ -75,3 +102,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 ENTRYPOINT ["dumb-init", "--"]
 
 CMD ["node", "server.js"]
+

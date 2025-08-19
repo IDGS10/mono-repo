@@ -13,7 +13,7 @@ router.get('/', (req, res) => {
     authentication: {
       type: 'Bearer Token',
       header: 'Authorization: Bearer <token>',
-      note: 'Get token from security service at http://localhost:8000',
+      note: 'Get token from security service at http://localhost:8010',
     },
     endpoints: {
       public: {

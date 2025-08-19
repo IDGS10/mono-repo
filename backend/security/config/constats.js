@@ -1,5 +1,5 @@
 module.exports = {
-  PORT: process.env.PORT || 8000,
+  PORT: process.env.PORT || 8010,
   JWT_SECRET: process.env.JWT_SECRET,
   SESSION_TIMEOUT: process.env.SESSION_TIMEOUT || "24h",
 

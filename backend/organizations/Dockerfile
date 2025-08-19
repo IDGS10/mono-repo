@@ -1,72 +1,63 @@
-# ===== BASE IMAGE =====
-FROM node:18-alpine AS base
+# ========== BASE IMAGE ==========
+FROM node:20-alpine AS base
 
 WORKDIR /app
 
-# Instalar dumb-init para manejo correcto de señales
+# Install dumb-init and curl for signal handling and healthcheck
 RUN apk add --no-cache dumb-init curl
 
-# Crear usuario no-root
+# Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
-# ===== DEPENDENCIES STAGE =====
+# ========== DEPENDENCIES ==========
 FROM base AS deps
 
 WORKDIR /app
-
-# Copiar package.json y package-lock.json
-COPY package*.json ./
-
-# Instalar dependencias de producción
+COPY organizations/package*.json ./
 RUN npm ci --only=production && npm cache clean --force
 
-# ===== BUILD STAGE =====
-FROM base AS build
+# ========== DEVELOPMENT ==========
+FROM base AS development
 
 WORKDIR /app
 
-COPY package*.json ./
+# Copy shared middleware first
+COPY shared/ /shared/
 
-# Instalar todas las dependencias (incluyendo dev)
-RUN npm ci
+# Copy package files and install all dependencies
+COPY organizations/package*.json ./
+RUN npm install
 
-# Copiar el código fuente
-COPY . .
+# Copy source code
+COPY organizations/ ./
 
-# Remover archivos innecesarios para producción
-RUN rm -rf tests/ .git/ .gitignore README.md
+# Change ownership to nodejs user
+RUN chown -R nodejs:nodejs /app
+USER nodejs
 
-# ===== PRODUCTION STAGE =====
+EXPOSE 8200
+
+CMD ["dumb-init", "npm", "run", "dev"]
+
+# ========== PRODUCTION ==========
 FROM base AS production
 
 WORKDIR /app
 
-# Variables de entorno
-ENV NODE_ENV=production
-ENV PORT=8200
+# Copy shared middleware
+COPY shared/ /shared/
 
-# Copiar dumb-init
-COPY --from=base /usr/bin/dumb-init /usr/bin/dumb-init
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
 
-# Copiar dependencias de producción
-COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules
+# Copy source code
+COPY organizations/ ./
 
-# Copiar el código
-COPY --from=build --chown=nodejs:nodejs /app ./ 
-
-# Permisos correctos
-RUN chown -R nodejs:nodejs /app && \
-    chmod -R 755 /app
-
-# Cambiar a usuario no-root
+# Change ownership to nodejs user
+RUN chown -R nodejs:nodejs /app
 USER nodejs
 
-# Exponer puerto del servicio
 EXPOSE 8200
 
-# Usar dumb-init
-ENTRYPOINT ["dumb-init", "--"]
-
-# Comando para iniciar la app
-CMD ["node", "server.js"]
+CMD ["dumb-init", "node", "server.js"]
