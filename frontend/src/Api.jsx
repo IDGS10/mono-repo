@@ -6,7 +6,7 @@ const getToken = () => {
 };
 
 export const SecurityApi = axios.create({
-  baseURL: "http://localhost:8010",
+  baseURL: "https://server-uteq.nrsoftware.online/security/api",
   headers: {
     "Content-Type": "application/json",
   },
@@ -15,7 +15,7 @@ export const SecurityApi = axios.create({
 });
 
 export const OrganizationsApi = axios.create({
-  baseURL: "http://localhost:8200/api",
+  baseURL: "https://server-uteq.nrsoftware.online/org/api",
   headers: {
     "Content-Type": "application/json",
   },
@@ -24,7 +24,7 @@ export const OrganizationsApi = axios.create({
 });
 
 export const ProjectsApi = axios.create({
-  baseURL: "http://localhost:3002/api",
+  baseURL: "https://server-uteq.nrsoftware.online/projects/api",
   headers: {
     "Content-Type": "application/json",
   },
@@ -33,7 +33,7 @@ export const ProjectsApi = axios.create({
 });
 
 export const SwarmsApi = axios.create({
-  baseURL: "http://localhost:5052",
+  baseURL: "https://server-uteq.nrsoftware.online/swarms",
   headers: {
     "Content-Type": "application/json",
   },
