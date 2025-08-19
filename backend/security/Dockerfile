@@ -46,7 +46,7 @@ WORKDIR /app
 
 # Set environment to production
 ENV NODE_ENV=production
-ENV PORT=8000
+ENV PORT=8010
 
 # Copy dumb-init
 COPY --from=base /usr/bin/dumb-init /usr/bin/dumb-init
@@ -74,14 +74,15 @@ RUN chown -R nodejs:nodejs /app && \
 USER nodejs
 
 # Expose port
-EXPOSE 8000
+EXPOSE 8010
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8000/api/health || exit 1
+  CMD curl -f http://localhost:8010/api/health || exit 1
 
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
 
 # Start the application
 CMD ["node", "server.js"]
+
