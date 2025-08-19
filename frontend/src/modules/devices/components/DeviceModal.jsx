@@ -14,6 +14,8 @@ const DeviceModal = ({ isOpen, onClose, onSubmit, formData, setFormData, editing
     onClose();
   };
 
+
+
   useEffect(() => {
     if (!isOpen) {
       setFormData({
